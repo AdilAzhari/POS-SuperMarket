@@ -1,0 +1,10 @@
+node_modules/
+public/
+vendor/
+storage/
+bootstrap/cache/
+dist/
+*.min.js
+*.min.css
+package-lock.json
+composer.lock
