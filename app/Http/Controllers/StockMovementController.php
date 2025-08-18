@@ -2,6 +2,8 @@
 
 namespace App\Http\Controllers;
 
+use App\Enums\StockMovementReason;
+use App\Enums\StockMovementType;
 use App\Http\Requests\StoreStockMovementRequest;
 use App\Http\Requests\UpdateStockMovementRequest;
 use App\Models\Product;
@@ -12,16 +14,19 @@ use Illuminate\Support\Facades\DB;
 class StockMovementController extends Controller
 {
     /**
-     * Get available adjustment types for stock movements.
+     * Get available adjustment types and reasons for stock movements.
      */
     public function getAdjustmentTypes()
     {
         return response()->json([
-            'types' => [
-                ['value' => 'addition', 'label' => 'Addition'],
-                ['value' => 'reduction', 'label' => 'Reduction'],
-                ['value' => 'transfer_out', 'label' => 'Transfer Out'],
-                ['value' => 'transfer_in', 'label' => 'Transfer In'],
+            'types' => StockMovementType::options(),
+            'reasons' => StockMovementReason::options(),
+            'reasonsByCategory' => [
+                'inbound' => StockMovementReason::byCategory('inbound'),
+                'outbound' => StockMovementReason::byCategory('outbound'),
+                'loss' => StockMovementReason::byCategory('loss'),
+                'adjustment' => StockMovementReason::byCategory('adjustment'),
+                'marketing' => StockMovementReason::byCategory('marketing'),
             ]
         ]);
     }
@@ -66,7 +71,8 @@ class StockMovementController extends Controller
                 }
 
                 $currentStock = (int) $product->stores()->where('stores.id', $store->id)->first()->pivot->stock;
-                $delta = in_array($data['type'], ['addition', 'transfer_in']) ? $data['quantity'] : -$data['quantity'];
+                $movementType = StockMovementType::from($data['type']);
+                $delta = $movementType->isPositive() ? $data['quantity'] : -$data['quantity'];
                 $newStock = max(0, $currentStock + $delta);
                 $product->stores()->updateExistingPivot($store->id, ['stock' => $newStock]);
 
