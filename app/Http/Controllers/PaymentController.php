@@ -2,6 +2,9 @@
 
 namespace App\Http\Controllers;
 
+use App\Enums\PaymentMethod;
+use App\Enums\PaymentStatus;
+use App\Enums\SaleStatus;
 use App\Models\Payment;
 use App\Models\Sale;
 use App\Services\PaymentService;
@@ -12,9 +15,8 @@ use Illuminate\Validation\Rule;
 
 class PaymentController extends Controller
 {
-    public function __construct()
+    public function __construct(protected PaymentService $paymentService)
     {
-        // PaymentService temporarily disabled due to Stripe dependency issues
     }
 
     /**
@@ -22,20 +24,22 @@ class PaymentController extends Controller
      */
     public function processPayment(Request $request): JsonResponse
     {
+        $paymentMethods = collect(PaymentMethod::cases())->pluck('value')->toArray();
+        
         $request->validate([
             'sale_id' => 'required|exists:sales,id',
-            'method' => ['required', Rule::in(['cash', 'stripe', 'visa', 'mastercard', 'amex', 'tng'])],
+            'method' => ['required', Rule::in($paymentMethods)],
             'currency' => 'string|size:3|in:MYR,USD,SGD',
 
             // Stripe specific
-            'payment_method_id' => 'required_if:method,stripe|string',
+            'payment_method_id' => 'required_if:method,card|string',
 
             // Card specific
-            'card_number' => 'required_if:method,visa,mastercard,amex|string|min:13|max:19',
-            'exp_month' => 'required_if:method,visa,mastercard,amex|integer|between:1,12',
-            'exp_year' => 'required_if:method,visa,mastercard,amex|integer|min:2024',
-            'cvv' => 'required_if:method,visa,mastercard,amex|string|size:3',
-            'cardholder_name' => 'required_if:method,visa,mastercard,amex|string|max:255',
+            'card_number' => 'required_if:method,card,digital|string|min:13|max:19',
+            'exp_month' => 'required_if:method,card,digital|integer|between:1,12',
+            'exp_year' => 'required_if:method,card,digital|integer|min:2024',
+            'cvv' => 'required_if:method,card,digital|string|size:3',
+            'cardholder_name' => 'required_if:method,card,digital|string|max:255',
 
             // TNG specific
             'phone' => 'required_if:method,tng|string|regex:/^(\+?6?01)[0-9]{8,9}$/',
@@ -45,7 +49,7 @@ class PaymentController extends Controller
             $sale = Sale::query()->findOrFail($request->sale_id);
 
             // Check if sale is already paid
-            if ($sale->status === 'completed' && $sale->payments()->where('status', 'completed')->exists()) {
+            if ($sale->status === SaleStatus::COMPLETED && $sale->payments()->where('status', PaymentStatus::COMPLETED)->exists()) {
                 return response()->json([
                     'message' => 'Sale is already paid',
                     'error' => 'ALREADY_PAID'
@@ -69,7 +73,7 @@ class PaymentController extends Controller
             // Update sale status if payment is completed
             if ($payment->isCompleted()) {
                 $sale->update([
-                    'status' => 'completed',
+                    'status' => SaleStatus::COMPLETED,
                     'paid_at' => now()
                 ]);
             }
@@ -77,7 +81,7 @@ class PaymentController extends Controller
             return response()->json([
                 'message' => 'Payment processed successfully',
                 'payment' => $payment->load(['sale', 'store']),
-                'requires_action' => $payment->status === 'processing'
+                'requires_action' => $payment->status === PaymentStatus::PROCESSING
             ], 201);
 
         } catch (Exception $e) {
@@ -93,53 +97,43 @@ class PaymentController extends Controller
      */
     public function getPaymentMethods(): JsonResponse
     {
-        return response()->json([
-            'methods' => [
-                [
-                    'code' => 'cash',
-                    'name' => 'Cash',
-                    'icon' => '💵',
-                    'fee_rate' => 0,
-                    'enabled' => true
-                ],
-                [
-                    'code' => 'stripe',
-                    'name' => 'Stripe (Credit/Debit Card)',
-                    'icon' => '💳',
-                    'fee_rate' => 2.9,
-                    'fee_fixed' => 0.50,
-                    'enabled' => true
-                ],
-                [
-                    'code' => 'visa',
-                    'name' => 'Visa',
-                    'icon' => '💳',
-                    'fee_rate' => 2.5,
-                    'enabled' => true
-                ],
-                [
-                    'code' => 'mastercard',
-                    'name' => 'Mastercard',
-                    'icon' => '💳',
-                    'fee_rate' => 2.5,
-                    'enabled' => true
-                ],
-                [
-                    'code' => 'amex',
-                    'name' => 'American Express',
-                    'icon' => '💳',
-                    'fee_rate' => 3.5,
-                    'enabled' => true
-                ],
-                [
-                    'code' => 'tng',
-                    'name' => 'Touch n Go eWallet',
-                    'icon' => '📱',
-                    'fee_rate' => 1.5,
-                    'enabled' => true
-                ]
-            ]
-        ]);
+        $methods = collect(PaymentMethod::cases())->map(function ($method) {
+            $feeRate = match($method) {
+                PaymentMethod::CASH => 0,
+                PaymentMethod::CARD => 2.9,
+                PaymentMethod::DIGITAL => 2.5,
+                PaymentMethod::BANK_TRANSFER => 1.0,
+                PaymentMethod::TOUCHNGO => 1.5,
+                PaymentMethod::GRAB_PAY => 2.0,
+                PaymentMethod::MOBILE_PAYMENT => 2.2,
+            };
+
+            $feeFixed = match($method) {
+                PaymentMethod::CARD => 0.50,
+                default => 0,
+            };
+
+            $icon = match($method) {
+                PaymentMethod::CASH => '💵',
+                PaymentMethod::CARD => '💳',
+                PaymentMethod::DIGITAL => '🔗',
+                PaymentMethod::BANK_TRANSFER => '🏦',
+                PaymentMethod::TOUCHNGO => '📱',
+                PaymentMethod::GRAB_PAY => '🚗',
+                PaymentMethod::MOBILE_PAYMENT => '📱',
+            };
+
+            return [
+                'code' => $method->value,
+                'name' => $method->label(),
+                'icon' => $icon,
+                'fee_rate' => $feeRate,
+                'fee_fixed' => $feeFixed,
+                'enabled' => true
+            ];
+        });
+
+        return response()->json(['methods' => $methods]);
     }
 
     /**
@@ -154,8 +148,8 @@ class PaymentController extends Controller
 
         return response()->json([
             'payments' => $payments,
-            'total_paid' => $payments->where('status', 'completed')->sum('amount'),
-            'total_fees' => $payments->where('status', 'completed')->sum('fee')
+            'total_paid' => $payments->where('status', PaymentStatus::COMPLETED)->sum('amount'),
+            'total_fees' => $payments->where('status', PaymentStatus::COMPLETED)->sum('fee')
         ]);
     }
 
@@ -219,7 +213,7 @@ class PaymentController extends Controller
         ]);
 
         $query = Payment::query()
-            ->where('status', 'completed');
+            ->where('status', PaymentStatus::COMPLETED);
 
         if ($request->start_date) {
             $query->whereDate('created_at', '>=', $request->start_date);
