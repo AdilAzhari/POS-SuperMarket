@@ -17,10 +17,40 @@ class StoreFactory extends Factory
     public function definition(): array
     {
         return [
-            'name' => fake()->company(),
+            'name' => fake()->company() . ' Store',
             'address' => fake()->address(),
             'phone' => fake()->phoneNumber(),
             'email' => fake()->companyEmail(),
         ];
+    }
+
+    /**
+     * Main store
+     */
+    public function main(): static
+    {
+        return $this->state(fn (array $attributes) => [
+            'name' => 'Main Store',
+        ]);
+    }
+
+    /**
+     * Branch store
+     */
+    public function branch(): static
+    {
+        return $this->state(fn (array $attributes) => [
+            'name' => fake()->city() . ' Branch',
+        ]);
+    }
+
+    /**
+     * Outlet store
+     */
+    public function outlet(): static
+    {
+        return $this->state(fn (array $attributes) => [
+            'name' => fake()->streetName() . ' Outlet',
+        ]);
     }
 }
