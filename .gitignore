@@ -22,3 +22,9 @@
 Homestead.json
 Homestead.yaml
 Thumbs.db
+
+# Claude Code configuration
+.claude/
+
+# Project documentation (local only)
+IMPROVEMENTS_SUMMARY.md
