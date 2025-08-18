@@ -12,7 +12,9 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
-        //
+        $this->app->singleton(\App\Services\StockService::class);
+        $this->app->singleton(\App\Services\SaleService::class);
+        $this->app->singleton(\App\Services\ProductService::class);
     }
 
     /**
