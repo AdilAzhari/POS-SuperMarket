@@ -17,10 +17,41 @@ class SupplierFactory extends Factory
     public function definition(): array
     {
         return [
-            'name' => fake()->unique()->company(),
+            'name' => fake()->company(),
             'contact_phone' => fake()->phoneNumber(),
             'contact_email' => fake()->companyEmail(),
             'address' => fake()->address(),
         ];
+    }
+
+    /**
+     * International supplier
+     */
+    public function international(): static
+    {
+        return $this->state(fn (array $attributes) => [
+            'name' => fake()->company() . ' International',
+            'contact_phone' => '+' . fake()->numberBetween(1, 999) . ' ' . fake()->phoneNumber(),
+        ]);
+    }
+
+    /**
+     * Local supplier
+     */
+    public function local(): static
+    {
+        return $this->state(fn (array $attributes) => [
+            'name' => fake()->city() . ' ' . fake()->companySuffix(),
+        ]);
+    }
+
+    /**
+     * Supplier without email
+     */
+    public function noEmail(): static
+    {
+        return $this->state(fn (array $attributes) => [
+            'contact_email' => null,
+        ]);
     }
 }

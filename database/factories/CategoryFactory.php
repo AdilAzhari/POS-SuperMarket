@@ -16,11 +16,49 @@ class CategoryFactory extends Factory
      */
     public function definition(): array
     {
-        $name = fake()->unique()->word();
+        $categories = [
+            'Electronics', 'Clothing', 'Food & Beverages', 'Home & Garden', 
+            'Health & Beauty', 'Sports & Outdoors', 'Books & Media', 'Toys & Games'
+        ];
+        
+        $name = fake()->randomElement($categories) . ' ' . fake()->word();
 
         return [
-            'name' => ucfirst($name),
+            'name' => $name,
             'slug' => str($name)->slug(),
         ];
+    }
+
+    /**
+     * Electronics category
+     */
+    public function electronics(): static
+    {
+        return $this->state(fn (array $attributes) => [
+            'name' => 'Electronics',
+            'slug' => 'electronics',
+        ]);
+    }
+
+    /**
+     * Food category
+     */
+    public function food(): static
+    {
+        return $this->state(fn (array $attributes) => [
+            'name' => 'Food & Beverages',
+            'slug' => 'food-beverages',
+        ]);
+    }
+
+    /**
+     * Clothing category
+     */
+    public function clothing(): static
+    {
+        return $this->state(fn (array $attributes) => [
+            'name' => 'Clothing',
+            'slug' => 'clothing',
+        ]);
     }
 }
