@@ -35,6 +35,7 @@ class DatabaseSeeder extends Seeder
             ProductSeeder::class,      // Depends on: categories, suppliers
             SaleSeeder::class,         // Depends on: stores, customers, users
             SaleItemSeeder::class,     // Depends on: sales, products
+            PaymentSeeder::class,      // Depends on: sales, stores, users
             StockMovementSeeder::class, // Depends on: products, stores, users
         ]);
 
