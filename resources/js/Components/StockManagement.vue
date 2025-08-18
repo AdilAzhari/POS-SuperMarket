@@ -14,22 +14,36 @@
         <h3 class="font-semibold text-gray-900 mb-3">New Adjustment</h3>
         <form class="space-y-3" @submit.prevent="submit">
           <div>
-            <label class="text-xs text-gray-500">Product</label>
-            <select v-model="selectedSku" required class="w-full px-3 py-2 border rounded-lg">
+            <label class="text-xs text-gray-500">Product *</label>
+            <select 
+              v-model="selectedProductId" 
+              required 
+              class="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            >
               <option value="">Select product</option>
-              <option v-for="i in inventory.inventoryItems" :key="i.id" :value="i.sku">
-                {{ i.name }} ({{ i.sku }})
+              <option 
+                v-for="product in productsStore.products" 
+                :key="product.id" 
+                :value="product.id"
+              >
+                {{ product.name }} (SKU: {{ product.sku }}) - Stock: {{ getProductStock(product.id) }}
               </option>
             </select>
           </div>
           <div>
-            <label class="text-xs text-gray-500">Type</label>
-            <select v-model="type" required class="w-full px-3 py-2 border rounded-lg">
+            <label class="text-xs text-gray-500">Type *</label>
+            <select 
+              v-model="type" 
+              required 
+              class="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              @change="resetReasonOnTypeChange"
+            >
               <option value="">Select type</option>
               <option
                 v-for="typeOption in adjustmentTypes"
                 :key="typeOption.value"
                 :value="typeOption.value"
+                :class="`text-${typeOption.color}-600`"
               >
                 {{ typeOption.label }}
               </option>
@@ -46,13 +60,27 @@
             />
           </div>
           <div>
-            <label class="text-xs text-gray-500">Reason</label>
-            <input
-              v-model="reason"
-              required
-              placeholder="e.g., New stock delivery"
-              class="w-full px-3 py-2 border rounded-lg"
-            />
+            <label class="text-xs text-gray-500">Reason *</label>
+            <select 
+              v-model="reason" 
+              required 
+              class="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            >
+              <option value="">Select reason</option>
+              <optgroup 
+                v-for="(reasons, category) in getFilteredReasons()" 
+                :key="category"
+                :label="category.charAt(0).toUpperCase() + category.slice(1)"
+              >
+                <option
+                  v-for="reasonOption in reasons"
+                  :key="reasonOption.value"
+                  :value="reasonOption.value"
+                >
+                  {{ reasonOption.label }}
+                </option>
+              </optgroup>
+            </select>
           </div>
           <div v-if="isTransfer" class="grid grid-cols-2 gap-2">
             <div>
@@ -162,7 +190,7 @@ productsStore.fetchProducts().catch(() => {})
 // Load initial data
 inventory.fetchStockMovements().catch(() => {})
 
-const selectedSku = ref('')
+const selectedProductId = ref('')
 const type = ref('addition')
 const quantity = ref(1)
 const reason = ref('')
@@ -170,8 +198,10 @@ const notes = ref('')
 const fromStore = ref('')
 const toStore = ref('')
 
-// Add state for adjustment types
+// Add state for adjustment types and reasons
 const adjustmentTypes = ref([])
+const adjustmentReasons = ref([])
+const reasonsByCategory = ref({})
 
 // Add loading state
 const isSubmitting = ref(false)
@@ -189,19 +219,30 @@ const notify = (msg, type = 'success') => {
   flashTimer = window.setTimeout(() => (flashMessage.value = ''), 3000)
 }
 
-// Fetch adjustment types from backend
+// Fetch adjustment types and reasons from backend
 const fetchAdjustmentTypes = async () => {
   try {
     const response = await axios.get('/api/stock-movement-types')
     adjustmentTypes.value = response.data.types
+    adjustmentReasons.value = response.data.reasons
+    reasonsByCategory.value = response.data.reasonsByCategory
   } catch (error) {
     console.error('Failed to fetch adjustment types:', error)
     // Fallback to hardcoded types
     adjustmentTypes.value = [
-      { value: 'addition', label: 'Addition' },
-      { value: 'reduction', label: 'Reduction' },
-      { value: 'transfer_out', label: 'Transfer Out' },
-      { value: 'transfer_in', label: 'Transfer In' },
+      { value: 'addition', label: 'Addition', color: 'green' },
+      { value: 'reduction', label: 'Reduction', color: 'red' },
+      { value: 'transfer_out', label: 'Transfer Out', color: 'orange' },
+      { value: 'transfer_in', label: 'Transfer In', color: 'blue' },
+      { value: 'adjustment', label: 'Stock Adjustment', color: 'purple' },
+    ]
+    adjustmentReasons.value = [
+      { value: 'purchase', label: 'Purchase from Supplier', category: 'inbound' },
+      { value: 'sale', label: 'Sold to Customer', category: 'outbound' },
+      { value: 'return', label: 'Customer Return', category: 'inbound' },
+      { value: 'damaged', label: 'Damaged Goods', category: 'loss' },
+      { value: 'expired', label: 'Expired Items', category: 'loss' },
+      { value: 'recount', label: 'Inventory Recount', category: 'adjustment' },
     ]
   }
 }
@@ -210,6 +251,50 @@ const fetchAdjustmentTypes = async () => {
 fetchAdjustmentTypes().catch(() => {})
 
 const isTransfer = computed(() => type.value === 'transfer_out' || type.value === 'transfer_in')
+
+// Helper function to get product stock
+const getProductStock = (productId) => {
+  const item = inventory.inventoryItems.find(i => i.id === productId)
+  return item ? item.currentStock : 0
+}
+
+// Helper function to get filtered reasons based on movement type
+const getFilteredReasons = () => {
+  if (!reasonsByCategory.value || Object.keys(reasonsByCategory.value).length === 0) {
+    return { all: adjustmentReasons.value }
+  }
+  
+  // Filter reasons based on movement type
+  switch (type.value) {
+    case 'addition':
+      return {
+        inbound: reasonsByCategory.value.inbound || [],
+        adjustment: reasonsByCategory.value.adjustment || []
+      }
+    case 'reduction':
+      return {
+        outbound: reasonsByCategory.value.outbound || [],
+        loss: reasonsByCategory.value.loss || [],
+        marketing: reasonsByCategory.value.marketing || []
+      }
+    case 'transfer_out':
+    case 'transfer_in':
+      return {
+        transfer: reasonsByCategory.value.outbound?.filter(r => r.value === 'transfer') || []
+      }
+    case 'adjustment':
+      return {
+        adjustment: reasonsByCategory.value.adjustment || []
+      }
+    default:
+      return reasonsByCategory.value
+  }
+}
+
+// Reset reason when type changes
+const resetReasonOnTypeChange = () => {
+  reason.value = ''
+}
 
 const toNumericStoreId = (val) => {
   const n = parseInt(String(val).replace(/\D+/g, ''), 10)
@@ -223,7 +308,7 @@ const submit = async () => {
     isSubmitting.value = true
 
     // Validate required fields
-    if (!selectedSku.value) {
+    if (!selectedProductId.value) {
       notify('Please select a product', 'error')
       return
     }
@@ -238,12 +323,12 @@ const submit = async () => {
       return
     }
 
-    if (!reason.value.trim()) {
-      notify('Please provide a reason for the adjustment', 'error')
+    if (!reason.value) {
+      notify('Please select a reason for the adjustment', 'error')
       return
     }
 
-    const product = productsStore.products.find(p => p.sku === selectedSku.value)
+    const product = productsStore.products.find(p => p.id === parseInt(selectedProductId.value))
     if (!product) {
       notify('Selected product not found', 'error')
       return
@@ -273,7 +358,7 @@ const submit = async () => {
     })
 
     // Optimistic local update for overview
-    const item = inventory.inventoryItems.find(i => i.sku === selectedSku.value)
+    const item = inventory.inventoryItems.find(i => i.id === parseInt(selectedProductId.value))
     if (item) {
       if (type.value === 'addition' || type.value === 'transfer_in') {
         item.currentStock += quantity.value
@@ -285,7 +370,7 @@ const submit = async () => {
     notify('Stock movement recorded successfully')
 
     // reset form
-    selectedSku.value = ''
+    selectedProductId.value = ''
     type.value = 'addition'
     quantity.value = 1
     reason.value = ''

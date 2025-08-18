@@ -2,7 +2,10 @@
 
 namespace Database\Factories;
 
+use App\Enums\PaymentMethod;
+use App\Enums\SaleStatus;
 use App\Models\Customer;
+use App\Models\Sale;
 use App\Models\Store;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Factories\Factory;
@@ -34,9 +37,9 @@ class SaleFactory extends Factory
             'discount' => $discount,
             'tax' => $tax,
             'total' => $total,
-            'payment_method' => fake()->randomElement(['cash', 'card', 'mobile_payment']),
-            'status' => 'completed',
-            'paid_at' => fake()->dateTimeBetween('-30 days', 'now'),
+            'payment_method' => fake()->randomElement(PaymentMethod::cases()),
+            'status' => fake()->randomElement(SaleStatus::cases()),
+            'paid_at' => fake()->dateTimeBetween('-30 days'),
         ];
     }
 
@@ -96,7 +99,7 @@ class SaleFactory extends Factory
     public function pending(): static
     {
         return $this->state(fn (array $attributes) => [
-            'status' => 'pending',
+            'status' => SaleStatus::PENDING,
             'paid_at' => null,
         ]);
     }
@@ -107,7 +110,7 @@ class SaleFactory extends Factory
     public function cardPayment(): static
     {
         return $this->state(fn (array $attributes) => [
-            'payment_method' => 'card',
+            'payment_method' => PaymentMethod::CARD,
         ]);
     }
 

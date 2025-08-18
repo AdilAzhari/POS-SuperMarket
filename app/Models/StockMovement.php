@@ -2,6 +2,8 @@
 
 namespace App\Models;
 
+use App\Enums\StockMovementReason;
+use App\Enums\StockMovementType;
 use Database\Factories\StockMovementFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -29,6 +31,8 @@ class StockMovement extends Model
     protected $casts = [
         'quantity' => 'integer',
         'occurred_at' => 'datetime',
+        'type' => StockMovementType::class,
+        'reason' => StockMovementReason::class,
     ];
 
     protected static function boot()

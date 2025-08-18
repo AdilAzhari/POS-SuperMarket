@@ -2,6 +2,8 @@
 
 namespace App\Models;
 
+use App\Enums\PaymentMethod;
+use App\Enums\SaleStatus;
 use Database\Factories\SaleFactory;
 use Illuminate\Database\Eloquent\Attributes\Scope;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -37,6 +39,8 @@ class Sale extends Model
         'tax' => 'decimal:2',
         'total' => 'decimal:2',
         'paid_at' => 'datetime',
+        'payment_method' => PaymentMethod::class,
+        'status' => SaleStatus::class,
     ];
 
     public function store(): BelongsTo
@@ -71,7 +75,7 @@ class Sale extends Model
     #[Scope]
     public function completed($query)
     {
-        return $query->where('status', 'completed');
+        return $query->where('status', SaleStatus::COMPLETED);
     }
 
     #[Scope]
