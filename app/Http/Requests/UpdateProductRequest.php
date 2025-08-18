@@ -1,0 +1,45 @@
+<?php
+
+namespace App\Http\Requests;
+
+use Illuminate\Foundation\Http\FormRequest;
+
+class UpdateProductRequest extends FormRequest
+{
+    /**
+     * Determine if the user is authorized to make this request.
+     */
+    public function authorize(): bool
+    {
+        return true;
+    }
+
+    /**
+     * Get the validation rules that apply to the request.
+     *
+     * @return array<string, \Illuminate\Contracts\Validation\ValidationRule|array<mixed>|string>
+     */
+    public function rules(): array
+    {
+        $productId = $this->route('product')?->id ?? 'NULL';
+
+        return [
+            'category_id' => ['nullable', 'exists:categories,id'],
+            'supplier_id' => ['nullable', 'exists:suppliers,id'],
+            'name' => ['sometimes', 'string', 'max:255'],
+            'sku' => [
+                'sometimes', 'string', 'max:255',
+                "unique:products,sku,{$productId}",
+            ],
+            'barcode' => [
+                'sometimes', 'string', 'max:255',
+                "unique:products,barcode,{$productId}",
+            ],
+            'price' => ['sometimes', 'numeric', 'min:0'],
+            'cost' => ['sometimes', 'numeric', 'min:0'],
+            'active' => ['sometimes', 'boolean'],
+            'low_stock_threshold' => ['sometimes', 'integer', 'min:0'],
+            'image_url' => ['nullable', 'url'],
+        ];
+    }
+}
