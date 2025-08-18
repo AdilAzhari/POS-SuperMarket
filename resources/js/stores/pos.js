@@ -71,7 +71,10 @@ export const usePOSStore = defineStore('pos', () => {
   }
 
   const checkout = async (options) => {
-    if (cartItems.value.length === 0) return
+    if (cartItems.value.length === 0) {
+      throw new Error('Cart is empty')
+    }
+    
     const storeId = Number(options?.storeId ?? 1)
     const payload = {
       store_id: storeId,
@@ -87,8 +90,20 @@ export const usePOSStore = defineStore('pos', () => {
       discount: totalDiscount.value,
       tax: tax.value,
     }
-    await axios.post('/sales', payload)
-    clearCart()
+    
+    try {
+      const response = await axios.post('/api/sales', payload)
+      
+      if (!response.data) {
+        throw new Error('Invalid response from server')
+      }
+      
+      // Don't clear cart here - let the payment processing handle it
+      return response.data
+    } catch (error) {
+      console.error('Failed to create sale:', error)
+      throw error
+    }
   }
 
   const setSelectedCustomer = (customer) => {
