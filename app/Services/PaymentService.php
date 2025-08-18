@@ -2,20 +2,26 @@
 
 namespace App\Services;
 
+use App\Enums\PaymentMethod;
+use App\Enums\PaymentStatus;
 use App\Models\Payment;
 use App\Models\Sale;
+use Exception;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use InvalidArgumentException;
+use Stripe\Exception\ApiErrorException;
+use Stripe\StripeClient;
 
 class PaymentService
 {
-    private $stripe;
+    private StripeClient $stripe;
 
     public function __construct()
     {
         // Initialize Stripe only if the package is available
         if (class_exists('Stripe\StripeClient')) {
-            $this->stripe = new \Stripe\StripeClient(env('STRIPE_SECRET_KEY'));
+            $this->stripe = new StripeClient(env('STRIPE_SECRET_KEY'));
         }
     }
 
@@ -25,34 +31,23 @@ class PaymentService
     public function processPayment(Sale $sale, array $paymentData): Payment
     {
         return DB::transaction(function () use ($sale, $paymentData) {
-            $payment = Payment::create([
+            $payment = Payment::query()->create([
                 'sale_id' => $sale->id,
                 'store_id' => $sale->store_id,
                 'user_id' => $sale->cashier_id,
                 'payment_method' => $paymentData['method'],
                 'amount' => $sale->total,
                 'currency' => $paymentData['currency'] ?? 'MYR',
-                'status' => 'pending',
+                'status' => PaymentStatus::PENDING,
             ]);
 
-            switch ($paymentData['method']) {
-                case 'cash':
-                    return $this->processCashPayment($payment, $paymentData);
-                
-                case 'stripe':
-                    return $this->processStripePayment($payment, $paymentData);
-                
-                case 'visa':
-                case 'mastercard':
-                case 'amex':
-                    return $this->processCardPayment($payment, $paymentData);
-                
-                case 'tng':
-                    return $this->processTngPayment($payment, $paymentData);
-                
-                default:
-                    throw new \InvalidArgumentException("Unsupported payment method: {$paymentData['method']}");
-            }
+            return match (PaymentMethod::from($paymentData['method'])) {
+                PaymentMethod::CASH => $this->processCashPayment($payment, $paymentData),
+                PaymentMethod::CARD => $this->processStripePayment($payment, $paymentData),
+                PaymentMethod::DIGITAL => $this->processCardPayment($payment, $paymentData),
+                PaymentMethod::TOUCHNGO => $this->processTngPayment($payment, $paymentData),
+                default => throw new InvalidArgumentException("Unsupported payment method: {$paymentData['method']}"),
+            };
         });
     }
 
@@ -62,7 +57,7 @@ class PaymentService
     private function processCashPayment(Payment $payment, array $data): Payment
     {
         $payment->update([
-            'status' => 'completed',
+            'status' => PaymentStatus::COMPLETED,
             'processed_at' => now(),
             'notes' => 'Cash payment processed at POS'
         ]);
@@ -77,6 +72,7 @@ class PaymentService
 
     /**
      * Process Stripe payment
+     * @throws ApiErrorException
      */
     private function processStripePayment(Payment $payment, array $data): Payment
     {
@@ -96,13 +92,13 @@ class PaymentService
             ]);
 
             $fee = $this->calculateStripeFee($payment->amount);
-            
+
             $payment->update([
                 'gateway_transaction_id' => $paymentIntent->id,
                 'gateway_response' => $paymentIntent->toArray(),
                 'fee' => $fee,
                 'net_amount' => $payment->amount - $fee,
-                'status' => $paymentIntent->status === 'succeeded' ? 'completed' : 'processing',
+                'status' => $paymentIntent->status === 'succeeded' ? PaymentStatus::COMPLETED : PaymentStatus::PROCESSING,
                 'processed_at' => $paymentIntent->status === 'succeeded' ? now() : null,
             ]);
 
@@ -115,9 +111,9 @@ class PaymentService
 
             return $payment;
 
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             $payment->markAsFailed($e->getMessage());
-            
+
             Log::error('Stripe payment failed', [
                 'payment_id' => $payment->id,
                 'error' => $e->getMessage()
@@ -129,26 +125,27 @@ class PaymentService
 
     /**
      * Process card payment (via bank gateway or other card processor)
+     * @throws Exception
      */
     private function processCardPayment(Payment $payment, array $data): Payment
     {
         try {
             // Simulate card payment processing
             // In real implementation, integrate with bank gateway or card processor
-            
+
             $isSuccess = $this->simulateCardPayment($data);
-            
+
             if ($isSuccess) {
                 $fee = $this->calculateCardFee($payment->amount, $payment->payment_method);
-                
+
                 $payment->update([
-                    'status' => 'completed',
+                    'status' => PaymentStatus::COMPLETED,
                     'processed_at' => now(),
                     'fee' => $fee,
                     'net_amount' => $payment->amount - $fee,
                     'gateway_reference' => 'CARD-' . uniqid(),
                     'card_last_four' => substr($data['card_number'] ?? '****', -4),
-                    'card_brand' => $payment->payment_method,
+                    'card_brand' => $payment->payment_method->value,
                     'card_exp_month' => $data['exp_month'] ?? null,
                     'card_exp_year' => $data['exp_year'] ?? null,
                 ]);
@@ -159,7 +156,7 @@ class PaymentService
                 ]);
             } else {
                 $payment->markAsFailed('Card payment declined');
-                
+
                 Log::warning('Card payment declined', [
                     'payment_id' => $payment->id
                 ]);
@@ -167,9 +164,9 @@ class PaymentService
 
             return $payment;
 
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             $payment->markAsFailed($e->getMessage());
-            
+
             Log::error('Card payment failed', [
                 'payment_id' => $payment->id,
                 'error' => $e->getMessage()
@@ -181,20 +178,21 @@ class PaymentService
 
     /**
      * Process TNG eWallet payment
+     * @throws Exception
      */
     private function processTngPayment(Payment $payment, array $data): Payment
     {
         try {
             // Simulate TNG payment processing
             // In real implementation, integrate with TNG API
-            
+
             $tngResponse = $this->simulateTngPayment($data);
-            
+
             if ($tngResponse['success']) {
                 $fee = $this->calculateTngFee($payment->amount);
-                
+
                 $payment->update([
-                    'status' => 'completed',
+                    'status' => PaymentStatus::COMPLETED,
                     'processed_at' => now(),
                     'fee' => $fee,
                     'net_amount' => $payment->amount - $fee,
@@ -210,7 +208,7 @@ class PaymentService
                 ]);
             } else {
                 $payment->markAsFailed($tngResponse['message']);
-                
+
                 Log::warning('TNG payment failed', [
                     'payment_id' => $payment->id,
                     'reason' => $tngResponse['message']
@@ -219,9 +217,9 @@ class PaymentService
 
             return $payment;
 
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             $payment->markAsFailed($e->getMessage());
-            
+
             Log::error('TNG payment failed', [
                 'payment_id' => $payment->id,
                 'error' => $e->getMessage()
@@ -242,15 +240,15 @@ class PaymentService
     /**
      * Calculate card processing fee
      */
-    private function calculateCardFee(float $amount, string $cardType): float
+    private function calculateCardFee(float $amount, PaymentMethod $paymentMethod): float
     {
-        $rates = [
-            'visa' => 0.025,      // 2.5%
-            'mastercard' => 0.025, // 2.5%
-            'amex' => 0.035,      // 3.5%
-        ];
+        $rate = match($paymentMethod) {
+            PaymentMethod::CARD => 0.029,      // 2.9%
+            PaymentMethod::DIGITAL => 0.025,   // 2.5%
+            PaymentMethod::BANK_TRANSFER => 0.010, // 1.0%
+            default => 0.025,
+        };
 
-        $rate = $rates[$cardType] ?? 0.025;
         return round($amount * $rate, 2);
     }
 
@@ -277,7 +275,7 @@ class PaymentService
     private function simulateTngPayment(array $data): array
     {
         $success = rand(1, 100) <= 98; // 98% success rate
-        
+
         return [
             'success' => $success,
             'reference' => $success ? 'TNG' . time() . rand(1000, 9999) : null,
@@ -292,26 +290,19 @@ class PaymentService
     public function refundPayment(Payment $payment, ?float $amount = null): bool
     {
         $refundAmount = $amount ?? $payment->amount;
-        
+
         try {
-            switch ($payment->payment_method) {
-                case 'stripe':
-                    return $this->refundStripePayment($payment, $refundAmount);
-                
-                case 'cash':
-                    return $this->refundCashPayment($payment, $refundAmount);
-                
-                default:
-                    // For other payment methods, mark as refunded manually
-                    $payment->update(['status' => 'refunded']);
-                    return true;
-            }
-        } catch (\Exception $e) {
+            return match ($payment->payment_method) {
+                PaymentMethod::CARD => $this->refundStripePayment($payment, $refundAmount),
+                PaymentMethod::CASH => $this->refundCashPayment($payment, $refundAmount),
+                default => $this->refundGenericPayment($payment, $refundAmount),
+            };
+        } catch (Exception $e) {
             Log::error('Payment refund failed', [
                 'payment_id' => $payment->id,
                 'error' => $e->getMessage()
             ]);
-            
+
             return false;
         }
     }
@@ -324,20 +315,20 @@ class PaymentService
                 'amount' => (int)($amount * 100), // Convert to cents
             ]);
 
-            $payment->update(['status' => 'refunded']);
-            
+            $payment->update(['status' => PaymentStatus::REFUNDED]);
+
             Log::info('Stripe payment refunded', [
                 'payment_id' => $payment->id,
                 'refund_id' => $refund->id
             ]);
 
             return true;
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             Log::error('Stripe refund failed', [
                 'payment_id' => $payment->id,
                 'error' => $e->getMessage()
             ]);
-            
+
             return false;
         }
     }
@@ -346,8 +337,19 @@ class PaymentService
     {
         // Cash refunds are handled manually at POS
         $payment->update([
-            'status' => 'refunded',
+            'status' => PaymentStatus::REFUNDED,
             'notes' => 'Cash refund processed manually at POS'
+        ]);
+
+        return true;
+    }
+
+    private function refundGenericPayment(Payment $payment, float $amount): bool
+    {
+        // For other payment methods, mark as refunded manually
+        $payment->update([
+            'status' => PaymentStatus::REFUNDED,
+            'notes' => 'Manual refund processed'
         ]);
         
         return true;

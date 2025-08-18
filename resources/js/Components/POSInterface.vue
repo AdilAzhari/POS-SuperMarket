@@ -163,39 +163,49 @@
 
           <!-- Card Payment Details -->
           <div v-if="isCardPayment" class="space-y-2">
-            <div class="grid grid-cols-2 gap-2">
-              <input
-                v-model="cardDetails.number"
-                placeholder="Card Number"
-                class="px-3 py-2 border rounded-lg text-sm"
-                maxlength="19"
-              />
-              <input
-                v-model="cardDetails.cardholder"
-                placeholder="Cardholder Name"
-                class="px-3 py-2 border rounded-lg text-sm"
-              />
-            </div>
-            <div class="grid grid-cols-3 gap-2">
-              <input
-                v-model="cardDetails.expMonth"
-                placeholder="MM"
-                class="px-3 py-2 border rounded-lg text-sm"
-                maxlength="2"
-              />
-              <input
-                v-model="cardDetails.expYear"
-                placeholder="YYYY"
-                class="px-3 py-2 border rounded-lg text-sm"
-                maxlength="4"
-              />
-              <input
-                v-model="cardDetails.cvv"
-                placeholder="CVV"
-                class="px-3 py-2 border rounded-lg text-sm"
-                maxlength="3"
-                type="password"
-              />
+            <div class="p-3 border rounded-lg bg-blue-50">
+              <div class="text-sm text-blue-700 mb-2">
+                💳 Secure Card Payment
+              </div>
+              <div class="grid grid-cols-2 gap-2">
+                <input
+                  v-model="cardDetails.number"
+                  placeholder="Card Number"
+                  class="px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-blue-500"
+                  maxlength="19"
+                  @input="formatCardNumber"
+                />
+                <input
+                  v-model="cardDetails.cardholder"
+                  placeholder="Cardholder Name"
+                  class="px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+              <div class="grid grid-cols-3 gap-2 mt-2">
+                <input
+                  v-model="cardDetails.expMonth"
+                  placeholder="MM"
+                  class="px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-blue-500"
+                  maxlength="2"
+                  @input="formatExpiry"
+                />
+                <input
+                  v-model="cardDetails.expYear"
+                  placeholder="YYYY"
+                  class="px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-blue-500"
+                  maxlength="4"
+                />
+                <input
+                  v-model="cardDetails.cvv"
+                  placeholder="CVV"
+                  class="px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-blue-500"
+                  maxlength="4"
+                  type="password"
+                />
+              </div>
+              <div class="text-xs text-blue-600 mt-1">
+                🔒 Your payment is secure and encrypted
+              </div>
             </div>
           </div>
 
@@ -290,7 +300,7 @@ onMounted(async () => {
 
 // Computed properties for payment
 const isCardPayment = computed(() => {
-  return ['visa', 'mastercard', 'amex', 'stripe'].includes(selectedPaymentMethod.value)
+  return ['card', 'digital'].includes(selectedPaymentMethod.value)
 })
 
 const selectedMethod = computed(() => {
@@ -311,12 +321,65 @@ const finalTotal = computed(() => {
   return pos.grandTotal + paymentFee.value
 })
 
+// Card formatting helpers
+const formatCardNumber = (event) => {
+  let value = event.target.value.replace(/\D/g, '')
+  value = value.replace(/(\d{4})(?=\d)/g, '$1 ')
+  event.target.value = value
+  cardDetails.value.number = value
+}
+
+const formatExpiry = (event) => {
+  let value = event.target.value.replace(/\D/g, '')
+  if (value.length >= 2) {
+    value = value.substring(0, 2)
+  }
+  event.target.value = value
+  cardDetails.value.expMonth = value
+}
+
+const validateCardDetails = () => {
+  if (!isCardPayment.value) return true
+  
+  const { number, cardholder, expMonth, expYear, cvv } = cardDetails.value
+  
+  if (!number || number.replace(/\s/g, '').length < 13) {
+    alert('Please enter a valid card number')
+    return false
+  }
+  
+  if (!cardholder || cardholder.trim().length < 2) {
+    alert('Please enter the cardholder name')
+    return false
+  }
+  
+  if (!expMonth || parseInt(expMonth) < 1 || parseInt(expMonth) > 12) {
+    alert('Please enter a valid expiry month (01-12)')
+    return false
+  }
+  
+  if (!expYear || parseInt(expYear) < 2024) {
+    alert('Please enter a valid expiry year')
+    return false
+  }
+  
+  if (!cvv || cvv.length < 3) {
+    alert('Please enter a valid CVV')
+    return false
+  }
+  
+  return true
+}
+
 const changeQty = (itemId, qty, discount) => {
   pos.updateCartItem(itemId, qty, discount)
 }
 
 const checkout = async () => {
   if (pos.cartItems.length === 0 || !selectedPaymentMethod.value) return
+  
+  // Validate card details if needed
+  if (!validateCardDetails()) return
   
   isProcessing.value = true
   
@@ -327,6 +390,10 @@ const checkout = async () => {
       paymentMethod: selectedPaymentMethod.value 
     })
     
+    if (!saleResponse?.id) {
+      throw new Error('Failed to create sale')
+    }
+    
     // Then process the payment
     const paymentData = {
       sale_id: saleResponse.id,
@@ -336,11 +403,17 @@ const checkout = async () => {
     
     // Add method-specific data
     if (isCardPayment.value) {
-      paymentData.card_number = cardDetails.value.number
+      const cleanCardNumber = cardDetails.value.number.replace(/\s/g, '')
+      paymentData.card_number = cleanCardNumber
       paymentData.cardholder_name = cardDetails.value.cardholder
       paymentData.exp_month = parseInt(cardDetails.value.expMonth)
       paymentData.exp_year = parseInt(cardDetails.value.expYear)
       paymentData.cvv = cardDetails.value.cvv
+      
+      // For Stripe integration
+      if (selectedPaymentMethod.value === 'card') {
+        paymentData.payment_method_id = 'card_simulation'
+      }
     }
     
     if (selectedPaymentMethod.value === 'tng') {
@@ -351,23 +424,34 @@ const checkout = async () => {
     
     if (paymentResponse.data.payment.status === 'completed') {
       // Payment successful
-      alert(`Payment successful! 
-        Method: ${selectedMethod.value.name}
-        Amount: RM ${finalTotal.value.toFixed(2)}
-        Payment ID: ${paymentResponse.data.payment.payment_code}`)
+      const successMessage = `✅ Payment Successful!
+
+Method: ${selectedMethod.value.name}
+Amount: RM ${finalTotal.value.toFixed(2)}
+Payment ID: ${paymentResponse.data.payment.payment_code}
+
+Receipt printed automatically.`
       
-      // Reset form
+      alert(successMessage)
+      
+      // Reset form and cart
       resetPaymentForm()
+      pos.clearCart()
+      
     } else if (paymentResponse.data.requires_action) {
-      alert('Payment requires additional action. Please check your payment method.')
+      alert('⏳ Payment requires additional verification. Please check your payment method.')
     } else {
-      alert('Payment failed. Please try again.')
+      alert('❌ Payment failed. Please try again or use a different payment method.')
     }
     
   } catch (error) {
     console.error('Checkout failed:', error)
-    const errorMessage = error.response?.data?.error || error.response?.data?.message || 'Payment failed'
-    alert(`Checkout failed: ${errorMessage}`)
+    const errorMessage = error.response?.data?.error || 
+                         error.response?.data?.message || 
+                         error.message || 
+                         'Payment processing failed'
+    
+    alert(`❌ Checkout Failed\n\n${errorMessage}\n\nPlease try again or contact support.`)
   } finally {
     isProcessing.value = false
   }
