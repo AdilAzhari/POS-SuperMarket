@@ -5,15 +5,17 @@ namespace App\Http\Controllers;
 use App\Http\Requests\StoreCustomerRequest;
 use App\Http\Requests\UpdateCustomerRequest;
 use App\Models\Customer;
+use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Response;
 
 class CustomerController extends Controller
 {
     /**
      * Display a listing of the resource.
      */
-    public function index()
+    public function index(): JsonResponse
     {
-        return response()->json(Customer::orderByDesc('created_at')->paginate(20));
+        return response()->json(Customer::query()->orderByDesc('created_at')->paginate(20));
     }
 
     /**
@@ -27,9 +29,9 @@ class CustomerController extends Controller
     /**
      * Store a newly created resource in storage.
      */
-    public function store(StoreCustomerRequest $request)
+    public function store(StoreCustomerRequest $request): JsonResponse
     {
-        $customer = Customer::create($request->validated());
+        $customer = Customer::query()->create($request->validated());
 
         return response()->json($customer, 201);
     }
@@ -37,7 +39,7 @@ class CustomerController extends Controller
     /**
      * Display the specified resource.
      */
-    public function show(Customer $customer)
+    public function show(Customer $customer): JsonResponse
     {
         return response()->json($customer);
     }
@@ -53,7 +55,7 @@ class CustomerController extends Controller
     /**
      * Update the specified resource in storage.
      */
-    public function update(UpdateCustomerRequest $request, Customer $customer)
+    public function update(UpdateCustomerRequest $request, Customer $customer): JsonResponse
     {
         $customer->update($request->validated());
 
@@ -63,7 +65,7 @@ class CustomerController extends Controller
     /**
      * Remove the specified resource from storage.
      */
-    public function destroy(Customer $customer)
+    public function destroy(Customer $customer): Response
     {
         $customer->delete();
 

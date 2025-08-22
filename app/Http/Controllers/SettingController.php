@@ -5,17 +5,18 @@ namespace App\Http\Controllers;
 use App\Http\Requests\StoreSettingRequest;
 use App\Http\Requests\UpdateSettingRequest;
 use App\Models\Setting;
-use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
+use Illuminate\Http\Response;
 
 class SettingController extends Controller
 {
     /**
      * Display a listing of the resource.
      */
-    public function index()
+    public function index(): JsonResponse
     {
-        return response()->json(Setting::paginate(20));
+        return response()->json(Setting::query()->paginate(20));
     }
 
     /**
@@ -29,9 +30,9 @@ class SettingController extends Controller
     /**
      * Store a newly created resource in storage.
      */
-    public function store(StoreSettingRequest $request)
+    public function store(StoreSettingRequest $request): JsonResponse
     {
-        $setting = Setting::create($request->validated());
+        $setting = Setting::query()->create($request->validated());
 
         return response()->json($setting, 201);
     }
@@ -39,7 +40,7 @@ class SettingController extends Controller
     /**
      * Display the specified resource.
      */
-    public function show(Setting $setting)
+    public function show(Setting $setting): JsonResponse
     {
         return response()->json($setting);
     }
@@ -55,7 +56,7 @@ class SettingController extends Controller
     /**
      * Update the specified resource in storage.
      */
-    public function update(UpdateSettingRequest $request, Setting $setting)
+    public function update(UpdateSettingRequest $request, Setting $setting): JsonResponse
     {
         $setting->update($request->validated());
 
@@ -65,7 +66,7 @@ class SettingController extends Controller
     /**
      * Remove the specified resource from storage.
      */
-    public function destroy(Setting $setting)
+    public function destroy(Setting $setting): Response
     {
         $setting->delete();
 
@@ -84,7 +85,7 @@ class SettingController extends Controller
             'email' => 'required|email|max:255',
         ]);
 
-        $setting = Setting::updateOrCreate(
+        $setting = Setting::query()->updateOrCreate(
             ['key' => 'store_info'],
             ['value' => $request->all()]
         );
@@ -103,7 +104,7 @@ class SettingController extends Controller
             'inclusive' => 'boolean',
         ]);
 
-        $setting = Setting::updateOrCreate(
+        $setting = Setting::query()->updateOrCreate(
             ['key' => 'tax_settings'],
             ['value' => $request->all()]
         );
@@ -122,7 +123,7 @@ class SettingController extends Controller
             'showLogo' => 'boolean',
         ]);
 
-        $setting = Setting::updateOrCreate(
+        $setting = Setting::query()->updateOrCreate(
             ['key' => 'receipt_settings'],
             ['value' => $request->all()]
         );
@@ -136,7 +137,7 @@ class SettingController extends Controller
     public function getAllSettings(): JsonResponse
     {
         $settings = Setting::all()->pluck('value', 'key');
-        
+
         return response()->json([
             'store_info' => $settings['store_info'] ?? [
                 'name' => 'SuperMarket POS',

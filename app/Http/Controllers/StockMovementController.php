@@ -9,6 +9,7 @@ use App\Http\Requests\UpdateStockMovementRequest;
 use App\Models\Product;
 use App\Models\StockMovement;
 use App\Models\Store;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\DB;
 
 class StockMovementController extends Controller
@@ -16,7 +17,7 @@ class StockMovementController extends Controller
     /**
      * Get available adjustment types and reasons for stock movements.
      */
-    public function getAdjustmentTypes()
+    public function getAdjustmentTypes(): JsonResponse
     {
         return response()->json([
             'types' => StockMovementType::options(),
@@ -27,14 +28,14 @@ class StockMovementController extends Controller
                 'loss' => StockMovementReason::byCategory('loss'),
                 'adjustment' => StockMovementReason::byCategory('adjustment'),
                 'marketing' => StockMovementReason::byCategory('marketing'),
-            ]
+            ],
         ]);
     }
 
     /**
      * Display a listing of the resource.
      */
-    public function index()
+    public function index(): JsonResponse
     {
         return response()->json(
             StockMovement::with(['product', 'store', 'fromStore', 'toStore', 'user'])
@@ -81,7 +82,7 @@ class StockMovementController extends Controller
         } catch (\Exception $e) {
             return response()->json([
                 'message' => 'Failed to create stock movement',
-                'error' => config('app.debug') ? $e->getMessage() : 'An error occurred while processing your request.'
+                'error' => config('app.debug') ? $e->getMessage() : 'An error occurred while processing your request.',
             ], 500);
         }
     }
