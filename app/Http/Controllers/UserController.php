@@ -3,8 +3,8 @@
 namespace App\Http\Controllers;
 
 use App\Models\User;
-use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\Rule;
 
@@ -15,9 +15,9 @@ class UserController extends Controller
      */
     public function index(): JsonResponse
     {
-        $users = User::select('id', 'name', 'email', 'created_at')
+        $users = User::query()->select('id', 'name', 'email', 'created_at')
             ->paginate(20);
-            
+
         return response()->json($users);
     }
 
@@ -33,7 +33,7 @@ class UserController extends Controller
             'role' => 'required|string|in:admin,manager,cashier',
         ]);
 
-        $user = User::create([
+        $user = User::query()->create([
             'name' => $request->name,
             'email' => $request->email,
             'password' => Hash::make($request->password),
@@ -43,7 +43,7 @@ class UserController extends Controller
 
         return response()->json([
             'message' => 'User created successfully',
-            'user' => $user->only(['id', 'name', 'email', 'created_at'])
+            'user' => $user->only(['id', 'name', 'email', 'created_at']),
         ], 201);
     }
 
@@ -75,7 +75,7 @@ class UserController extends Controller
 
         return response()->json([
             'message' => 'User updated successfully',
-            'user' => $user->only(['id', 'name', 'email', 'created_at'])
+            'user' => $user->only(['id', 'name', 'email', 'created_at']),
         ]);
     }
 
@@ -87,7 +87,7 @@ class UserController extends Controller
         $user->delete();
 
         return response()->json([
-            'message' => 'User deleted successfully'
+            'message' => 'User deleted successfully',
         ]);
     }
 }
