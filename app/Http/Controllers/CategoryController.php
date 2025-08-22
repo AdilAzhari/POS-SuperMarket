@@ -5,7 +5,9 @@ namespace App\Http\Controllers;
 use App\Http\Requests\StoreCategoryRequest;
 use App\Http\Requests\UpdateCategoryRequest;
 use App\Models\Category;
+use Exception;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Response;
 
 class CategoryController extends Controller
 {
@@ -30,17 +32,15 @@ class CategoryController extends Controller
      */
     public function store(StoreCategoryRequest $request): JsonResponse
     {
-//        dd($request->all());
         try {
             $data = $request->validated();
-//            dd($data);
-            $category = Category::create($data);
+            $category = Category::query()->create($data);
 
             return response()->json($category, 201);
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             return response()->json([
                 'message' => 'Failed to create category',
-                'error' => config('app.debug') ? $e->getMessage() : 'An error occurred while processing your request.'
+                'error' => config('app.debug') ? $e->getMessage() : 'An error occurred while processing your request.',
             ], 500);
         }
     }
@@ -64,16 +64,16 @@ class CategoryController extends Controller
     /**
      * Update the specified resource in storage.
      */
-    public function update(UpdateCategoryRequest $request, Category $category)
+    public function update(UpdateCategoryRequest $request, Category $category): JsonResponse
     {
         try {
             $category->update($request->validated());
 
             return response()->json($category->fresh());
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             return response()->json([
                 'message' => 'Failed to update category',
-                'error' => config('app.debug') ? $e->getMessage() : 'An error occurred while processing your request.'
+                'error' => config('app.debug') ? $e->getMessage() : 'An error occurred while processing your request.',
             ], 500);
         }
     }
@@ -81,16 +81,16 @@ class CategoryController extends Controller
     /**
      * Remove the specified resource from storage.
      */
-    public function destroy(Category $category)
+    public function destroy(Category $category): Response|JsonResponse
     {
         try {
             $category->delete();
 
             return response()->noContent();
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             return response()->json([
                 'message' => 'Failed to delete category',
-                'error' => config('app.debug') ? $e->getMessage() : 'An error occurred while processing your request.'
+                'error' => config('app.debug') ? $e->getMessage() : 'An error occurred while processing your request.',
             ], 500);
         }
     }

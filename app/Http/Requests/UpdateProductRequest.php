@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests;
 
+use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
 
 class UpdateProductRequest extends FormRequest
@@ -17,11 +18,16 @@ class UpdateProductRequest extends FormRequest
     /**
      * Get the validation rules that apply to the request.
      *
-     * @return array<string, \Illuminate\Contracts\Validation\ValidationRule|array<mixed>|string>
+     * @return array<string, ValidationRule|array|string>
      */
     public function rules(): array
     {
-        $productId = $this->route('product')?->id ?? 'NULL';
+        // Get product ID from route parameter (can be string or model instance)
+        $productId = $this->route('product');
+        if (is_object($productId)) {
+            $productId = $productId->id;
+        }
+        $productId = $productId ?? 'NULL';
 
         return [
             'category_id' => ['nullable', 'exists:categories,id'],
