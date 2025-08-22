@@ -26,7 +26,7 @@ return new class extends Migration
             $table->decimal('total', 12, 2)->default(0);
 
             $table->string('payment_method'); // Cash, Card, etc.
-            $table->enum('status', ['completed', 'refunded', 'voided'])->default('completed');
+            $table->enum('status', ['draft', 'pending', 'completed', 'refunded', 'partially_refunded', 'voided', 'cancelled'])->default('pending');
             $table->timestamp('paid_at')->nullable();
 
             $table->timestamps();
