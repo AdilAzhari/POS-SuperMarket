@@ -21,7 +21,7 @@ class CategoryFactory extends Factory
             'Health & Beauty', 'Sports & Outdoors', 'Books & Media', 'Toys & Games'
         ];
         
-        $name = fake()->randomElement($categories) . ' ' . fake()->word();
+        $name = fake()->randomElement($categories) . ' ' . fake()->unique()->word();
 
         return [
             'name' => $name,

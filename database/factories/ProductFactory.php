@@ -23,8 +23,8 @@ class ProductFactory extends Factory
 
         return [
             'name' => fake()->words(3, true),
-            'sku' => strtoupper(fake()->bothify('SKU-####')),
-            'barcode' => strtoupper(fake()->bothify('BAR#########')),
+            'sku' => 'SKU-'.fake()->unique()->numberBetween(10000000, 99999999),
+            'barcode' => 'BAR'.fake()->unique()->numberBetween(100000000, 999999999),
             'price' => round($price, 2),
             'cost' => $cost,
             'active' => true,
