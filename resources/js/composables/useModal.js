@@ -1,4 +1,4 @@
-import { ref } from 'vue'
+import { ref, reactive } from 'vue'
 
 export function useModal(initialState = false) {
   const isOpen = ref(initialState)
@@ -20,6 +20,120 @@ export function useModal(initialState = false) {
     open,
     close,
     toggle,
+  }
+}
+
+export function useMessageModal() {
+  const isVisible = ref(false)
+  const modalData = reactive({
+    title: '',
+    message: '',
+    type: 'info',
+    size: 'md',
+    showCancelButton: false,
+    confirmText: 'OK',
+    cancelText: 'Cancel'
+  })
+  
+  const resolvePromise = ref(null)
+  
+  const show = (options = {}) => {
+    return new Promise((resolve) => {
+      Object.assign(modalData, {
+        title: '',
+        message: '',
+        type: 'info',
+        size: 'md',
+        showCancelButton: false,
+        confirmText: 'OK',
+        cancelText: 'Cancel',
+        ...options
+      })
+      
+      resolvePromise.value = resolve
+      isVisible.value = true
+    })
+  }
+  
+  const hide = () => {
+    isVisible.value = false
+    resolvePromise.value = null
+  }
+  
+  const confirm = () => {
+    if (resolvePromise.value) {
+      resolvePromise.value(true)
+    }
+    hide()
+  }
+  
+  const cancel = () => {
+    if (resolvePromise.value) {
+      resolvePromise.value(false)
+    }
+    hide()
+  }
+  
+  // Convenience methods
+  const showSuccess = (message, title = 'Success') => {
+    return show({
+      title,
+      message,
+      type: 'success',
+      showCancelButton: false
+    })
+  }
+  
+  const showError = (message, title = 'Error') => {
+    return show({
+      title,
+      message,
+      type: 'error',
+      showCancelButton: false
+    })
+  }
+  
+  const showWarning = (message, title = 'Warning') => {
+    return show({
+      title,
+      message,
+      type: 'warning',
+      showCancelButton: false
+    })
+  }
+  
+  const showInfo = (message, title = 'Information') => {
+    return show({
+      title,
+      message,
+      type: 'info',
+      showCancelButton: false
+    })
+  }
+  
+  const showConfirm = (message, title = 'Confirm Action') => {
+    return show({
+      title,
+      message,
+      type: 'warning',
+      showCancelButton: true,
+      confirmText: 'Yes',
+      cancelText: 'No'
+    })
+  }
+  
+  return {
+    isVisible,
+    modalData,
+    show,
+    hide,
+    confirm,
+    cancel,
+    showSuccess,
+    showError,
+    showWarning,
+    showInfo,
+    showConfirm
   }
 }
 
