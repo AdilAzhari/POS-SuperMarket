@@ -19,18 +19,141 @@
     </div>
 
     <div class="bg-white rounded-lg shadow-sm p-4">
-      <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-        <div class="relative flex-1">
-          <Search class="w-4 h-4 text-gray-400 absolute left-3 top-2.5" />
-          <input
-            v-model="query"
-            placeholder="Search by name, SKU, barcode, category"
-            class="w-full pl-9 pr-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
-          />
+      <!-- Search and Filters -->
+      <div class="space-y-4">
+        <!-- Search Bar -->
+        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+          <div class="relative flex-1">
+            <Search class="w-4 h-4 text-gray-400 absolute left-3 top-2.5" />
+            <input
+              v-model="query"
+              placeholder="Search by name, SKU, barcode, category"
+              class="w-full pl-9 pr-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
+            />
+          </div>
+        </div>
+
+        <!-- Filters and Sorting -->
+        <div class="flex flex-col lg:flex-row gap-4">
+          <!-- Filters -->
+          <div class="flex flex-wrap gap-4 items-center">
+            <!-- Category Filter -->
+            <div class="min-w-0 flex-shrink-0">
+              <select
+                v-model="filters.category"
+                class="px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 text-sm"
+              >
+                <option value="">All Categories</option>
+                <option
+                  v-for="category in categoriesStore.categories"
+                  :key="category.id"
+                  :value="category.name"
+                >
+                  {{ category.name }}
+                </option>
+              </select>
+            </div>
+
+            <!-- Price Range Filter -->
+            <div class="flex items-center gap-2 min-w-0 flex-shrink-0">
+              <span class="text-sm text-gray-600">Price:</span>
+              <input
+                v-model.number="filters.priceMin"
+                type="number"
+                placeholder="Min"
+                class="w-20 px-2 py-1 border rounded focus:ring-1 focus:ring-blue-500 text-sm"
+                min="0"
+                step="0.01"
+              />
+              <span class="text-gray-400">-</span>
+              <input
+                v-model.number="filters.priceMax"
+                type="number"
+                placeholder="Max"
+                class="w-20 px-2 py-1 border rounded focus:ring-1 focus:ring-blue-500 text-sm"
+                min="0"
+                step="0.01"
+              />
+            </div>
+
+            <!-- Stock Range Filter -->
+            <div class="flex items-center gap-2 min-w-0 flex-shrink-0">
+              <span class="text-sm text-gray-600">Stock:</span>
+              <input
+                v-model.number="filters.stockMin"
+                type="number"
+                placeholder="Min"
+                class="w-20 px-2 py-1 border rounded focus:ring-1 focus:ring-blue-500 text-sm"
+                min="0"
+              />
+              <span class="text-gray-400">-</span>
+              <input
+                v-model.number="filters.stockMax"
+                type="number"
+                placeholder="Max"
+                class="w-20 px-2 py-1 border rounded focus:ring-1 focus:ring-blue-500 text-sm"
+                min="0"
+              />
+            </div>
+
+            <!-- Active Status Filter -->
+            <div class="min-w-0 flex-shrink-0">
+              <select
+                v-model="filters.active"
+                class="px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 text-sm"
+              >
+                <option value="">All Status</option>
+                <option value="true">Active Only</option>
+                <option value="false">Inactive Only</option>
+              </select>
+            </div>
+
+            <!-- Clear Filters -->
+            <button
+              @click="clearFilters"
+              class="px-3 py-2 text-sm text-gray-600 hover:text-gray-800 border border-gray-300 rounded-lg hover:bg-gray-50"
+            >
+              Clear Filters
+            </button>
+          </div>
+
+          <!-- Sorting -->
+          <div class="flex items-center gap-4 lg:ml-auto">
+            <div class="flex items-center gap-2">
+              <span class="text-sm text-gray-600">Sort by:</span>
+              <select
+                v-model="sortBy"
+                class="px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 text-sm"
+              >
+                <option value="name">Name</option>
+                <option value="price">Price</option>
+                <option value="stock">Stock</option>
+                <option value="category">Category</option>
+                <option value="created_at">Date Added</option>
+              </select>
+            </div>
+
+            <button
+              @click="toggleSortOrder"
+              class="px-3 py-2 border rounded-lg hover:bg-gray-50 focus:ring-2 focus:ring-blue-500"
+              :title="sortOrder === 'asc' ? 'Sort Descending' : 'Sort Ascending'"
+            >
+              <component
+                :is="sortOrder === 'asc' ? ChevronUp : ChevronDown"
+                class="w-4 h-4"
+              />
+            </button>
+          </div>
         </div>
       </div>
 
-      <div class="mt-4 overflow-x-auto">
+      <!-- Loading State -->
+      <div v-if="store.isLoading" class="flex justify-center items-center py-8">
+        <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+        <span class="ml-2 text-gray-600">Loading products...</span>
+      </div>
+
+      <div v-else class="mt-4 overflow-x-auto">
         <table class="min-w-full text-sm">
           <thead class="bg-gray-50 text-gray-600">
             <tr>
@@ -85,6 +208,46 @@
             </tr>
           </tbody>
         </table>
+      </div>
+
+      <!-- Pagination -->
+      <div v-if="store.pagination.total > 0" class="mt-6 flex items-center justify-between">
+        <div class="text-sm text-gray-700">
+          Showing {{ store.pagination.from }} to {{ store.pagination.to }} of {{ store.pagination.total }} results
+        </div>
+        <div class="flex items-center space-x-2">
+          <button
+            :disabled="store.pagination.current_page === 1"
+            @click="changePage(store.pagination.current_page - 1)"
+            class="px-3 py-2 text-sm border rounded-md disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
+          >
+            Previous
+          </button>
+          
+          <template v-for="page in visiblePages" :key="page">
+            <button
+              v-if="page !== '...'"
+              :class="[
+                'px-3 py-2 text-sm border rounded-md',
+                page === store.pagination.current_page
+                  ? 'bg-blue-600 text-white border-blue-600'
+                  : 'hover:bg-gray-50'
+              ]"
+              @click="changePage(page)"
+            >
+              {{ page }}
+            </button>
+            <span v-else class="px-3 py-2 text-sm text-gray-500">...</span>
+          </template>
+          
+          <button
+            :disabled="store.pagination.current_page === store.pagination.last_page"
+            @click="changePage(store.pagination.current_page + 1)"
+            class="px-3 py-2 text-sm border rounded-md disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
+          >
+            Next
+          </button>
+        </div>
       </div>
     </div>
 
@@ -205,6 +368,21 @@
       </div>
     </div>
   </div>
+  
+  <!-- Modal Component -->
+  <Modal
+    :show="modal.isVisible.value"
+    :title="modal.modalData.title"
+    :message="modal.modalData.message"
+    :type="modal.modalData.type"
+    :size="modal.modalData.size"
+    :show-cancel-button="modal.modalData.showCancelButton"
+    :confirm-text="modal.modalData.confirmText"
+    :cancel-text="modal.modalData.cancelText"
+    @close="modal.hide"
+    @confirm="modal.confirm"
+    @cancel="modal.cancel"
+  />
 </template>
 
 <script setup>
@@ -212,14 +390,115 @@ import { computed, reactive, ref } from 'vue'
 import { useProductsStore } from '@/stores/products.js'
 import { useCategoriesStore } from '@/stores/categories.js'
 import { useSuppliersStore } from '@/stores/suppliers.js'
-import { Edit, Trash2, Plus, Search, X } from 'lucide-vue-next'
+import { useMessageModal } from '@/composables/useModal.js'
+import Modal from '@/Components/Modal.vue'
+import { Edit, Trash2, Plus, Search, X, ChevronUp, ChevronDown } from 'lucide-vue-next'
 
 const store = useProductsStore()
 const categoriesStore = useCategoriesStore()
 const suppliersStore = useSuppliersStore()
+const modal = useMessageModal()
 
+// Search and Filter state
 const query = ref('')
-const filtered = computed(() => store.searchProducts(query.value))
+const filters = reactive({
+  category: '',
+  priceMin: null,
+  priceMax: null,
+  stockMin: null,
+  stockMax: null,
+  active: '',
+})
+
+// Sorting state
+const sortBy = ref('name')
+const sortOrder = ref('asc')
+
+// Advanced filtering and sorting logic
+const filtered = computed(() => {
+  let results = store.products
+
+  // Apply search query
+  if (query.value.trim()) {
+    results = store.searchProducts(query.value)
+  }
+
+  // Apply filters
+  if (filters.category) {
+    results = results.filter(p => p.category === filters.category)
+  }
+
+  if (filters.priceMin !== null && filters.priceMin !== '') {
+    results = results.filter(p => p.price >= Number(filters.priceMin))
+  }
+
+  if (filters.priceMax !== null && filters.priceMax !== '') {
+    results = results.filter(p => p.price <= Number(filters.priceMax))
+  }
+
+  if (filters.stockMin !== null && filters.stockMin !== '') {
+    results = results.filter(p => p.stock >= Number(filters.stockMin))
+  }
+
+  if (filters.stockMax !== null && filters.stockMax !== '') {
+    results = results.filter(p => p.stock <= Number(filters.stockMax))
+  }
+
+  if (filters.active !== '') {
+    const activeFilter = filters.active === 'true'
+    results = results.filter(p => p.active === activeFilter)
+  }
+
+  // Apply sorting
+  results = [...results].sort((a, b) => {
+    let aVal, bVal
+
+    switch (sortBy.value) {
+      case 'name':
+        aVal = a.name.toLowerCase()
+        bVal = b.name.toLowerCase()
+        break
+      case 'price':
+        aVal = Number(a.price)
+        bVal = Number(b.price)
+        break
+      case 'stock':
+        aVal = Number(a.stock)
+        bVal = Number(b.stock)
+        break
+      case 'category':
+        aVal = a.category.toLowerCase()
+        bVal = b.category.toLowerCase()
+        break
+      case 'created_at':
+        aVal = new Date(a.created_at || 0)
+        bVal = new Date(b.created_at || 0)
+        break
+      default:
+        return 0
+    }
+
+    if (aVal < bVal) return sortOrder.value === 'asc' ? -1 : 1
+    if (aVal > bVal) return sortOrder.value === 'asc' ? 1 : -1
+    return 0
+  })
+
+  return results
+})
+
+// Filter and Sort Actions
+const clearFilters = () => {
+  filters.category = ''
+  filters.priceMin = null
+  filters.priceMax = null
+  filters.stockMin = null
+  filters.stockMax = null
+  filters.active = ''
+}
+
+const toggleSortOrder = () => {
+  sortOrder.value = sortOrder.value === 'asc' ? 'desc' : 'asc'
+}
 
 const showModal = ref(false)
 const isEditing = ref(false)
@@ -289,29 +568,138 @@ const notify = (msg, type = 'success') => {
 
 const submit = async () => {
   try {
-    if (isEditing.value && editingId.value) {
-      await store.updateProduct(editingId.value, { ...form })
-      notify('Product updated')
-    } else {
-      const { id, ...payload } = form
-      await store.addProduct(payload)
-      notify('Product added')
+    // Validate required fields
+    if (!form.name?.trim()) {
+      await modal.showError('Product name is required')
+      return
     }
+    if (!form.sku?.trim()) {
+      await modal.showError('SKU is required')
+      return
+    }
+    if (!form.barcode?.trim()) {
+      await modal.showError('Barcode is required')
+      return
+    }
+    if (form.price <= 0) {
+      await modal.showError('Price must be greater than 0')
+      return
+    }
+    if (form.cost < 0) {
+      await modal.showError('Cost cannot be negative')
+      return
+    }
+    if (!form.category_id) {
+      await modal.showError('Please select a category')
+      return
+    }
+    if (!form.supplier_id) {
+      await modal.showError('Please select a supplier')
+      return
+    }
+
+    if (isEditing.value && editingId.value) {
+      const updateData = {
+        name: form.name.trim(),
+        sku: form.sku.trim(),
+        barcode: form.barcode.trim(),
+        price: Number(form.price),
+        cost: Number(form.cost),
+        active: Boolean(form.active),
+        lowStockThreshold: Number(form.lowStockThreshold || 0),
+        image: form.image?.trim() || '',
+        category_id: Number(form.category_id),
+        supplier_id: Number(form.supplier_id)
+      }
+      await store.updateProduct(editingId.value, updateData)
+      await modal.showSuccess('Product updated successfully')
+    } else {
+      const addData = {
+        name: form.name.trim(),
+        sku: form.sku.trim(),
+        barcode: form.barcode.trim(),
+        price: Number(form.price),
+        cost: Number(form.cost),
+        active: Boolean(form.active),
+        low_stock_threshold: Number(form.lowStockThreshold || 0),
+        image_url: form.image?.trim() || '',
+        category_id: Number(form.category_id),
+        supplier_id: Number(form.supplier_id)
+      }
+      await store.addProduct(addData)
+      await modal.showSuccess('Product added successfully')
+    }
+    
+    // Refresh the product list to ensure latest data is shown
+    await store.fetchProducts()
+    
     showModal.value = false
   } catch (e) {
-    notify('Operation failed', 'error')
+    const errorMessage = e?.response?.data?.message || e?.message || 'Operation failed'
+    await modal.showError(errorMessage)
   }
 }
 
 const remove = async id => {
-  if (!confirm('Delete this product?')) return
+  const confirmed = await modal.showConfirm('Are you sure you want to delete this product? This action cannot be undone.')
+  if (!confirmed) return
+  
   try {
     await store.deleteProduct(id)
-    notify('Product removed')
+    await modal.showSuccess('Product deleted successfully')
   } catch (e) {
-    notify('Failed to remove product', 'error')
+    const errorMessage = e?.response?.data?.message || e?.message || 'Failed to delete product'
+    await modal.showError(errorMessage)
   }
 }
+
+// Pagination functions
+const changePage = async (page) => {
+  if (page >= 1 && page <= store.pagination.last_page) {
+    await store.fetchProducts(page)
+  }
+}
+
+const visiblePages = computed(() => {
+  const current = store.pagination.current_page
+  const last = store.pagination.last_page
+  const pages = []
+  
+  if (last <= 7) {
+    // Show all pages if 7 or fewer
+    for (let i = 1; i <= last; i++) {
+      pages.push(i)
+    }
+  } else {
+    // Always show first page
+    pages.push(1)
+    
+    if (current <= 4) {
+      // Show first 5 pages + ellipsis + last
+      for (let i = 2; i <= 5; i++) {
+        pages.push(i)
+      }
+      pages.push('...')
+      pages.push(last)
+    } else if (current >= last - 3) {
+      // Show first + ellipsis + last 5 pages
+      pages.push('...')
+      for (let i = last - 4; i <= last; i++) {
+        pages.push(i)
+      }
+    } else {
+      // Show first + ellipsis + current-1, current, current+1 + ellipsis + last
+      pages.push('...')
+      for (let i = current - 1; i <= current + 1; i++) {
+        pages.push(i)
+      }
+      pages.push('...')
+      pages.push(last)
+    }
+  }
+  
+  return pages
+})
 
 // initial load
 store.fetchProducts().catch(() => {})

@@ -19,14 +19,43 @@
     </div>
 
     <div class="bg-white rounded-lg shadow-sm p-4">
-      <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-        <div class="relative flex-1">
-          <Search class="w-4 h-4 text-gray-400 absolute left-3 top-2.5" />
-          <input
-            v-model="query"
-            placeholder="Search suppliers by name or address"
-            class="w-full pl-9 pr-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
-          />
+      <div class="space-y-4">
+        <!-- Search Bar -->
+        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+          <div class="relative flex-1">
+            <Search class="w-4 h-4 text-gray-400 absolute left-3 top-2.5" />
+            <input
+              v-model="query"
+              placeholder="Search suppliers by name or address"
+              class="w-full pl-9 pr-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
+            />
+          </div>
+          <div class="text-sm text-gray-500">
+            {{ paginatedSuppliers.length }} of {{ filteredSuppliers.length }} suppliers
+          </div>
+        </div>
+
+        <!-- Filters and Sorting -->
+        <div class="flex flex-col lg:flex-row gap-4">
+          <!-- Sorting -->
+          <div class="flex items-center gap-2">
+            <span class="text-sm text-gray-600">Sort by:</span>
+            <select
+              v-model="sortBy"
+              class="px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 text-sm"
+            >
+              <option value="name">Name</option>
+              <option value="contactPhone">Phone</option>
+              <option value="created_at">Date Added</option>
+            </select>
+            <button
+              @click="toggleSortDirection"
+              class="p-2 border rounded-lg hover:bg-gray-50"
+              :title="sortDirection === 'asc' ? 'Sort descending' : 'Sort ascending'"
+            >
+              <ArrowUpDown class="w-4 h-4" :class="sortDirection === 'desc' ? 'rotate-180' : ''" />
+            </button>
+          </div>
         </div>
       </div>
 
@@ -43,7 +72,7 @@
             </tr>
           </thead>
           <tbody>
-            <tr v-for="s in filtered" :key="s.id" class="border-t">
+            <tr v-for="s in paginatedSuppliers" :key="s.id" class="border-t">
               <td class="px-4 py-2 font-medium text-gray-900">
                 {{ s.name }}
               </td>
@@ -69,11 +98,49 @@
                 </div>
               </td>
             </tr>
-            <tr v-if="filtered.length === 0">
+            <tr v-if="filteredSuppliers.length === 0">
               <td colspan="6" class="px-4 py-8 text-center text-gray-500">No suppliers found.</td>
             </tr>
           </tbody>
         </table>
+      </div>
+
+      <!-- Pagination -->
+      <div v-if="totalPages > 1" class="mt-4 flex items-center justify-between">
+        <div class="text-sm text-gray-500">
+          Showing {{ (currentPage - 1) * itemsPerPage + 1 }} to {{ Math.min(currentPage * itemsPerPage, filteredSuppliers.length) }} of {{ filteredSuppliers.length }} suppliers
+        </div>
+        <div class="flex items-center space-x-2">
+          <button
+            @click="currentPage = Math.max(1, currentPage - 1)"
+            :disabled="currentPage === 1"
+            class="px-3 py-1 border rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            Previous
+          </button>
+          <div class="flex space-x-1">
+            <button
+              v-for="page in visiblePages"
+              :key="page"
+              @click="currentPage = page"
+              :class="[
+                'px-3 py-1 border rounded-lg',
+                page === currentPage
+                  ? 'bg-blue-600 text-white border-blue-600'
+                  : 'hover:bg-gray-50'
+              ]"
+            >
+              {{ page }}
+            </button>
+          </div>
+          <button
+            @click="currentPage = Math.min(totalPages, currentPage + 1)"
+            :disabled="currentPage === totalPages"
+            class="px-3 py-1 border rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            Next
+          </button>
+        </div>
       </div>
     </div>
 
@@ -161,17 +228,98 @@
       </div>
     </div>
   </div>
+  
+  <!-- Modal Component -->
+  <Modal
+    :show="modal.isVisible.value"
+    :title="modal.modalData.title"
+    :message="modal.modalData.message"
+    :type="modal.modalData.type"
+    :size="modal.modalData.size"
+    :show-cancel-button="modal.modalData.showCancelButton"
+    :confirm-text="modal.modalData.confirmText"
+    :cancel-text="modal.modalData.cancelText"
+    @close="modal.hide"
+    @confirm="modal.confirm"
+    @cancel="modal.cancel"
+  />
 </template>
 
 <script setup>
 import { computed, reactive, ref } from 'vue'
 import { useSuppliersStore } from '@/stores/suppliers.js'
-import { Edit, Trash2, Plus, Search, X } from 'lucide-vue-next'
+import { useMessageModal } from '@/composables/useModal.js'
+import Modal from '@/Components/Modal.vue'
+import { Edit, Trash2, Plus, Search, X, ArrowUpDown } from 'lucide-vue-next'
 
 const store = useSuppliersStore()
+const modal = useMessageModal()
 
+// Search and sorting
 const query = ref('')
-const filtered = computed(() => store.searchSuppliers(query.value))
+const sortBy = ref('name')
+const sortDirection = ref('asc')
+
+// Pagination
+const currentPage = ref(1)
+const itemsPerPage = ref(20)
+
+// Computed properties
+const filteredSuppliers = computed(() => {
+  let suppliers = store.searchSuppliers(query.value)
+  
+  // Apply sorting
+  suppliers.sort((a, b) => {
+    let aValue = a[sortBy.value]
+    let bValue = b[sortBy.value]
+    
+    // Handle null/undefined values
+    if (aValue == null) aValue = ''
+    if (bValue == null) bValue = ''
+    
+    // Convert to strings for text comparison
+    if (typeof aValue === 'string') {
+      aValue = aValue.toLowerCase()
+      bValue = bValue.toLowerCase()
+    }
+    
+    if (sortDirection.value === 'asc') {
+      return aValue < bValue ? -1 : aValue > bValue ? 1 : 0
+    } else {
+      return aValue > bValue ? -1 : aValue < bValue ? 1 : 0
+    }
+  })
+  
+  return suppliers
+})
+
+const totalPages = computed(() => Math.ceil(filteredSuppliers.value.length / itemsPerPage.value))
+
+const paginatedSuppliers = computed(() => {
+  const start = (currentPage.value - 1) * itemsPerPage.value
+  const end = start + itemsPerPage.value
+  return filteredSuppliers.value.slice(start, end)
+})
+
+const visiblePages = computed(() => {
+  const total = totalPages.value
+  const current = currentPage.value
+  const delta = 2
+  
+  let start = Math.max(1, current - delta)
+  let end = Math.min(total, current + delta)
+  
+  if (end - start < 2 * delta) {
+    start = Math.max(1, end - 2 * delta)
+    end = Math.min(total, start + 2 * delta)
+  }
+  
+  const pages = []
+  for (let i = start; i <= end; i++) {
+    pages.push(i)
+  }
+  return pages
+})
 
 const showModal = ref(false)
 const isEditing = ref(false)
@@ -234,12 +382,12 @@ const submit = async () => {
 
     // Validate required fields
     if (!form.name?.trim()) {
-      notify('Supplier name is required', 'error')
+      await modal.showError('Supplier name is required')
       return
     }
 
     if (form.name.trim().length < 2) {
-      notify('Supplier name must be at least 2 characters', 'error')
+      await modal.showError('Supplier name must be at least 2 characters')
       return
     }
 
@@ -247,7 +395,7 @@ const submit = async () => {
     if (form.contactEmail && form.contactEmail.trim()) {
       const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
       if (!emailRegex.test(form.contactEmail.trim())) {
-        notify('Please enter a valid email address', 'error')
+        await modal.showError('Please enter a valid email address')
         return
       }
     }
@@ -256,7 +404,7 @@ const submit = async () => {
     if (form.contactPhone && form.contactPhone.trim()) {
       const phoneRegex = /^[\+]?[1-9][\d]{0,15}$/
       if (!phoneRegex.test(form.contactPhone.trim().replace(/[\s\-\(\)]/g, ''))) {
-        notify('Please enter a valid phone number', 'error')
+        await modal.showError('Please enter a valid phone number')
         return
       }
     }
@@ -268,7 +416,7 @@ const submit = async () => {
         contactEmail: form.contactEmail?.trim() || '',
         address: form.address?.trim() || '',
       })
-      notify('Supplier updated successfully')
+      await modal.showSuccess('Supplier updated successfully')
       showModal.value = false
     } else {
       await store.addSupplier({
@@ -277,31 +425,38 @@ const submit = async () => {
         contactEmail: form.contactEmail?.trim() || '',
         address: form.address?.trim() || '',
       })
-      notify('Supplier added successfully')
+      await modal.showSuccess('Supplier added successfully')
       showModal.value = false
     }
   } catch (e) {
     const errorMessage = e?.message || 'Operation failed'
-    notify(errorMessage, 'error')
+    await modal.showError(errorMessage)
   } finally {
     isSubmitting.value = false
   }
 }
 
 const remove = async id => {
-  if (!confirm('Delete this supplier?')) return
+  const confirmed = await modal.showConfirm('Are you sure you want to delete this supplier? This action cannot be undone.')
+  if (!confirmed) return
+  
   try {
     await store.deleteSupplier(id)
-    notify('Supplier removed successfully')
+    await modal.showSuccess('Supplier deleted successfully')
   } catch (e) {
-    const errorMessage = e?.message || 'Failed to remove supplier'
-    notify(errorMessage, 'error')
+    const errorMessage = e?.message || 'Failed to delete supplier'
+    await modal.showError(errorMessage)
   }
 }
 
 const viewProducts = async s => {
   await store.fetchSupplierDetails(s.id)
   showRelatedModal.value = true
+}
+
+// Sorting function
+const toggleSortDirection = () => {
+  sortDirection.value = sortDirection.value === 'asc' ? 'desc' : 'asc'
 }
 
 store.fetchSuppliers().catch(() => {})
