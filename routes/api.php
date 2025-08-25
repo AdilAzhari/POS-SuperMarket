@@ -48,7 +48,7 @@ Route::middleware('auth:sanctum')->group(function () {
 
 // Inventory Alerts
 Route::controller(App\Http\Controllers\InventoryAlertController::class)
-        ->prefix('inventory-alerts')
+    ->prefix('inventory-alerts')
     ->group(function () {
         Route::get('/', 'index');
         Route::get('/dashboard', 'dashboard');
@@ -71,7 +71,7 @@ Route::apiResource('sales', SaleController::class)
 
 // Receipts
 Route::controller(App\Http\Controllers\ReceiptController::class)
-        ->prefix('receipts')
+    ->prefix('receipts')
     ->group(function () {
         Route::get('/settings', 'settings');
         Route::put('/settings', 'updateSettings');
@@ -86,6 +86,13 @@ Route::controller(App\Http\Controllers\ReceiptController::class)
 // Stock Movements
 Route::middleware('auth:sanctum')->group(function () {
     Route::get('stock-movement-types', [StockMovementController::class, 'getAdjustmentTypes']);
+    Route::post('stock-movements/bulk', [StockMovementController::class, 'bulkStore']);
+    Route::post('stock-movements/transfer', [StockMovementController::class, 'transfer']);
+    Route::get('stock-movements/statistics', [StockMovementController::class, 'statistics']);
+    Route::post('stock-movements/validate', [StockMovementController::class, 'validateStock']);
+    Route::post('stock-movements/validate-multiple', [StockMovementController::class, 'validateMultipleStock']);
+    Route::post('stock-movements/check-low-stock', [StockMovementController::class, 'checkLowStock']);
+    Route::get('products/{product}/stock-summary', [StockMovementController::class, 'productStockSummary']);
     Route::apiResource('stock-movements', StockMovementController::class);
 });
 
@@ -98,7 +105,7 @@ Route::middleware('auth:sanctum')->group(function () {
 
 // Settings
 Route::controller(SettingController::class)
-        ->prefix('settings')
+    ->prefix('settings')
     ->group(function () {
         Route::get('/all', 'getAllSettings');
         Route::post('/store', 'saveStoreSettings');
@@ -115,7 +122,7 @@ Route::apiResource('users', UserController::class)
 
 // Payments
 Route::controller(PaymentController::class)
-        ->group(function () {
+    ->group(function () {
         Route::post('payments/process', 'processPayment');
         Route::get('payment-methods', 'getPaymentMethods');
         Route::get('payments/stats', 'getStats');
@@ -127,7 +134,7 @@ Route::controller(PaymentController::class)
 
 // Employees
 Route::controller(EmployeeController::class)
-        ->prefix('employees')
+    ->prefix('employees')
     ->group(function () {
         Route::get('/analytics', 'analytics');
         Route::get('/roles-permissions', 'getRolesAndPermissions');
@@ -138,7 +145,7 @@ Route::apiResource('employees', App\Http\Controllers\EmployeeController::class)
 
 // Loyalty Program
 Route::controller(LoyaltyController::class)
-        ->prefix('loyalty')
+    ->prefix('loyalty')
     ->group(function () {
         Route::get('/analytics', 'analytics');
         Route::get('/config', 'getConfig');
@@ -152,7 +159,7 @@ Route::controller(LoyaltyController::class)
 
 // Manager Dashboard
 Route::controller(ManagerDashboardController::class)
-        ->prefix('manager-dashboard')
+    ->prefix('manager-dashboard')
     ->group(function () {
         Route::get('/analytics', 'getAnalytics');
         Route::get('/realtime', 'getRealtimeStats');
