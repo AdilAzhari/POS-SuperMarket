@@ -2,6 +2,7 @@ import { defineStore } from 'pinia'
 import { ref } from 'vue'
 // import type { Category, RelatedProductSummary } from '@/types'
 import axios from 'axios'
+import { handleError } from '@/utils/errorHandler'
 
 export const useCategoriesStore = defineStore('categories', () => {
   const categories = ref([])
@@ -30,7 +31,8 @@ export const useCategoriesStore = defineStore('categories', () => {
       const list = Array.isArray(data?.data) ? data.data : data
       categories.value = list.map(mapApiCategoryToUi)
     } catch (err) {
-      errorMessage.value = err?.response?.data?.message || 'Failed to load categories'
+      const errorResult = handleError(err, { customMessage: 'Failed to load categories' })
+      errorMessage.value = errorResult.message
       throw err
     } finally {
       isLoading.value = false

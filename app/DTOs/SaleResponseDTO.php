@@ -24,9 +24,9 @@ class SaleResponseDTO extends BaseDTO
         public readonly array $items = [],
         public readonly ?array $store = null,
         public readonly ?array $customer = null,
-        public readonly ?array $cashier = null
-    ) {
-    }
+        public readonly ?array $cashier = null,
+        public readonly ?array $payment = null
+    ) {}
 
     public static function fromModel(Sale $sale): self
     {
@@ -41,14 +41,15 @@ class SaleResponseDTO extends BaseDTO
             discount: $sale->discount,
             tax: $sale->tax,
             total: $sale->total,
-            payment_method: $sale->payment_method,
-            status: $sale->status,
+            payment_method: is_string($sale->payment_method) ? $sale->payment_method : $sale->payment_method->value,
+            status: is_string($sale->status) ? $sale->status : $sale->status->value,
             paid_at: $sale->paid_at?->toISOString() ?? '',
             created_at: $sale->created_at->toISOString(),
-            items: $sale->items?->map(fn($item) => $item->toArray())->toArray() ?? [],
+            items: $sale->items?->map(fn ($item) => $item->toArray())->toArray() ?? [],
             store: $sale->store?->toArray(),
             customer: $sale->customer?->toArray(),
-            cashier: $sale->cashier?->toArray()
+            cashier: $sale->cashier?->toArray(),
+            payment: $sale->latestPayment?->toArray()
         );
     }
 }
