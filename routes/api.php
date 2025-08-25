@@ -2,6 +2,9 @@
 
 use App\Http\Controllers\CategoryController;
 use App\Http\Controllers\CustomerController;
+use App\Http\Controllers\EmployeeController;
+use App\Http\Controllers\LoyaltyController;
+use App\Http\Controllers\ManagerDashboardController;
 use App\Http\Controllers\PaymentController;
 use App\Http\Controllers\ProductController;
 use App\Http\Controllers\SaleController;
@@ -29,43 +32,129 @@ Route::middleware('auth:sanctum')->get('/user', function (Request $request) {
 });
 
 // Categories
-Route::apiResource('categories', CategoryController::class);
+Route::apiResource('categories', CategoryController::class)
+    ->middleware('auth');
 
 // Suppliers
-Route::apiResource('suppliers', SupplierController::class);
+Route::apiResource('suppliers', SupplierController::class)
+    ->middleware('auth');
 
 // Products
-Route::get('products/search', [ProductController::class, 'search']);
-Route::get('products/low-stock', [ProductController::class, 'lowStock']);
-Route::apiResource('products', ProductController::class);
+Route::middleware('auth:sanctum')->group(function () {
+    Route::get('products/search', [ProductController::class, 'search']);
+    Route::get('products/low-stock', [ProductController::class, 'lowStock']);
+    Route::apiResource('products', ProductController::class);
+});
+
+// Inventory Alerts
+Route::controller(App\Http\Controllers\InventoryAlertController::class)
+        ->prefix('inventory-alerts')
+    ->group(function () {
+        Route::get('/', 'index');
+        Route::get('/dashboard', 'dashboard');
+        Route::get('/critical', 'critical');
+        Route::get('/store/{storeId}', 'store');
+        Route::get('/store/{storeId}/reorder-suggestions', 'reorderSuggestions');
+        Route::get('/store/{storeId}/pos-alerts', 'posAlerts');
+        Route::post('/send-alerts', 'sendAlerts');
+        Route::post('/store/{storeId}/update-thresholds', 'updateThresholds');
+        Route::delete('/cache', 'clearCache');
+    });
 
 // Customers
-Route::apiResource('customers', CustomerController::class);
+Route::apiResource('customers', CustomerController::class)
+    ->middleware('auth');
 
 // Sales
-Route::apiResource('sales', SaleController::class);
+Route::apiResource('sales', SaleController::class)
+    ->middleware('auth');
+
+// Receipts
+Route::controller(App\Http\Controllers\ReceiptController::class)
+        ->prefix('receipts')
+    ->group(function () {
+        Route::get('/settings', 'settings');
+        Route::put('/settings', 'updateSettings');
+        Route::post('/reprint', 'reprint');
+        Route::get('/{sale}', 'show')->name('receipts.show');
+        Route::get('/{sale}/generate', 'generate');
+        Route::post('/{sale}/print', 'print');
+        Route::get('/{sale}/thermal', 'thermal');
+        Route::get('/{sale}/pdf', 'pdf');
+    });
 
 // Stock Movements
-Route::get('stock-movement-types', [StockMovementController::class, 'getAdjustmentTypes']);
-Route::apiResource('stock-movements', StockMovementController::class);
+Route::middleware('auth:sanctum')->group(function () {
+    Route::get('stock-movement-types', [StockMovementController::class, 'getAdjustmentTypes']);
+    Route::apiResource('stock-movements', StockMovementController::class);
+});
 
 // Stores
-Route::apiResource('stores', StoreController::class);
+Route::middleware('auth:sanctum')->group(function () {
+    Route::get('stores/analytics', [StoreController::class, 'analytics']);
+    Route::get('stores/{store}/validate', [StoreController::class, 'validate']);
+    Route::apiResource('stores', StoreController::class);
+});
 
 // Settings
-Route::get('settings/all', [SettingController::class, 'getAllSettings']);
-Route::post('settings/store', [SettingController::class, 'saveStoreSettings']);
-Route::post('settings/tax', [SettingController::class, 'saveTaxSettings']);
-Route::post('settings/receipt', [SettingController::class, 'saveReceiptSettings']);
-Route::apiResource('settings', SettingController::class);
+Route::controller(SettingController::class)
+        ->prefix('settings')
+    ->group(function () {
+        Route::get('/all', 'getAllSettings');
+        Route::post('/store', 'saveStoreSettings');
+        Route::post('/tax', 'saveTaxSettings');
+        Route::post('/receipt', 'saveReceiptSettings');
+    });
+
+Route::apiResource('settings', SettingController::class)
+    ->middleware('auth');
 
 // Users
-Route::apiResource('users', UserController::class);
+Route::apiResource('users', UserController::class)
+    ->middleware('auth');
 
 // Payments
-Route::post('payments/process', [PaymentController::class, 'processPayment']);
-Route::get('payment-methods', [PaymentController::class, 'getPaymentMethods']);
-Route::get('payments/stats', [PaymentController::class, 'getStats']);
-Route::get('sales/{sale}/payments', [PaymentController::class, 'getSalePayments']);
-Route::get('payments/{payment}', [PaymentController::class, 'show']);
-Route::post('payments/{payment}/refund', [PaymentController::class, 'refund']);
+Route::controller(PaymentController::class)
+        ->group(function () {
+        Route::post('payments/process', 'processPayment');
+        Route::get('payment-methods', 'getPaymentMethods');
+        Route::get('payments/stats', 'getStats');
+        Route::get('payments/list', 'index'); // Changed to avoid conflict
+        Route::get('sales/{sale}/payments', 'getSalePayments');
+        Route::get('payments/{payment}', 'show');
+        Route::post('payments/{payment}/refund', 'refund');
+    });
+
+// Employees
+Route::controller(EmployeeController::class)
+        ->prefix('employees')
+    ->group(function () {
+        Route::get('/analytics', 'analytics');
+        Route::get('/roles-permissions', 'getRolesAndPermissions');
+        Route::post('/{employee}/reset-password', 'resetPassword');
+    });
+Route::apiResource('employees', App\Http\Controllers\EmployeeController::class)
+    ->middleware('auth');
+
+// Loyalty Program
+Route::controller(LoyaltyController::class)
+        ->prefix('loyalty')
+    ->group(function () {
+        Route::get('/analytics', 'analytics');
+        Route::get('/config', 'getConfig');
+        Route::post('/apply-discount', 'applyDiscount');
+        Route::post('/calculate-points', 'calculatePoints');
+        Route::post('/birthday-rewards', 'sendBirthdayRewards');
+        Route::post('/expire-points', 'expireOldPoints');
+        Route::get('/customers/{customer}/summary', 'getCustomerSummary');
+        Route::post('/customers/{customer}/adjust-points', 'adjustPoints');
+    });
+
+// Manager Dashboard
+Route::controller(ManagerDashboardController::class)
+        ->prefix('manager-dashboard')
+    ->group(function () {
+        Route::get('/analytics', 'getAnalytics');
+        Route::get('/realtime', 'getRealtimeStats');
+        Route::get('/employee-metrics', 'getEmployeeMetrics');
+    });

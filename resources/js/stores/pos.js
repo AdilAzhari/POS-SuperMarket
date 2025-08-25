@@ -2,6 +2,7 @@ import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 // import type { CartItem, Customer, Product } from '@/types'
 import axios from 'axios'
+import { usePage } from '@inertiajs/vue3'
 
 export const usePOSStore = defineStore('pos', () => {
   const cartItems = ref([])
@@ -75,11 +76,18 @@ export const usePOSStore = defineStore('pos', () => {
       throw new Error('Cart is empty')
     }
     
+    const page = usePage()
+    const currentUser = page.props.auth?.user
+    
+    if (!currentUser) {
+      throw new Error('User not authenticated')
+    }
+    
     const storeId = Number(options?.storeId ?? 1)
     const payload = {
       store_id: storeId,
       customer_id: selectedCustomer.value ? Number(selectedCustomer.value.id) : null,
-      cashier_id: window?.App?.userId ?? 1,
+      cashier_id: Number(currentUser.id),
       payment_method: options?.paymentMethod ?? 'cash',
       items: cartItems.value.map(i => ({
         product_id: Number(i.productId),

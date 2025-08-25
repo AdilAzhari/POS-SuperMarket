@@ -5,40 +5,32 @@
 </template>
 
 <script setup>
-import { computed } from 'vue'
+import { computed, defineAsyncComponent } from 'vue'
 import { useAppStore } from '@/stores/app'
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue'
 
-// Components
-import POSInterface from '@/Components/POSInterface.vue'
-import ProductManagement from '@/Components/ProductManagement.vue'
-import SalesHistory from '@/Components/SalesHistory.vue'
-import StockManagement from '@/Components/StockManagement.vue'
-import InventoryOverview from '@/Components/InventoryOverview.vue'
-import CustomerManagement from '@/Components/CustomerManagement.vue'
-import CategoryManagement from '@/Components/CategoryManagement.vue'
-import SupplierManagement from '@/Components/SupplierManagement.vue'
-import PaymentHistory from '@/Components/PaymentHistory.vue'
-import ReportsAnalytics from '@/Components/ReportsAnalytics.vue'
-import SystemSettings from '@/Components/SystemSettings.vue'
-
 const appStore = useAppStore()
 
+// Dynamic component imports to reduce bundle size
 const componentMap = {
-  pos: POSInterface,
-  products: ProductManagement,
-  sales: SalesHistory,
-  stock: StockManagement,
-  inventory: InventoryOverview,
-  customers: CustomerManagement,
-  categories: CategoryManagement,
-  suppliers: SupplierManagement,
-  payments: PaymentHistory,
-  reports: ReportsAnalytics,
-  settings: SystemSettings,
+  pos: defineAsyncComponent(() => import('@/Components/POSInterface.vue')),
+  'manager-dashboard': defineAsyncComponent(() => import('@/Components/ManagerDashboard.vue')),
+  products: defineAsyncComponent(() => import('@/Components/ProductManagement.vue')),
+  sales: defineAsyncComponent(() => import('@/Components/SalesHistory.vue')),
+  stock: defineAsyncComponent(() => import('@/Components/StockManagement.vue')),
+  inventory: defineAsyncComponent(() => import('@/Components/InventoryOverview.vue')),
+  customers: defineAsyncComponent(() => import('@/Components/CustomerManagement.vue')),
+  employees: defineAsyncComponent(() => import('@/Components/EmployeeManagement.vue')),
+  categories: defineAsyncComponent(() => import('@/Components/CategoryManagement.vue')),
+  suppliers: defineAsyncComponent(() => import('@/Components/SupplierManagement.vue')),
+  stores: defineAsyncComponent(() => import('@/Components/StoreManagement.vue')),
+  payments: defineAsyncComponent(() => import('@/Components/PaymentHistory.vue')),
+  returns: defineAsyncComponent(() => import('@/Components/ProductReturns.vue')),
+  reports: defineAsyncComponent(() => import('@/Components/ReportsAnalytics.vue')),
+  settings: defineAsyncComponent(() => import('@/Components/SystemSettings.vue')),
 }
 
 const currentComponent = computed(() => {
-  return componentMap[appStore.currentView] || POSInterface
+  return componentMap[appStore.currentView] || componentMap.pos
 })
 </script>
