@@ -3,7 +3,6 @@
 namespace App\Models;
 
 use Database\Factories\ProductFactory;
-use Illuminate\Database\Eloquent\Attributes\Scope;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -63,50 +62,53 @@ class Product extends Model
     }
 
     // Query Scopes
-    #[Scope]
-    public function active($query)
+    public function scopeActive($query)
     {
         return $query->where('active', true);
     }
-    #[Scope]
-    public function inCategory($query, $categoryId)
+
+    public function scopeInCategory($query, $categoryId)
     {
         return $query->where('category_id', $categoryId);
     }
-    #[Scope]
-    public function bySupplier($query, $supplierId)
+
+    public function scopeBySupplier($query, $supplierId)
     {
         return $query->where('supplier_id', $supplierId);
     }
-    #[Scope]
-    public function search($query, $search)
+
+    public function scopeSearch($query, $search)
     {
         return $query->where(function ($q) use ($search) {
             $q->where('name', 'LIKE', "%$search%")
-              ->orWhere('sku', 'LIKE', "%$search%")
-              ->orWhere('barcode', 'LIKE', "%$search%")
-              ->orWhereHas('category', fn($query) => $query->where('name', 'LIKE', "%$search%"));
+                ->orWhere('sku', 'LIKE', "%$search%")
+                ->orWhere('barcode', 'LIKE', "%$search%")
+                ->orWhereHas('category', fn ($query) => $query->where('name', 'LIKE', "%$search%"));
         });
     }
-    #[Scope]
-    public function lowStock($query, $storeId)
+
+    public function scopeLowStock($query, $storeId)
     {
         return $query->whereHas('stores', function ($q) use ($storeId) {
             $q->where('store_id', $storeId)
-              ->whereRaw('product_store.stock <= product_store.low_stock_threshold');
+                ->whereRaw('product_store.stock <= product_store.low_stock_threshold');
         });
     }
+
     // Helper methods
     public function getStockForStore(int $storeId): int
     {
         $store = $this->stores()->where('stores.id', $storeId)->first();
-        return (int)$store?->pivot->stock;
+
+        return (int) $store?->pivot->stock;
     }
 
     public function isLowStockForStore(int $storeId): bool
     {
         $store = $this->stores()->where('stores.id', $storeId)->first();
-        if (!$store) return false;
+        if (! $store) {
+            return false;
+        }
 
         return $store->pivot->stock <= $store->pivot->low_stock_threshold;
     }

@@ -4,11 +4,14 @@ namespace App\Models;
 
 use App\Enums\PaymentMethod;
 use App\Enums\PaymentStatus;
+use App\Observers\PaymentObserver;
 use Database\Factories\PaymentFactory;
+use Illuminate\Database\Eloquent\Attributes\ObservedBy;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
+#[ObservedBy([PaymentObserver::class])]
 class Payment extends Model
 {
     /** @use HasFactory<PaymentFactory> */
@@ -34,6 +37,8 @@ class Payment extends Model
         'card_exp_year',
         'tng_phone',
         'tng_reference',
+        'cash_received',
+        'change_amount',
         'notes',
         'processed_at',
     ];
@@ -42,34 +47,13 @@ class Payment extends Model
         'amount' => 'decimal:2',
         'fee' => 'decimal:2',
         'net_amount' => 'decimal:2',
+        'cash_received' => 'decimal:2',
+        'change_amount' => 'decimal:2',
         'gateway_response' => 'array',
         'processed_at' => 'datetime',
         'payment_method' => PaymentMethod::class,
         'status' => PaymentStatus::class,
     ];
-
-    protected static function boot()
-    {
-        parent::boot();
-
-        static::creating(function ($payment) {
-            if (!$payment->payment_code) {
-                $payment->payment_code = static::generatePaymentCode();
-            }
-
-            // Calculate net amount after fees
-            $payment->net_amount = $payment->amount - $payment->fee;
-        });
-    }
-
-    protected static function generatePaymentCode(): string
-    {
-        $prefix = 'PAY';
-        $lastRecord = static::latest('id')->first();
-        $number = $lastRecord ? $lastRecord->id + 1 : 1;
-
-        return $prefix . '-' . str_pad($number, 6, '0', STR_PAD_LEFT);
-    }
 
     public function sale(): BelongsTo
     {
