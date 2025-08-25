@@ -19,14 +19,90 @@
     </div>
 
     <div class="bg-white rounded-lg shadow-sm p-4">
-      <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-        <div class="relative flex-1">
-          <Search class="w-4 h-4 text-gray-400 absolute left-3 top-2.5" />
-          <input
-            v-model="query"
-            placeholder="Search categories"
-            class="w-full pl-9 pr-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
-          />
+      <!-- Search and Filters -->
+      <div class="space-y-4">
+        <!-- Search Bar -->
+        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+          <div class="relative flex-1">
+            <Search class="w-4 h-4 text-gray-400 absolute left-3 top-2.5" />
+            <input
+              v-model="query"
+              placeholder="Search categories"
+              class="w-full pl-9 pr-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
+            />
+          </div>
+        </div>
+
+        <!-- Filters and Sorting -->
+        <div class="flex flex-col lg:flex-row gap-4">
+          <!-- Filters -->
+          <div class="flex flex-wrap gap-4 items-center">
+            <!-- Product Count Filter -->
+            <div class="flex items-center gap-2 min-w-0 flex-shrink-0">
+              <span class="text-sm text-gray-600">Products:</span>
+              <input
+                v-model.number="filters.minProducts"
+                type="number"
+                placeholder="Min"
+                class="w-20 px-2 py-1 border rounded focus:ring-1 focus:ring-blue-500 text-sm"
+                min="0"
+              />
+              <span class="text-gray-400">-</span>
+              <input
+                v-model.number="filters.maxProducts"
+                type="number"
+                placeholder="Max"
+                class="w-20 px-2 py-1 border rounded focus:ring-1 focus:ring-blue-500 text-sm"
+                min="0"
+              />
+            </div>
+
+            <!-- Empty Categories Filter -->
+            <div class="min-w-0 flex-shrink-0">
+              <label class="flex items-center gap-2 text-sm">
+                <input
+                  v-model="filters.hideEmpty"
+                  type="checkbox"
+                  class="rounded border-gray-300"
+                />
+                Hide empty categories
+              </label>
+            </div>
+
+            <!-- Clear Filters -->
+            <button
+              @click="clearFilters"
+              class="px-3 py-2 text-sm text-gray-600 hover:text-gray-800 border border-gray-300 rounded-lg hover:bg-gray-50"
+            >
+              Clear Filters
+            </button>
+          </div>
+
+          <!-- Sorting -->
+          <div class="flex items-center gap-4 lg:ml-auto">
+            <div class="flex items-center gap-2">
+              <span class="text-sm text-gray-600">Sort by:</span>
+              <select
+                v-model="sortBy"
+                class="px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 text-sm"
+              >
+                <option value="name">Name</option>
+                <option value="products">Product Count</option>
+                <option value="created_at">Date Added</option>
+              </select>
+            </div>
+
+            <button
+              @click="toggleSortOrder"
+              class="px-3 py-2 border rounded-lg hover:bg-gray-50 focus:ring-2 focus:ring-blue-500"
+              :title="sortOrder === 'asc' ? 'Sort Descending' : 'Sort Ascending'"
+            >
+              <component
+                :is="sortOrder === 'asc' ? ChevronUp : ChevronDown"
+                class="w-4 h-4"
+              />
+            </button>
+          </div>
         </div>
       </div>
 
@@ -146,12 +222,86 @@
 <script setup>
 import { computed, reactive, ref } from 'vue'
 import { useCategoriesStore } from '@/stores/categories.js'
-import { Edit, Trash2, Plus, Search, X } from 'lucide-vue-next'
+import { useMessageModal } from '@/composables/useModal.js'
+import Modal from '@/Components/Modal.vue'
+import { Edit, Trash2, Plus, Search, X, ChevronUp, ChevronDown } from 'lucide-vue-next'
 
 const store = useCategoriesStore()
+const modal = useMessageModal()
 
+// Search and Filter state
 const query = ref('')
-const filtered = computed(() => store.searchCategories(query.value))
+const filters = reactive({
+  minProducts: null,
+  maxProducts: null,
+  hideEmpty: false,
+})
+
+// Sorting state
+const sortBy = ref('name')
+const sortOrder = ref('asc')
+
+// Advanced filtering and sorting logic
+const filtered = computed(() => {
+  let results = store.categories
+
+  // Apply search query
+  if (query.value.trim()) {
+    results = store.searchCategories(query.value)
+  }
+
+  // Apply filters
+  if (filters.minProducts !== null && filters.minProducts !== '') {
+    results = results.filter(c => (c.productsCount ?? 0) >= Number(filters.minProducts))
+  }
+
+  if (filters.maxProducts !== null && filters.maxProducts !== '') {
+    results = results.filter(c => (c.productsCount ?? 0) <= Number(filters.maxProducts))
+  }
+
+  if (filters.hideEmpty) {
+    results = results.filter(c => (c.productsCount ?? 0) > 0)
+  }
+
+  // Apply sorting
+  results = [...results].sort((a, b) => {
+    let aVal, bVal
+
+    switch (sortBy.value) {
+      case 'name':
+        aVal = a.name.toLowerCase()
+        bVal = b.name.toLowerCase()
+        break
+      case 'products':
+        aVal = Number(a.productsCount ?? 0)
+        bVal = Number(b.productsCount ?? 0)
+        break
+      case 'created_at':
+        aVal = new Date(a.created_at || 0)
+        bVal = new Date(b.created_at || 0)
+        break
+      default:
+        return 0
+    }
+
+    if (aVal < bVal) return sortOrder.value === 'asc' ? -1 : 1
+    if (aVal > bVal) return sortOrder.value === 'asc' ? 1 : -1
+    return 0
+  })
+
+  return results
+})
+
+// Filter and Sort Actions
+const clearFilters = () => {
+  filters.minProducts = null
+  filters.maxProducts = null
+  filters.hideEmpty = false
+}
+
+const toggleSortOrder = () => {
+  sortOrder.value = sortOrder.value === 'asc' ? 'desc' : 'asc'
+}
 
 const showModal = ref(false)
 const isEditing = ref(false)
@@ -205,12 +355,12 @@ const submit = async () => {
 
     // Validate required fields
     if (!form.name.trim()) {
-      notify('Category name is required', 'error')
+      await modal.showError('Category name is required')
       return
     }
 
     if (form.name.trim().length < 2) {
-      notify('Category name must be at least 2 characters', 'error')
+      await modal.showError('Category name must be at least 2 characters')
       return
     }
 
@@ -220,7 +370,7 @@ const submit = async () => {
         payload.slug = form.slug.trim()
       }
       await store.updateCategory(editingId.value, payload)
-      notify('Category updated successfully')
+      await modal.showSuccess('Category updated successfully')
       showModal.value = false
     } else {
       const payload = { name: form.name.trim() }
@@ -228,25 +378,27 @@ const submit = async () => {
         payload.slug = form.slug.trim()
       }
       await store.addCategory(payload)
-      notify('Category added successfully')
+      await modal.showSuccess('Category added successfully')
       showModal.value = false
     }
   } catch (e) {
     const errorMessage = e?.message || 'Operation failed'
-    notify(errorMessage, 'error')
+    await modal.showError(errorMessage)
   } finally {
     isSubmitting.value = false
   }
 }
 
 const remove = async id => {
-  if (!confirm('Delete this category?')) return
+  const confirmed = await modal.showConfirm('Are you sure you want to delete this category? This action cannot be undone.')
+  if (!confirmed) return
+  
   try {
     await store.deleteCategory(id)
-    notify('Category removed successfully')
+    await modal.showSuccess('Category deleted successfully')
   } catch (e) {
-    const errorMessage = e?.message || 'Failed to remove category'
-    notify(errorMessage, 'error')
+    const errorMessage = e?.message || 'Failed to delete category'
+    await modal.showError(errorMessage)
   }
 }
 
@@ -257,3 +409,18 @@ const viewProducts = async c => {
 
 store.fetchCategories().catch(() => {})
 </script>
+
+<!-- Modal Component -->
+<Modal
+  :show="modal.isVisible.value"
+  :title="modal.modalData.title"
+  :message="modal.modalData.message"
+  :type="modal.modalData.type"
+  :size="modal.modalData.size"
+  :show-cancel-button="modal.modalData.showCancelButton"
+  :confirm-text="modal.modalData.confirmText"
+  :cancel-text="modal.modalData.cancelText"
+  @close="modal.hide"
+  @confirm="modal.confirm"
+  @cancel="modal.cancel"
+/>
