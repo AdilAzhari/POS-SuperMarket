@@ -19,7 +19,7 @@ enum StockMovementReason: string
 
     public function label(): string
     {
-        return match($this) {
+        return match ($this) {
             self::PURCHASE => 'Purchase from Supplier',
             self::SALE => 'Sold to Customer',
             self::RETURN => 'Customer Return',
@@ -37,15 +37,14 @@ enum StockMovementReason: string
 
     public function color(): string
     {
-        return match($this) {
+        return match ($this) {
             self::PURCHASE => 'green',
             self::SALE => 'blue',
             self::RETURN => 'yellow',
-            self::DAMAGED => 'red',
+            self::DAMAGED, self::THEFT => 'red',
             self::EXPIRED => 'orange',
             self::TRANSFER => 'purple',
             self::RECOUNT => 'indigo',
-            self::THEFT => 'red',
             self::LOST => 'gray',
             self::PROMOTIONAL => 'pink',
             self::SAMPLE => 'teal',
@@ -55,7 +54,7 @@ enum StockMovementReason: string
 
     public function category(): string
     {
-        return match($this) {
+        return match ($this) {
             self::PURCHASE, self::RETURN => 'inbound',
             self::SALE, self::TRANSFER => 'outbound',
             self::DAMAGED, self::EXPIRED, self::THEFT, self::LOST, self::WASTE => 'loss',
@@ -76,7 +75,7 @@ enum StockMovementReason: string
     public static function options(): array
     {
         return collect(self::cases())
-            ->map(fn($case) => [
+            ->map(fn ($case) => [
                 'value' => $case->value,
                 'label' => $case->label(),
                 'color' => $case->color(),
@@ -88,8 +87,8 @@ enum StockMovementReason: string
     public static function byCategory(string $category): array
     {
         return collect(self::cases())
-            ->filter(fn($case) => $case->category() === $category)
-            ->map(fn($case) => [
+            ->filter(fn ($case) => $case->category() === $category)
+            ->map(fn ($case) => [
                 'value' => $case->value,
                 'label' => $case->label(),
                 'color' => $case->color(),

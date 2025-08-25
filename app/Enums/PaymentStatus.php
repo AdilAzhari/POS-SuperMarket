@@ -14,7 +14,7 @@ enum PaymentStatus: string
 
     public function label(): string
     {
-        return match($this) {
+        return match ($this) {
             self::PENDING => 'Pending',
             self::PROCESSING => 'Processing',
             self::COMPLETED => 'Completed',
@@ -27,14 +27,13 @@ enum PaymentStatus: string
 
     public function color(): string
     {
-        return match($this) {
+        return match ($this) {
             self::PENDING => 'yellow',
             self::PROCESSING => 'blue',
             self::COMPLETED => 'green',
-            self::FAILED => 'red',
+            self::FAILED, self::EXPIRED => 'red',
             self::CANCELLED => 'gray',
             self::REFUNDED => 'orange',
-            self::EXPIRED => 'red',
         };
     }
 
@@ -65,7 +64,7 @@ enum PaymentStatus: string
     public static function options(): array
     {
         return collect(self::cases())
-            ->map(fn($case) => [
+            ->map(fn ($case) => [
                 'value' => $case->value,
                 'label' => $case->label(),
                 'color' => $case->color(),

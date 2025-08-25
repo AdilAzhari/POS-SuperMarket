@@ -14,7 +14,7 @@ enum SaleStatus: string
 
     public function label(): string
     {
-        return match($this) {
+        return match ($this) {
             self::DRAFT => 'Draft',
             self::PENDING => 'Pending',
             self::COMPLETED => 'Completed',
@@ -27,14 +27,13 @@ enum SaleStatus: string
 
     public function color(): string
     {
-        return match($this) {
+        return match ($this) {
             self::DRAFT => 'gray',
             self::PENDING => 'yellow',
             self::COMPLETED => 'green',
             self::REFUNDED => 'orange',
             self::PARTIALLY_REFUNDED => 'amber',
-            self::VOIDED => 'red',
-            self::CANCELLED => 'red',
+            self::VOIDED, self::CANCELLED => 'red',
         };
     }
 
@@ -71,7 +70,7 @@ enum SaleStatus: string
     public static function options(): array
     {
         return collect(self::cases())
-            ->map(fn($case) => [
+            ->map(fn ($case) => [
                 'value' => $case->value,
                 'label' => $case->label(),
                 'color' => $case->color(),

@@ -5,7 +5,6 @@ namespace App\Models;
 use App\Enums\PaymentMethod;
 use App\Enums\SaleStatus;
 use Database\Factories\SaleFactory;
-use Illuminate\Database\Eloquent\Attributes\Scope;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -62,59 +61,59 @@ class Sale extends Model
     {
         return $this->hasMany(SaleItem::class);
     }
+
     public function payments(): HasMany
     {
         return $this->hasMany(Payment::class);
     }
+
     public function latestPayment(): HasOne
     {
         return $this->hasOne(Payment::class)->latestOfMany();
     }
 
     // Query Scopes
-    #[Scope]
-    public function completed($query)
+    public function scopeCompleted($query)
     {
         return $query->where('status', SaleStatus::COMPLETED);
     }
 
-    #[Scope]
-    public function byStore($query, $storeId)
+    public function ScopebyStore($query, $storeId)
     {
         return $query->where('store_id', $storeId);
     }
-    #[Scope]
-    public function byCustomer($query, $customerId)
+
+    public function scopeByCustomer($query, $customerId)
     {
         return $query->where('customer_id', $customerId);
     }
-    #[Scope]
-    public function byCashier($query, $cashierId)
+
+    public function ScopeByCashier($query, $cashierId)
     {
         return $query->where('cashier_id', $cashierId);
     }
-    #[Scope]
-    public function byPaymentMethod($query, $method)
+
+    public function ScopeByPaymentMethod($query, $method)
     {
         return $query->where('payment_method', $method);
     }
-    #[Scope]
-    public function inDateRange($query, $startDate, $endDate)
+
+    public function scopeInDateRange($query, $startDate, $endDate)
     {
         return $query->whereBetween('created_at', [$startDate, $endDate]);
     }
-    #[Scope]
-    public function today($query)
+
+    public function scopeToday($query)
     {
         return $query->whereDate('created_at', today());
     }
-    #[Scope]
-    public function thisWeek($query)
+
+    public function ScopeThisWeek($query)
     {
         return $query->whereBetween('created_at', [now()->startOfWeek(), now()->endOfWeek()]);
     }
-    #[Scope]
-    public function thisMonth($query)
+
+    public function ScopeThisMonth($query)
     {
         return $query->whereBetween('created_at', [now()->startOfMonth(), now()->endOfMonth()]);
     }

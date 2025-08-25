@@ -11,7 +11,7 @@ use Laravel\Sanctum\HasApiTokens;
 class User extends Authenticatable
 {
     /** @use HasFactory<\Database\Factories\UserFactory> */
-    use HasFactory, Notifiable, HasApiTokens;
+    use HasApiTokens, HasFactory, Notifiable;
 
     /**
      * The attributes that are mass assignable.
@@ -22,6 +22,14 @@ class User extends Authenticatable
         'name',
         'email',
         'password',
+        'role',
+        'is_active',
+        'employee_id',
+        'hourly_rate',
+        'permissions',
+        'phone',
+        'address',
+        'hire_date',
     ];
 
     /**
@@ -44,6 +52,64 @@ class User extends Authenticatable
         return [
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
+            'permissions' => 'json',
+            'last_login_at' => 'datetime',
+            'hire_date' => 'date',
+            'is_active' => 'boolean',
+            'hourly_rate' => 'decimal:2',
         ];
+    }
+
+    // User role helpers
+    public function isAdmin(): bool
+    {
+        return $this->role === 'admin';
+    }
+
+    public function isManager(): bool
+    {
+        return in_array($this->role, ['admin', 'manager']);
+    }
+
+    public function isCashier(): bool
+    {
+        return $this->role === 'cashier';
+    }
+
+    public function hasPermission(string $permission): bool
+    {
+        if ($this->isAdmin()) {
+            return true;
+        }
+
+        $permissions = $this->permissions ?? [];
+
+        return in_array($permission, $permissions);
+    }
+
+    public function canManageInventory(): bool
+    {
+        return $this->hasPermission('manage_inventory') || $this->isManager();
+    }
+
+    public function canViewReports(): bool
+    {
+        return $this->hasPermission('view_reports') || $this->isManager();
+    }
+
+    public function canManageUsers(): bool
+    {
+        return $this->hasPermission('manage_users') || $this->isAdmin();
+    }
+
+    // Relationships
+    public function sales()
+    {
+        return $this->hasMany(Sale::class, 'cashier_id');
+    }
+
+    public function stockMovements()
+    {
+        return $this->hasMany(StockMovement::class);
     }
 }
