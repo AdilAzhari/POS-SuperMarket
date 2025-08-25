@@ -118,13 +118,37 @@
             <span v-if="isSubmitting">Recording...</span>
             <span v-else>Record Adjustment</span>
           </button>
+          
+          <!-- Quick actions -->
+          <div class="mt-4 flex flex-wrap gap-2">
+            <button
+              @click="showBulkModal = true"
+              class="px-3 py-1.5 text-xs bg-purple-100 text-purple-700 rounded hover:bg-purple-200 border border-purple-200"
+            >
+              Bulk Operations
+            </button>
+            <button
+              @click="showTransferModal = true"
+              class="px-3 py-1.5 text-xs bg-blue-100 text-blue-700 rounded hover:bg-blue-200 border border-blue-200"
+            >
+              Store Transfer
+            </button>
+            <button
+              @click="refreshData"
+              :disabled="isRefreshing"
+              class="px-3 py-1.5 text-xs bg-gray-100 text-gray-700 rounded hover:bg-gray-200 border border-gray-200 disabled:opacity-50"
+            >
+              <span v-if="isRefreshing">Refreshing...</span>
+              <span v-else>Refresh</span>
+            </button>
+          </div>
         </form>
       </div>
 
       <div class="bg-white rounded-lg shadow-sm p-4 lg:col-span-2">
         <div class="flex items-center justify-between mb-3">
           <h3 class="font-semibold text-gray-900">Stock Movements</h3>
-          <span class="text-xs text-gray-500">Total: {{ filteredMovements.length }}</span>
+          <span class="text-xs text-gray-500">Total: {{ movementsData.pagination.total }}</span>
         </div>
 
         <!-- Search and Filters -->
@@ -140,7 +164,7 @@
               />
             </div>
             <div class="text-sm text-gray-500">
-              {{ paginatedMovements.length }} of {{ filteredMovements.length }} movements
+              {{ movementsData.pagination.from || 0 }} - {{ movementsData.pagination.to || 0 }} of {{ movementsData.pagination.total }} movements
             </div>
           </div>
 
@@ -262,11 +286,17 @@
                 <td class="px-4 py-2 truncate max-w-[200px]">
                   {{ a.notes }}
                 </td>
-                <td class="px-4 py-2">{{ a.createdAt }}</td>
+                <td class="px-4 py-2">{{ formatDate(a.created_at) }}</td>
                 <td class="px-4 py-2">{{ a.user?.name || 'System' }}</td>
               </tr>
-              <tr v-if="filteredMovements.length === 0">
-                <td colspan="9" class="px-4 py-8 text-center text-gray-500">No stock movements found.</td>
+              <tr v-if="movementsData.data.length === 0">
+                <td colspan="9" class="px-4 py-8 text-center text-gray-500">
+                  <div v-if="isLoadingMovements" class="flex items-center justify-center space-x-2">
+                    <div class="w-4 h-4 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
+                    <span>Loading movements...</span>
+                  </div>
+                  <span v-else>No stock movements found.</span>
+                </td>
               </tr>
             </tbody>
           </table>
@@ -275,12 +305,12 @@
         <!-- Pagination -->
         <div v-if="totalPages > 1" class="mt-4 flex items-center justify-between">
           <div class="text-sm text-gray-500">
-            Showing {{ (currentPage - 1) * itemsPerPage + 1 }} to {{ Math.min(currentPage * itemsPerPage, filteredMovements.length) }} of {{ filteredMovements.length }} movements
+            Showing {{ movementsData.pagination.from || 0 }} to {{ movementsData.pagination.to || 0 }} of {{ movementsData.pagination.total }} movements
           </div>
           <div class="flex items-center space-x-2">
             <button
-              @click="currentPage = Math.max(1, currentPage - 1)"
-              :disabled="currentPage === 1"
+              @click="goToPage(movementsData.pagination.current_page - 1)"
+              :disabled="movementsData.pagination.current_page === 1 || isLoadingMovements"
               class="px-3 py-1 border rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               Previous
@@ -289,10 +319,11 @@
               <button
                 v-for="page in visiblePages"
                 :key="page"
-                @click="currentPage = page"
+                @click="goToPage(page)"
+                :disabled="isLoadingMovements"
                 :class="[
-                  'px-3 py-1 border rounded-lg',
-                  page === currentPage
+                  'px-3 py-1 border rounded-lg disabled:cursor-not-allowed',
+                  page === movementsData.pagination.current_page
                     ? 'bg-blue-600 text-white border-blue-600'
                     : 'hover:bg-gray-50'
                 ]"
@@ -301,18 +332,78 @@
               </button>
             </div>
             <button
-              @click="currentPage = Math.min(totalPages, currentPage + 1)"
-              :disabled="currentPage === totalPages"
+              @click="goToPage(movementsData.pagination.current_page + 1)"
+              :disabled="movementsData.pagination.current_page === totalPages || isLoadingMovements"
               class="px-3 py-1 border rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               Next
             </button>
           </div>
         </div>
+
+        <!-- Statistics Summary -->
+        <div v-if="stats" class="mt-6 grid grid-cols-2 md:grid-cols-4 gap-4">
+          <div class="bg-blue-50 border border-blue-200 rounded-lg p-3">
+            <div class="text-blue-600 text-xs font-medium uppercase">Today's Movements</div>
+            <div class="text-blue-900 text-xl font-bold">{{ stats.today_movements || 0 }}</div>
+          </div>
+          <div class="bg-green-50 border border-green-200 rounded-lg p-3">
+            <div class="text-green-600 text-xs font-medium uppercase">Additions Today</div>
+            <div class="text-green-900 text-xl font-bold">{{ stats.additions_today || 0 }}</div>
+          </div>
+          <div class="bg-red-50 border border-red-200 rounded-lg p-3">
+            <div class="text-red-600 text-xs font-medium uppercase">Reductions Today</div>
+            <div class="text-red-900 text-xl font-bold">{{ stats.reductions_today || 0 }}</div>
+          </div>
+          <div class="bg-orange-50 border border-orange-200 rounded-lg p-3">
+            <div class="text-orange-600 text-xs font-medium uppercase">Transfers Today</div>
+            <div class="text-orange-900 text-xl font-bold">{{ stats.transfers_today || 0 }}</div>
+          </div>
+        </div>
       </div>
     </div>
   </div>
   
+  <!-- Bulk Operations Modal -->
+  <div v-if="showBulkModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+    <div class="bg-white rounded-lg max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+      <div class="p-4 border-b flex items-center justify-between">
+        <h3 class="text-lg font-semibold">Bulk Stock Operations</h3>
+        <button @click="closeBulkModal" class="text-gray-500 hover:text-gray-700">
+          <X class="w-6 h-6" />
+        </button>
+      </div>
+      <div class="p-4">
+        <BulkStockOperations 
+          :products="productsStore.products" 
+          :stores="appStore.stores"
+          @bulk-created="handleBulkCreated"
+          @close="closeBulkModal"
+        />
+      </div>
+    </div>
+  </div>
+
+  <!-- Stock Transfer Modal -->
+  <div v-if="showTransferModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+    <div class="bg-white rounded-lg max-w-2xl w-full">
+      <div class="p-4 border-b flex items-center justify-between">
+        <h3 class="text-lg font-semibold">Store to Store Transfer</h3>
+        <button @click="closeTransferModal" class="text-gray-500 hover:text-gray-700">
+          <X class="w-6 h-6" />
+        </button>
+      </div>
+      <div class="p-4">
+        <StockTransfer 
+          :products="productsStore.products" 
+          :stores="appStore.stores"
+          @transfer-completed="handleTransferCompleted"
+          @close="closeTransferModal"
+        />
+      </div>
+    </div>
+  </div>
+
   <!-- Modal Component -->
   <Modal
     :show="modal.isVisible.value"
@@ -330,16 +421,18 @@
 </template>
 
 <script setup>
-import { computed, reactive, ref } from 'vue'
+import { computed, reactive, ref, defineAsyncComponent, watch } from 'vue'
 import { useInventoryStore } from '@/stores/inventory'
 import { useAppStore } from '@/stores/app'
 import { useProductsStore } from '@/stores/products'
 import { useMessageModal } from '@/composables/useModal.js'
 import Modal from '@/Components/Modal.vue'
+import BulkStockOperations from '@/Components/BulkStockOperations.vue'
+import StockTransfer from '@/Components/StockTransfer.vue'
 // import type { StockAdjustment } from '@/types'
 import axios from 'axios'
 import { useNotificationStore } from '@/stores/notifications'
-import { Search, ArrowUpDown } from 'lucide-vue-next'
+import { Search, ArrowUpDown, X } from 'lucide-vue-next'
 
 const inventory = useInventoryStore()
 const appStore = useAppStore()
@@ -352,7 +445,7 @@ productsStore.fetchProducts().catch(() => {})
 
 // Load initial data
 inventory.fetchInventoryData().catch(() => {})
-inventory.fetchStockMovements().catch(() => {})
+fetchStockMovementsWithPagination()
 appStore.fetchStores().catch(() => {})
 
 const selectedProductId = ref('')
@@ -377,7 +470,11 @@ const filters = reactive({
   type: '',
   reason: '',
   minQuantity: null,
-  maxQuantity: null
+  maxQuantity: null,
+  dateFrom: '',
+  dateTo: '',
+  storeId: '',
+  productId: ''
 })
 
 // Sorting state
@@ -387,6 +484,28 @@ const sortDirection = ref('desc')
 // Pagination state
 const currentPage = ref(1)
 const itemsPerPage = ref(20)
+
+// Modal states
+const showBulkModal = ref(false)
+const showTransferModal = ref(false)
+const isRefreshing = ref(false)
+
+// Statistics and API data
+const stats = ref(null)
+const movementsData = ref({
+  data: [],
+  pagination: {
+    current_page: 1,
+    last_page: 1,
+    per_page: 20,
+    total: 0,
+    from: 1,
+    to: 20
+  },
+  filters: {},
+  sorting: {}
+})
+const isLoadingMovements = ref(false)
 
 const flashMessage = ref('')
 const flashType = ref('success')
@@ -404,7 +523,7 @@ const notify = (msg, type = 'success') => {
 // Computed properties for search, filter, sort, and pagination
 const uniqueReasons = computed(() => {
   const reasons = new Set()
-  inventory.stockAdjustments.forEach(movement => {
+  movementsData.value.data.forEach(movement => {
     if (movement.reason) {
       reasons.add(movement.reason)
     }
@@ -413,90 +532,25 @@ const uniqueReasons = computed(() => {
 })
 
 const hasActiveFilters = computed(() => {
-  return filters.type || filters.reason || filters.minQuantity !== null || filters.maxQuantity !== null
+  return filters.type || filters.reason || 
+         filters.minQuantity !== null || filters.maxQuantity !== null ||
+         filters.dateFrom || filters.dateTo || filters.storeId || filters.productId ||
+         searchQuery.value.trim()
 })
 
 const filteredMovements = computed(() => {
-  let movements = inventory.stockAdjustments || []
-
-  // Apply search
-  if (searchQuery.value.trim()) {
-    const query = searchQuery.value.toLowerCase()
-    movements = movements.filter(movement => 
-      movement.product?.name?.toLowerCase().includes(query) ||
-      movement.product?.sku?.toLowerCase().includes(query) ||
-      movement.reason?.toLowerCase().includes(query) ||
-      movement.notes?.toLowerCase().includes(query)
-    )
-  }
-
-  // Apply filters
-  if (filters.type) {
-    movements = movements.filter(movement => movement.type === filters.type)
-  }
-
-  if (filters.reason) {
-    movements = movements.filter(movement => movement.reason === filters.reason)
-  }
-
-  if (filters.minQuantity !== null && filters.minQuantity !== '') {
-    movements = movements.filter(movement => movement.quantity >= Number(filters.minQuantity))
-  }
-
-  if (filters.maxQuantity !== null && filters.maxQuantity !== '') {
-    movements = movements.filter(movement => movement.quantity <= Number(filters.maxQuantity))
-  }
-
-  // Apply sorting
-  movements = [...movements].sort((a, b) => {
-    let aValue, bValue
-
-    switch (sortBy.value) {
-      case 'id':
-        aValue = Number(a.id)
-        bValue = Number(b.id)
-        break
-      case 'product_name':
-        aValue = (a.product?.name || '').toLowerCase()
-        bValue = (b.product?.name || '').toLowerCase()
-        break
-      case 'type':
-        aValue = a.type || ''
-        bValue = b.type || ''
-        break
-      case 'quantity':
-        aValue = Number(a.quantity)
-        bValue = Number(b.quantity)
-        break
-      case 'createdAt':
-        aValue = new Date(a.createdAt || 0)
-        bValue = new Date(b.createdAt || 0)
-        break
-      default:
-        return 0
-    }
-
-    if (sortDirection.value === 'asc') {
-      return aValue < bValue ? -1 : aValue > bValue ? 1 : 0
-    } else {
-      return aValue > bValue ? -1 : aValue < bValue ? 1 : 0
-    }
-  })
-
-  return movements
+  return movementsData.value.data || []
 })
 
-const totalPages = computed(() => Math.ceil(filteredMovements.value.length / itemsPerPage.value))
+const totalPages = computed(() => movementsData.value.pagination.last_page)
 
 const paginatedMovements = computed(() => {
-  const start = (currentPage.value - 1) * itemsPerPage.value
-  const end = start + itemsPerPage.value
-  return filteredMovements.value.slice(start, end)
+  return movementsData.value.data || []
 })
 
 const visiblePages = computed(() => {
   const total = totalPages.value
-  const current = currentPage.value
+  const current = movementsData.value.pagination.current_page
   const delta = 2
   
   let start = Math.max(1, current - delta)
@@ -514,18 +568,158 @@ const visiblePages = computed(() => {
   return pages
 })
 
+// Add debounced search functionality
+let searchTimeout = null
+watch(searchQuery, (newValue) => {
+  if (searchTimeout) {
+    clearTimeout(searchTimeout)
+  }
+  searchTimeout = setTimeout(() => {
+    currentPage.value = 1
+    fetchStockMovementsWithPagination()
+  }, 300)
+})
+
+// Watch filters for changes
+watch([() => filters.type, () => filters.reason, () => sortBy.value, () => sortDirection.value], () => {
+  currentPage.value = 1
+  fetchStockMovementsWithPagination()
+})
+
+// Page navigation function
+const goToPage = (page) => {
+  if (page >= 1 && page <= totalPages.value && page !== movementsData.value.pagination.current_page) {
+    currentPage.value = page
+    fetchStockMovementsWithPagination()
+  }
+}
+
+// Format date helper
+const formatDate = (dateString) => {
+  if (!dateString) return ''
+  try {
+    return new Date(dateString).toLocaleString()
+  } catch {
+    return dateString
+  }
+}
+
 // Filter and sorting functions
 const clearFilters = () => {
   filters.type = ''
   filters.reason = ''
   filters.minQuantity = null
   filters.maxQuantity = null
+  filters.dateFrom = ''
+  filters.dateTo = ''
+  filters.storeId = ''
+  filters.productId = ''
+  searchQuery.value = ''
   currentPage.value = 1
+  fetchStockMovementsWithPagination()
 }
 
 const toggleSortDirection = () => {
   sortDirection.value = sortDirection.value === 'asc' ? 'desc' : 'asc'
+  fetchStockMovementsWithPagination()
 }
+
+// Modal functions
+const closeBulkModal = () => {
+  showBulkModal.value = false
+}
+
+const closeTransferModal = () => {
+  showTransferModal.value = false
+}
+
+const handleBulkCreated = (movements) => {
+  notificationStore.success('Bulk Operations', `Successfully created ${movements.length} stock movements`)
+  closeBulkModal()
+  refreshData()
+}
+
+const handleTransferCompleted = (transfer) => {
+  notificationStore.success('Transfer Complete', `Successfully transferred stock between stores`)
+  closeTransferModal()
+  refreshData()
+}
+
+// Fetch stock movements with pagination
+const fetchStockMovementsWithPagination = async () => {
+  isLoadingMovements.value = true
+  try {
+    const params = {
+      page: currentPage.value,
+      per_page: itemsPerPage.value,
+      search: searchQuery.value,
+      type: filters.type,
+      reason: filters.reason,
+      min_quantity: filters.minQuantity,
+      max_quantity: filters.maxQuantity,
+      date_from: filters.dateFrom,
+      date_to: filters.dateTo,
+      store_id: filters.storeId,
+      product_id: filters.productId,
+      sort_by: sortBy.value,
+      sort_order: sortDirection.value
+    }
+
+    // Remove empty parameters
+    Object.keys(params).forEach(key => {
+      if (params[key] === '' || params[key] === null || params[key] === undefined) {
+        delete params[key]
+      }
+    })
+
+    const response = await axios.get('/api/stock-movements', { params })
+    movementsData.value = response.data
+    
+    // Update stats from response
+    if (response.data.stats) {
+      stats.value = response.data.stats
+    }
+  } catch (error) {
+    console.error('Failed to fetch stock movements:', error)
+    notificationStore.error('Failed to load stock movements', error.response?.data?.message || error.message)
+  } finally {
+    isLoadingMovements.value = false
+  }
+}
+
+// Data refresh function
+const refreshData = async () => {
+  isRefreshing.value = true
+  try {
+    await Promise.all([
+      fetchStockMovementsWithPagination(),
+      inventory.fetchInventoryData(),
+      fetchStatistics()
+    ])
+  } catch (error) {
+    console.error('Failed to refresh data:', error)
+  } finally {
+    isRefreshing.value = false
+  }
+}
+
+// Fetch statistics
+const fetchStatistics = async () => {
+  try {
+    const response = await axios.get('/api/stock-movements/statistics', {
+      params: {
+        date_from: new Date().toISOString().split('T')[0],
+        date_to: new Date().toISOString().split('T')[0]
+      }
+    })
+    stats.value = response.data
+  } catch (error) {
+    console.error('Failed to fetch statistics:', error)
+  }
+}
+
+// Fetch statistics on component mount
+fetchStatistics().catch(() => {})
 
 // Fetch adjustment types and reasons from backend
 const fetchAdjustmentTypes = async () => {
@@ -684,7 +878,7 @@ const submit = async () => {
     }
 
     // Refresh stock movements to show the new one
-    inventory.fetchStockMovements().catch(() => {})
+    fetchStockMovementsWithPagination()
 
     // reset form
     selectedProductId.value = ''
