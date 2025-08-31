@@ -1,10 +1,12 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Http\Requests;
 
 use Illuminate\Foundation\Http\FormRequest;
 
-class UpdatestoreRequest extends FormRequest
+final class UpdatestoreRequest extends FormRequest
 {
     /**
      * Determine if the user is authorized to make this request.
@@ -25,7 +27,7 @@ class UpdatestoreRequest extends FormRequest
         if (is_object($storeId)) {
             $storeId = $storeId->id;
         }
-        $storeId = $storeId ?? 'NULL';
+        $storeId ??= 'NULL';
 
         return [
             'name' => ['sometimes', 'string', 'max:255', "unique:stores,name,{$storeId}"],

@@ -1,11 +1,13 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Exceptions;
 
 use Exception;
 use Illuminate\Http\JsonResponse;
 
-class InsufficientStockException extends Exception
+final class InsufficientStockException extends Exception
 {
     public function render(): JsonResponse
     {

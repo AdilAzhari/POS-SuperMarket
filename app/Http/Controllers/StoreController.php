@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Http\Controllers;
 
 use App\Http\Requests\StorestoreRequest;
@@ -10,7 +12,7 @@ use Exception;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
-class StoreController extends Controller
+final class StoreController extends Controller
 {
     public function __construct(
         private readonly StoreService $storeService
@@ -26,21 +28,19 @@ class StoreController extends Controller
             $stores = $this->storeService->getAllStores($filters);
 
             // Add computed attributes for each store
-            $storesWithData = $stores->map(function ($store) {
-                return [
-                    'id' => $store->id,
-                    'name' => $store->name,
-                    'address' => $store->address,
-                    'phone' => $store->phone,
-                    'email' => $store->email,
-                    'created_at' => $store->created_at,
-                    'updated_at' => $store->updated_at,
-                    'total_products' => $store->products()->count(),
-                    'total_stock' => $store->products()->sum('stock') ?? 0,
-                    'total_sales_amount' => $store->sales()->sum('total') ?? 0,
-                    'has_contact' => $store->hasContact(),
-                ];
-            });
+            $storesWithData = $stores->map(fn ($store): array => [
+                'id' => $store->id,
+                'name' => $store->name,
+                'address' => $store->address,
+                'phone' => $store->phone,
+                'email' => $store->email,
+                'created_at' => $store->created_at,
+                'updated_at' => $store->updated_at,
+                'total_products' => $store->products()->count(),
+                'total_stock' => $store->products()->sum('stock') ?? 0,
+                'total_sales_amount' => $store->sales()->sum('total') ?? 0,
+                'has_contact' => $store->hasContact(),
+            ]);
 
             return response()->json([
                 'data' => $storesWithData,
@@ -160,7 +160,7 @@ class StoreController extends Controller
             $issues = $this->storeService->validateStoreForSale($store);
 
             return response()->json([
-                'valid' => empty($issues),
+                'valid' => $issues === [],
                 'issues' => $issues,
             ]);
         } catch (Exception $e) {

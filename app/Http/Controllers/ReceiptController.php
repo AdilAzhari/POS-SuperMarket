@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Http\Controllers;
 
 use App\Models\Sale;
@@ -8,7 +10,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 
-class ReceiptController extends Controller
+final class ReceiptController extends Controller
 {
     public function __construct(
         private readonly ReceiptService $receiptService
@@ -134,9 +136,7 @@ class ReceiptController extends Controller
             ->orWhere('category', 'printer')
             ->get()
             ->groupBy('category')
-            ->map(function ($items) {
-                return $items->pluck('value', 'key');
-            });
+            ->map(fn ($items) => $items->pluck('value', 'key'));
 
         return response()->json([
             'success' => true,

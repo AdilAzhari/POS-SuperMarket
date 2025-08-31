@@ -1,7 +1,12 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Http\Controllers;
 
+use App\Actions\Stock\BulkStockAdjustmentAction;
+use App\Actions\Stock\GenerateStockStatisticsAction;
+use App\Actions\Stock\ProcessStockMovementAction;
 use App\Enums\StockMovementReason;
 use App\Enums\StockMovementType;
 use App\Http\Requests\StoreStockMovementRequest;
@@ -10,15 +15,19 @@ use App\Models\Product;
 use App\Models\StockMovement;
 use App\Models\Store;
 use App\Services\StockService;
+use Exception;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
-class StockMovementController extends Controller
+final class StockMovementController extends Controller
 {
     public function __construct(
-        private readonly StockService $stockService
+        private readonly StockService $stockService,
+        private readonly ProcessStockMovementAction $processMovementAction,
+        private readonly BulkStockAdjustmentAction $bulkAdjustmentAction,
+        private readonly GenerateStockStatisticsAction $generateStatisticsAction
     ) {}
 
     /**
@@ -62,8 +71,8 @@ class StockMovementController extends Controller
 
         // Search functionality
         if ($search) {
-            $query->where(function ($q) use ($search) {
-                $q->whereHas('product', function ($productQuery) use ($search) {
+            $query->where(function ($q) use ($search): void {
+                $q->whereHas('product', function ($productQuery) use ($search): void {
                     $productQuery->where('name', 'like', "%{$search}%")
                         ->orWhere('sku', 'like', "%{$search}%")
                         ->orWhere('barcode', 'like', "%{$search}%");
@@ -177,30 +186,14 @@ class StockMovementController extends Controller
      */
     public function store(StoreStockMovementRequest $request)
     {
-        log::info('hi', $request->all());
         try {
             $data = $request->validated();
+            $data['user_id'] = auth()->id();
 
-            return DB::transaction(function () use ($data) {
-                $movement = StockMovement::create($data);
+            $movement = $this->processMovementAction->execute($data);
 
-                // Adjust pivot stock for product-store
-                $product = Product::findOrFail($data['product_id']);
-                $store = Store::findOrFail($data['store_id']);
-                $pivot = $product->stores()->where('stores.id', $store->id)->first();
-                if (! $pivot) {
-                    $product->stores()->attach($store->id, ['stock' => 0, 'low_stock_threshold' => 0]);
-                }
-
-                $currentStock = (int) $product->stores()->where('stores.id', $store->id)->first()->pivot->stock;
-                $movementType = StockMovementType::from($data['type']);
-                $delta = $movementType->isPositive() ? $data['quantity'] : -$data['quantity'];
-                $newStock = max(0, $currentStock + $delta);
-                $product->stores()->updateExistingPivot($store->id, ['stock' => $newStock]);
-
-                return response()->json($movement->load(['product', 'store']), 201);
-            });
-        } catch (\Exception $e) {
+            return response()->json($movement, 201);
+        } catch (Exception $e) {
             return response()->json([
                 'message' => 'Failed to create stock movement',
                 'error' => config('app.debug') ? $e->getMessage() : 'An error occurred while processing your request.',
@@ -232,7 +225,7 @@ class StockMovementController extends Controller
     public function destroy(StockMovement $stockMovement)
     {
         try {
-            DB::transaction(function () use ($stockMovement) {
+            DB::transaction(function () use ($stockMovement): void {
                 // Reverse the stock adjustment before deleting
                 $this->reverseStockAdjustment($stockMovement);
 
@@ -247,7 +240,7 @@ class StockMovementController extends Controller
             });
 
             return response()->noContent();
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             Log::error('[StockMovement] Failed to delete stock movement', [
                 'movement_id' => $stockMovement->id,
                 'error' => $e->getMessage(),
@@ -278,38 +271,17 @@ class StockMovementController extends Controller
         ]);
 
         try {
-            $createdMovements = [];
-
-            DB::transaction(function () use ($request, &$createdMovements) {
-                foreach ($request->movements as $movementData) {
-                    // Generate movement code
-                    $movementData['code'] = 'STK-'.date('ymdHis').'-'.rand(100, 999);
-                    $movementData['occurred_at'] = now();
-                    $movementData['user_id'] = auth()->id();
-
-                    $movement = StockMovement::create($movementData);
-                    $this->adjustProductStock($movementData, $movement);
-
-                    $createdMovements[] = $movement->load(['product', 'store', 'user']);
-                }
-            });
-
-            Log::info('[StockMovement] Created bulk stock movements', [
-                'count' => count($createdMovements),
-                'user_id' => auth()->id(),
-            ]);
+            $movements = $this->bulkAdjustmentAction->execute(
+                $request->movements,
+                auth()->id()
+            );
 
             return response()->json([
                 'message' => 'Bulk stock movements created successfully',
-                'movements' => $createdMovements,
-                'count' => count($createdMovements),
+                'movements' => $movements->toArray(),
+                'count' => $movements->count(),
             ], 201);
-        } catch (\Exception $e) {
-            Log::error('[StockMovement] Failed to create bulk stock movements', [
-                'error' => $e->getMessage(),
-                'movements_count' => count($request->movements ?? []),
-            ]);
-
+        } catch (Exception $e) {
             return response()->json([
                 'message' => 'Failed to create bulk stock movements',
                 'error' => config('app.debug') ? $e->getMessage() : 'An error occurred while processing your request.',
@@ -328,58 +300,11 @@ class StockMovementController extends Controller
             'store_id' => 'nullable|exists:stores,id',
         ]);
 
-        $query = StockMovement::query();
-
-        if ($request->date_from) {
-            $query->whereDate('occurred_at', '>=', $request->date_from);
-        }
-        if ($request->date_to) {
-            $query->whereDate('occurred_at', '<=', $request->date_to);
-        }
-        if ($request->store_id) {
-            $query->where('store_id', $request->store_id);
-        }
-
-        $movements = $query->get();
-
-        $stats = [
-            'total_movements' => $movements->count(),
-            'by_type' => [
-                'addition' => $movements->where('type', 'addition')->sum('quantity'),
-                'reduction' => $movements->where('type', 'reduction')->sum('quantity'),
-                'transfer_in' => $movements->where('type', 'transfer_in')->count(),
-                'transfer_out' => $movements->where('type', 'transfer_out')->count(),
-                'adjustment' => $movements->where('type', 'adjustment')->count(),
-            ],
-            'by_reason' => $movements->groupBy('reason')->map(function ($group) {
-                return [
-                    'count' => $group->count(),
-                    'total_quantity' => $group->sum('quantity'),
-                ];
-            }),
-            'daily_summary' => $movements->groupBy(function ($movement) {
-                return $movement->occurred_at->format('Y-m-d');
-            })->map(function ($dayMovements) {
-                return [
-                    'total_movements' => $dayMovements->count(),
-                    'additions' => $dayMovements->where('type', 'addition')->sum('quantity'),
-                    'reductions' => $dayMovements->where('type', 'reduction')->sum('quantity'),
-                    'transfers' => $dayMovements->whereIn('type', ['transfer_in', 'transfer_out'])->count(),
-                ];
-            })->sortKeys(),
-            'top_products' => $movements->groupBy('product_id')
-                ->map(function ($productMovements) {
-                    return [
-                        'product_id' => $productMovements->first()->product_id,
-                        'product_name' => $productMovements->first()->product->name ?? 'Unknown',
-                        'movement_count' => $productMovements->count(),
-                        'total_quantity_moved' => $productMovements->sum('quantity'),
-                    ];
-                })
-                ->sortByDesc('movement_count')
-                ->take(10)
-                ->values(),
-        ];
+        $stats = $this->generateStatisticsAction->execute(
+            $request->date_from,
+            $request->date_to,
+            $request->store_id
+        );
 
         return response()->json($stats);
     }
@@ -483,7 +408,7 @@ class StockMovementController extends Controller
 
                 // Create transfer out movement
                 $transferOut = StockMovement::create([
-                    'code' => 'TXF-OUT-'.date('ymdHis').'-'.rand(100, 999),
+                    'code' => 'TXF-OUT-'.date('ymdHis').'-'.random_int(100, 999),
                     'product_id' => $request->product_id,
                     'store_id' => $request->from_store_id,
                     'type' => 'transfer_out',
@@ -498,7 +423,7 @@ class StockMovementController extends Controller
 
                 // Create transfer in movement
                 $transferIn = StockMovement::create([
-                    'code' => 'TXF-IN-'.date('ymdHis').'-'.rand(100, 999),
+                    'code' => 'TXF-IN-'.date('ymdHis').'-'.random_int(100, 999),
                     'product_id' => $request->product_id,
                     'store_id' => $request->to_store_id,
                     'type' => 'transfer_in',
@@ -512,8 +437,8 @@ class StockMovementController extends Controller
                 ]);
 
                 // Adjust stock for both stores
-                $this->adjustProductStock($transferOut->toArray(), $transferOut);
-                $this->adjustProductStock($transferIn->toArray(), $transferIn);
+                $this->adjustProductStock($transferOut->toArray());
+                $this->adjustProductStock($transferIn->toArray());
 
                 Log::info('[StockMovement] Completed stock transfer', [
                     'product_id' => $request->product_id,
@@ -530,7 +455,7 @@ class StockMovementController extends Controller
                     'transfer_in' => $transferIn->load(['product', 'store', 'fromStore', 'toStore', 'user']),
                 ], 201);
             });
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             Log::error('[StockMovement] Failed to transfer stock', [
                 'error' => $e->getMessage(),
                 'request_data' => $request->all(),
@@ -546,7 +471,7 @@ class StockMovementController extends Controller
     /**
      * Adjust product stock based on movement
      */
-    private function adjustProductStock(array $data, StockMovement $movement): void
+    private function adjustProductStock(array $data): void
     {
         $product = Product::findOrFail($data['product_id']);
         $store = Store::findOrFail($data['store_id']);
@@ -602,7 +527,9 @@ class StockMovementController extends Controller
         $currentStock = (int) $pivot->pivot->stock;
 
         // Calculate reverse adjustment
-        $movementType = StockMovementType::from($movement->type);
+        $movementType = $movement->type instanceof StockMovementType
+            ? $movement->type
+            : StockMovementType::from($movement->type);
         $reverseDelta = $movementType->isPositive() ? -$movement->quantity : $movement->quantity;
 
         if ($movement->type === 'adjustment') {

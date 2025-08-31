@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Http\Controllers;
 
 use App\Enums\PaymentMethod;
@@ -13,9 +15,9 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 
-class PaymentController extends Controller
+final class PaymentController extends Controller
 {
-    public function __construct(protected PaymentService $paymentService) {}
+    public function __construct(private readonly PaymentService $paymentService) {}
 
     /**
      * Get all payments with pagination
@@ -141,7 +143,7 @@ class PaymentController extends Controller
      */
     public function getPaymentMethods(): JsonResponse
     {
-        $methods = collect(PaymentMethod::cases())->map(function ($method) {
+        $methods = collect(PaymentMethod::cases())->map(function ($method): array {
             $feeRate = match ($method) {
                 PaymentMethod::CASH => 0,
                 PaymentMethod::CARD => 2.9,
@@ -230,12 +232,12 @@ class PaymentController extends Controller
                     'message' => 'Payment refunded successfully',
                     'payment' => $payment->fresh(),
                 ]);
-            } else {
-                return response()->json([
-                    'message' => 'Refund failed',
-                    'error' => 'REFUND_FAILED',
-                ], 500);
             }
+
+            return response()->json([
+                'message' => 'Refund failed',
+                'error' => 'REFUND_FAILED',
+            ], 500);
 
         } catch (Exception $e) {
             return response()->json([
@@ -278,13 +280,11 @@ class PaymentController extends Controller
             'total_amount' => $payments->sum('amount'),
             'total_fees' => $payments->sum('fee'),
             'net_amount' => $payments->sum('net_amount'),
-            'by_method' => $payments->groupBy('payment_method')->map(function ($methodPayments) {
-                return [
-                    'count' => $methodPayments->count(),
-                    'amount' => $methodPayments->sum('amount'),
-                    'fees' => $methodPayments->sum('fee'),
-                ];
-            }),
+            'by_method' => $payments->groupBy('payment_method')->map(fn ($methodPayments): array => [
+                'count' => $methodPayments->count(),
+                'amount' => $methodPayments->sum('amount'),
+                'fees' => $methodPayments->sum('fee'),
+            ]),
         ];
 
         return response()->json($stats);
