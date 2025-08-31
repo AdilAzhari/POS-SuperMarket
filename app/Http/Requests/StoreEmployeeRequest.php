@@ -1,57 +1,71 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Http\Requests;
 
+use App\DTOs\ConvertsToDTOs;
+use App\Enums\UserRole;
+use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
-class StoreEmployeeRequest extends FormRequest
+final class StoreEmployeeRequest extends FormRequest
 {
+    use ConvertsToDTOs;
+
     /**
      * Determine if the user is authorized to make this request.
      */
     public function authorize(): bool
     {
         // Check if user has permission to manage employees
-        return auth()->user()?->hasPermission('manage_employees') || auth()->user()?->isAdmin();
+        if (auth()->user()?->hasPermission('manage_employees')) {
+            return true;
+        }
+
+        return (bool) auth()->user()?->isAdmin();
     }
 
     /**
      * Get the validation rules that apply to the request.
      *
-     * @return array<string, \Illuminate\Contracts\Validation\ValidationRule|array<mixed>|string>
+     * @return array<string, ValidationRule|array|string>
      */
     public function rules(): array
     {
         $isUpdating = $this->getMethod() === 'PUT' || $this->getMethod() === 'PATCH';
-        $employeeId = $this->route('employee')?->id;
+        $employeeId = $this->route('employee')?->id ?? $this->route('user')?->id;
+
+        // For updates, make most fields optional with 'sometimes'
+        $requiredOrSometimes = $isUpdating ? 'sometimes' : 'required';
 
         return [
-            'name' => ['required', 'string', 'max:255'],
+            'name' => [$requiredOrSometimes, 'string', 'max:255'],
             'email' => [
-                'required',
+                $requiredOrSometimes,
                 'email',
                 'max:255',
                 Rule::unique('users', 'email')->ignore($employeeId),
             ],
             'password' => [
-                $isUpdating ? 'nullable' : 'required',
+                $isUpdating ? 'sometimes' : 'required',
                 'string',
                 'min:8',
             ],
-            'role' => ['required', Rule::in(['admin', 'manager', 'supervisor', 'cashier'])],
+            'role' => [$requiredOrSometimes, Rule::in(UserRole::getValues())],
             'employee_id' => [
-                'nullable',
+                'sometimes', // Always optional
                 'string',
                 'max:50',
                 Rule::unique('users', 'employee_id')->ignore($employeeId),
             ],
-            'phone' => ['nullable', 'string', 'max:20'],
-            'address' => ['nullable', 'string', 'max:500'],
-            'hourly_rate' => ['nullable', 'numeric', 'min:0', 'max:999.99'],
-            'hire_date' => ['nullable', 'date', 'before_or_equal:today'],
-            'is_active' => ['boolean'],
-            'permissions' => ['nullable', 'array'],
+            'phone' => ['sometimes', 'string', 'max:20'],
+            'address' => ['sometimes', 'string', 'max:500'],
+            'hourly_rate' => ['sometimes', 'numeric', 'min:0', 'max:999.99'],
+            'hire_date' => ['sometimes', 'date', 'before_or_equal:today'],
+            'is_active' => ['sometimes', 'boolean'],
+            'permissions' => ['sometimes', 'array'],
             'permissions.*' => ['string'],
         ];
     }

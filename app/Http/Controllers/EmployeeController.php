@@ -1,7 +1,12 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Http\Controllers;
 
+use App\Actions\Common\CreateUserDTOAction;
+use App\Actions\Employee\CreateEmployeeAction;
+use App\Actions\Employee\ProcessEmployeeDataAction;
 use App\Http\Requests\StoreEmployeeRequest;
 use App\Models\User;
 use App\Services\EmployeeService;
@@ -9,10 +14,13 @@ use Exception;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
-class EmployeeController extends Controller
+final class EmployeeController extends Controller
 {
     public function __construct(
-        private readonly EmployeeService $employeeService
+        private readonly EmployeeService $employeeService,
+        private readonly ProcessEmployeeDataAction $processEmployeeDataAction,
+        private readonly CreateEmployeeAction $createEmployeeAction,
+        private readonly CreateUserDTOAction $createUserDTOAction
     ) {}
 
     /**
@@ -22,31 +30,12 @@ class EmployeeController extends Controller
     {
         try {
             $filters = $request->only(['search', 'role', 'active_only']);
-            $employees = $this->employeeService->getAllEmployees($filters);
-
-            // Add computed attributes for each employee
-            $employeesWithData = $employees->map(function ($employee) {
-                return [
-                    'id' => $employee->id,
-                    'name' => $employee->name,
-                    'email' => $employee->email,
-                    'role' => $employee->role,
-                    'employee_id' => $employee->employee_id,
-                    'phone' => $employee->phone,
-                    'is_active' => $employee->is_active,
-                    'hourly_rate' => $employee->hourly_rate,
-                    'hire_date' => $employee->hire_date,
-                    'last_login_at' => $employee->last_login_at,
-                    'created_at' => $employee->created_at,
-                    'permissions' => $employee->permissions,
-                    'role_label' => ucfirst($employee->role),
-                    'status_label' => $employee->is_active ? 'Active' : 'Inactive',
-                ];
-            });
+            $data = $this->processEmployeeDataAction->execute($filters);
 
             return response()->json([
-                'data' => $employeesWithData,
-                'total' => $employees->count(),
+                'data' => $data['employees'],
+                'summary' => $data['summary'],
+                'analytics' => $data['analytics'],
             ]);
         } catch (Exception $e) {
             return response()->json([
@@ -62,7 +51,11 @@ class EmployeeController extends Controller
     public function store(StoreEmployeeRequest $request): JsonResponse
     {
         try {
-            $employee = $this->employeeService->createEmployee($request->validated());
+            $data = $request->validated();
+
+            $employeeDTO = $this->createUserDTOAction->forEmployee($data);
+
+            $employee = $this->createEmployeeAction->execute($employeeDTO);
 
             return response()->json([
                 'data' => $employee,
