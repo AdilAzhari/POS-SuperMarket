@@ -1,11 +1,13 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Observers;
 
 use App\Models\Category;
 use Illuminate\Support\Str;
 
-class CategoryObserver
+final class CategoryObserver
 {
     /**
      * Handle the Category "creating" event.
@@ -30,7 +32,7 @@ class CategoryObserver
     /**
      * Generate a unique slug for the category.
      */
-    protected function generateUniqueSlug(string $name, ?int $excludeId = null): string
+    private function generateUniqueSlug(string $name, ?int $excludeId = null): string
     {
         $baseSlug = Str::slug($name);
         $slug = $baseSlug;

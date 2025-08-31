@@ -1,10 +1,12 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Observers;
 
 use App\Models\StockMovement;
 
-class StockMovementObserver
+final class StockMovementObserver
 {
     /**
      * Handle the StockMovement "creating" event.
@@ -19,12 +21,12 @@ class StockMovementObserver
     /**
      * Generate a unique code for the stock movement.
      */
-    protected function generateCode(): string
+    private function generateCode(): string
     {
         $prefix = 'SM';
         $lastRecord = StockMovement::query()->latest('id')->first();
         $number = $lastRecord ? $lastRecord->id + 1 : 1;
 
-        return $prefix.'-'.str_pad((string) $number, 6, '0', STR_PAD_LEFT);
+        return $prefix.'-'.mb_str_pad((string) $number, 6, '0', STR_PAD_LEFT);
     }
 }

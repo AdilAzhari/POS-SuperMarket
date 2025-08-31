@@ -1,10 +1,12 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Observers;
 
 use App\Models\Payment;
 
-class PaymentObserver
+final class PaymentObserver
 {
     /**
      * Handle the Payment "creating" event.
@@ -22,12 +24,12 @@ class PaymentObserver
     /**
      * Generate a unique payment code.
      */
-    protected function generatePaymentCode(): string
+    private function generatePaymentCode(): string
     {
         $prefix = 'PAY';
         $lastRecord = Payment::query()->latest('id')->first();
         $number = $lastRecord ? $lastRecord->id + 1 : 1;
 
-        return $prefix.'-'.str_pad((string) $number, 6, '0', STR_PAD_LEFT);
+        return $prefix.'-'.mb_str_pad((string) $number, 6, '0', STR_PAD_LEFT);
     }
 }
