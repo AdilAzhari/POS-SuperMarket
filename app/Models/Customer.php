@@ -1,13 +1,68 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Models;
 
+use App\Enums\CustomerStatus;
+use App\Enums\LoyaltyTier;
+use App\Enums\LoyaltyTransactionType;
+use Carbon\CarbonImmutable;
 use Database\Factories\CustomerFactory;
+use Eloquent;
+use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
-class Customer extends Model
+/**
+ * @property int $id
+ * @property string $name
+ * @property string $phone
+ * @property string|null $email
+ * @property string|null $address
+ * @property int $total_purchases
+ * @property numeric $total_spent
+ * @property CarbonImmutable|null $last_purchase_at
+ * @property CustomerStatus $status
+ * @property int $loyalty_points
+ * @property LoyaltyTier $loyalty_tier
+ * @property CarbonImmutable|null $birthday
+ * @property bool $marketing_consent
+ * @property CarbonImmutable|null $created_at
+ * @property CarbonImmutable|null $updated_at
+ * @property-read array $loyalty_tier_badge
+ * @property-read Collection<int, LoyaltyTransaction> $loyaltyTransactions
+ * @property-read int|null $loyalty_transactions_count
+ * @property-read Collection<int, RewardRedemption> $rewardRedemptions
+ * @property-read int|null $reward_redemptions_count
+ * @property-read Collection<int, Sale> $sales
+ * @property-read int|null $sales_count
+ *
+ * @method static CustomerFactory factory($count = null, $state = [])
+ * @method static Builder<static>|Customer newModelQuery()
+ * @method static Builder<static>|Customer newQuery()
+ * @method static Builder<static>|Customer query()
+ * @method static Builder<static>|Customer whereAddress($value)
+ * @method static Builder<static>|Customer whereBirthday($value)
+ * @method static Builder<static>|Customer whereCreatedAt($value)
+ * @method static Builder<static>|Customer whereEmail($value)
+ * @method static Builder<static>|Customer whereId($value)
+ * @method static Builder<static>|Customer whereLastPurchaseAt($value)
+ * @method static Builder<static>|Customer whereLoyaltyPoints($value)
+ * @method static Builder<static>|Customer whereLoyaltyTier($value)
+ * @method static Builder<static>|Customer whereMarketingConsent($value)
+ * @method static Builder<static>|Customer whereName($value)
+ * @method static Builder<static>|Customer wherePhone($value)
+ * @method static Builder<static>|Customer whereStatus($value)
+ * @method static Builder<static>|Customer whereTotalPurchases($value)
+ * @method static Builder<static>|Customer whereTotalSpent($value)
+ * @method static Builder<static>|Customer whereUpdatedAt($value)
+ *
+ * @mixin Eloquent
+ */
+final class Customer extends Model
 {
     /** @use HasFactory<CustomerFactory> */
     use HasFactory;
@@ -34,6 +89,8 @@ class Customer extends Model
         'loyalty_points' => 'integer',
         'birthday' => 'date',
         'marketing_consent' => 'boolean',
+        'status' => CustomerStatus::class,
+        'loyalty_tier' => LoyaltyTier::class,
     ];
 
     public function sales(): HasMany
@@ -54,28 +111,35 @@ class Customer extends Model
     // Loyalty tier helpers
     public function getLoyaltyTierBadgeAttribute(): array
     {
+        if (! $this->loyalty_tier) {
+            return ['color' => 'yellow', 'label' => 'Bronze', 'min_spent' => 0];
+        }
+
         $tiers = [
-            'bronze' => ['color' => 'yellow', 'label' => 'Bronze', 'min_spent' => 0],
-            'silver' => ['color' => 'gray', 'label' => 'Silver', 'min_spent' => 500],
-            'gold' => ['color' => 'yellow', 'label' => 'Gold', 'min_spent' => 1500],
-            'platinum' => ['color' => 'purple', 'label' => 'Platinum', 'min_spent' => 5000],
+            LoyaltyTier::BRONZE->value => ['color' => 'yellow', 'label' => 'Bronze', 'min_spent' => 0],
+            LoyaltyTier::SILVER->value => ['color' => 'gray', 'label' => 'Silver', 'min_spent' => 500],
+            LoyaltyTier::GOLD->value => ['color' => 'yellow', 'label' => 'Gold', 'min_spent' => 1500],
+            LoyaltyTier::PLATINUM->value => ['color' => 'purple', 'label' => 'Platinum', 'min_spent' => 5000],
         ];
 
-        return $tiers[$this->loyalty_tier] ?? $tiers['bronze'];
+        return $tiers[$this->loyalty_tier->value] ?? $tiers[LoyaltyTier::BRONZE->value];
     }
 
-    public function shouldUpgradeTier(): ?string
+    public function shouldUpgradeTier(): ?LoyaltyTier
     {
         $currentSpent = (float) $this->total_spent;
+        if ($currentSpent >= 5000 && $this->loyalty_tier !== LoyaltyTier::PLATINUM) {
+            return LoyaltyTier::PLATINUM;
+        }
+        if ($currentSpent >= 1500 && $this->loyalty_tier === LoyaltyTier::BRONZE) {
+            return LoyaltyTier::GOLD;
+        }
+        if ($currentSpent >= 1500 && $this->loyalty_tier === LoyaltyTier::SILVER) {
+            return LoyaltyTier::GOLD;
+        }
 
-        if ($currentSpent >= 5000 && $this->loyalty_tier !== 'platinum') {
-            return 'platinum';
-        } elseif ($currentSpent >= 1500 && $this->loyalty_tier === 'bronze') {
-            return 'gold';
-        } elseif ($currentSpent >= 1500 && $this->loyalty_tier === 'silver') {
-            return 'gold';
-        } elseif ($currentSpent >= 500 && $this->loyalty_tier === 'bronze') {
-            return 'silver';
+        if ($currentSpent >= 500 && $this->loyalty_tier === LoyaltyTier::BRONZE) {
+            return LoyaltyTier::SILVER;
         }
 
         return null;
@@ -88,10 +152,10 @@ class Customer extends Model
 
         // Tier multipliers
         $multiplier = match ($this->loyalty_tier) {
-            'platinum' => 2.0,
-            'gold' => 1.5,
-            'silver' => 1.25,
-            'bronze' => 1.0,
+            LoyaltyTier::PLATINUM => 2.0,
+            LoyaltyTier::GOLD => 1.5,
+            LoyaltyTier::SILVER => 1.25,
+            LoyaltyTier::BRONZE => 1.0,
             default => 1.0
         };
 
@@ -100,7 +164,7 @@ class Customer extends Model
         // Record the transaction
         $this->loyaltyTransactions()->create([
             'sale_id' => $saleId,
-            'type' => 'earned',
+            'type' => LoyaltyTransactionType::EARNED,
             'points' => $pointsEarned,
             'description' => 'Points earned from purchase ($'.number_format($saleAmount, 2).')',
             'expires_at' => now()->addYear(),
@@ -120,7 +184,7 @@ class Customer extends Model
 
         // Record the transaction
         $this->loyaltyTransactions()->create([
-            'type' => 'redeemed',
+            'type' => LoyaltyTransactionType::REDEEMED,
             'points' => -$pointsToRedeem,
             'description' => $description,
         ]);
@@ -135,15 +199,15 @@ class Customer extends Model
     {
         // Get points that haven't expired
         $validPoints = $this->loyaltyTransactions()
-            ->where('type', 'earned')
-            ->where(function ($query) {
+            ->where('type', LoyaltyTransactionType::EARNED)
+            ->where(function ($query): void {
                 $query->whereNull('expires_at')
                     ->orWhere('expires_at', '>', now());
             })
             ->sum('points');
 
         $redeemedPoints = $this->loyaltyTransactions()
-            ->where('type', 'redeemed')
+            ->where('type', LoyaltyTransactionType::REDEEMED)
             ->sum('points'); // This will be negative
 
         return max(0, $validPoints + $redeemedPoints);
@@ -157,17 +221,17 @@ class Customer extends Model
 
             // Award bonus points for tier upgrade
             $bonusPoints = match ($newTier) {
-                'silver' => 100,
-                'gold' => 250,
-                'platinum' => 500,
+                LoyaltyTier::SILVER => 100,
+                LoyaltyTier::GOLD => 250,
+                LoyaltyTier::PLATINUM => 500,
                 default => 0
             };
 
             if ($bonusPoints > 0) {
                 $this->loyaltyTransactions()->create([
-                    'type' => 'earned',
+                    'type' => LoyaltyTransactionType::EARNED,
                     'points' => $bonusPoints,
-                    'description' => "Bonus points for reaching {$newTier} tier",
+                    'description' => "Bonus points for reaching $newTier->value tier",
                     'expires_at' => now()->addYear(),
                 ]);
 
@@ -186,10 +250,10 @@ class Customer extends Model
         $currentSpent = (float) $this->total_spent;
 
         return match ($this->loyalty_tier) {
-            'bronze' => max(0, 500 - $currentSpent),
-            'silver' => max(0, 1500 - $currentSpent),
-            'gold' => max(0, 5000 - $currentSpent),
-            'platinum' => 0,
+            LoyaltyTier::BRONZE => max(0, 500 - $currentSpent),
+            LoyaltyTier::SILVER => max(0, 1500 - $currentSpent),
+            LoyaltyTier::GOLD => max(0, 5000 - $currentSpent),
+            LoyaltyTier::PLATINUM => 0,
             default => 500 - $currentSpent
         };
     }

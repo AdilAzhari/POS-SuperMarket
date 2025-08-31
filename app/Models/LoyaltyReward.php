@@ -1,12 +1,62 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Models;
 
+use App\Enums\LoyaltyRewardType;
+use Carbon\CarbonImmutable;
+use Eloquent;
+use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
-class LoyaltyReward extends Model
+/**
+ * @property int $id
+ * @property string $name
+ * @property string $description
+ * @property int $points_required
+ * @property LoyaltyRewardType $type
+ * @property numeric|null $discount_value
+ * @property int|null $free_product_id
+ * @property bool $is_active
+ * @property CarbonImmutable|null $valid_from
+ * @property CarbonImmutable|null $valid_until
+ * @property int|null $usage_limit
+ * @property int $times_used
+ * @property CarbonImmutable|null $created_at
+ * @property CarbonImmutable|null $updated_at
+ * @property-read Product|null $freeProduct
+ * @property-read string $type_display
+ * @property-read string $value_display
+ * @property-read Collection<int, RewardRedemption> $redemptions
+ * @property-read int|null $redemptions_count
+ *
+ * @method static Builder<static>|LoyaltyReward active()
+ * @method static Builder<static>|LoyaltyReward available()
+ * @method static Builder<static>|LoyaltyReward newModelQuery()
+ * @method static Builder<static>|LoyaltyReward newQuery()
+ * @method static Builder<static>|LoyaltyReward query()
+ * @method static Builder<static>|LoyaltyReward whereCreatedAt($value)
+ * @method static Builder<static>|LoyaltyReward whereDescription($value)
+ * @method static Builder<static>|LoyaltyReward whereDiscountValue($value)
+ * @method static Builder<static>|LoyaltyReward whereFreeProductId($value)
+ * @method static Builder<static>|LoyaltyReward whereId($value)
+ * @method static Builder<static>|LoyaltyReward whereIsActive($value)
+ * @method static Builder<static>|LoyaltyReward whereName($value)
+ * @method static Builder<static>|LoyaltyReward wherePointsRequired($value)
+ * @method static Builder<static>|LoyaltyReward whereTimesUsed($value)
+ * @method static Builder<static>|LoyaltyReward whereType($value)
+ * @method static Builder<static>|LoyaltyReward whereUpdatedAt($value)
+ * @method static Builder<static>|LoyaltyReward whereUsageLimit($value)
+ * @method static Builder<static>|LoyaltyReward whereValidFrom($value)
+ * @method static Builder<static>|LoyaltyReward whereValidUntil($value)
+ *
+ * @mixin Eloquent
+ */
+final class LoyaltyReward extends Model
 {
     protected $fillable = [
         'name',
@@ -30,6 +80,7 @@ class LoyaltyReward extends Model
         'valid_until' => 'date',
         'usage_limit' => 'integer',
         'times_used' => 'integer',
+        'type' => LoyaltyRewardType::class,
     ];
 
     // Relationships
@@ -47,10 +98,10 @@ class LoyaltyReward extends Model
     public function scopeActive($query)
     {
         return $query->where('is_active', true)
-            ->where(function ($q) {
+            ->where(function ($q): void {
                 $q->whereNull('valid_from')->orWhere('valid_from', '<=', now());
             })
-            ->where(function ($q) {
+            ->where(function ($q): void {
                 $q->whereNull('valid_until')->orWhere('valid_until', '>=', now());
             });
     }
@@ -58,7 +109,7 @@ class LoyaltyReward extends Model
     public function scopeAvailable($query)
     {
         return $query->active()
-            ->where(function ($q) {
+            ->where(function ($q): void {
                 $q->whereNull('usage_limit')->orWhereRaw('times_used < usage_limit');
             });
     }
@@ -77,11 +128,7 @@ class LoyaltyReward extends Model
             return false;
         }
 
-        if ($this->usage_limit && $this->times_used >= $this->usage_limit) {
-            return false;
-        }
-
-        return true;
+        return ! ($this->usage_limit && $this->times_used >= $this->usage_limit);
     }
 
     public function canBeRedeemedBy(Customer $customer): bool
@@ -96,10 +143,10 @@ class LoyaltyReward extends Model
     public function getDiscountAmount(float $orderTotal = 0): float
     {
         return match ($this->type) {
-            'percentage_discount' => $orderTotal * ($this->discount_value / 100),
-            'fixed_discount' => $this->discount_value,
-            'free_product' => $this->freeProduct?->price ?? 0,
-            'free_shipping' => 0, // Implement shipping logic as needed
+            LoyaltyRewardType::PERCENTAGE_DISCOUNT => $orderTotal * ($this->discount_value / 100),
+            LoyaltyRewardType::FIXED_DISCOUNT => $this->discount_value,
+            LoyaltyRewardType::FREE_PRODUCT => $this->freeProduct?->price ?? 0,
+            LoyaltyRewardType::FREE_SHIPPING => 0, // Implement shipping logic as needed
             default => 0
         };
     }
@@ -112,21 +159,21 @@ class LoyaltyReward extends Model
     public function getTypeDisplayAttribute(): string
     {
         return match ($this->type) {
-            'percentage_discount' => 'Percentage Discount',
-            'fixed_discount' => 'Fixed Amount Discount',
-            'free_product' => 'Free Product',
-            'free_shipping' => 'Free Shipping',
-            default => ucwords(str_replace('_', ' ', $this->type))
+            LoyaltyRewardType::PERCENTAGE_DISCOUNT => 'Percentage Discount',
+            LoyaltyRewardType::FIXED_DISCOUNT => 'Fixed Amount Discount',
+            LoyaltyRewardType::FREE_PRODUCT => 'Free Product',
+            LoyaltyRewardType::FREE_SHIPPING => 'Free Shipping',
+            default => ucwords(str_replace('_', ' ', $this->type->value))
         };
     }
 
     public function getValueDisplayAttribute(): string
     {
         return match ($this->type) {
-            'percentage_discount' => $this->discount_value.'%',
-            'fixed_discount' => '$'.number_format($this->discount_value, 2),
-            'free_product' => $this->freeProduct?->name ?? 'Product not found',
-            'free_shipping' => 'Free Shipping',
+            LoyaltyRewardType::PERCENTAGE_DISCOUNT => $this->discount_value.'%',
+            LoyaltyRewardType::FIXED_DISCOUNT => '$'.number_format($this->discount_value, 2),
+            LoyaltyRewardType::FREE_PRODUCT => $this->freeProduct?->name ?? 'Product not found',
+            LoyaltyRewardType::FREE_SHIPPING => 'Free Shipping',
             default => ''
         };
     }
