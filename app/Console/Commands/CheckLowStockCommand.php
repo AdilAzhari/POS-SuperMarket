@@ -1,11 +1,13 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Console\Commands;
 
 use App\Services\InventoryAlertService;
 use Illuminate\Console\Command;
 
-class CheckLowStockCommand extends Command
+final class CheckLowStockCommand extends Command
 {
     /**
      * The name and signature of the console command.
@@ -71,7 +73,7 @@ class CheckLowStockCommand extends Command
 
             $this->table(
                 ['Product', 'SKU', 'Current Stock', 'Threshold', 'Severity'],
-                $critical->take(10)->map(fn ($item) => [
+                $critical->take(10)->map(fn ($item): array => [
                     $item['product']->name,
                     $item['product']->sku,
                     $item['current_stock'],
@@ -87,7 +89,7 @@ class CheckLowStockCommand extends Command
             $this->info("\n💡 Top Reorder Suggestions:");
             $this->table(
                 ['Product', 'Current Stock', 'Suggested Qty', 'Est. Cost'],
-                $suggestions->take(5)->map(fn ($item) => [
+                $suggestions->take(5)->map(fn ($item): array => [
                     $item['product']->name,
                     $item['current_stock'],
                     $item['suggested_quantity'],
@@ -110,10 +112,10 @@ class CheckLowStockCommand extends Command
         $this->info('   Total low stock products: '.collect($lowStockData)->sum(fn ($store) => $store['products']->count()));
         $this->warn("   Critical/Out of stock items: {$criticalStock->count()}");
 
-        if (! empty($lowStockData)) {
+        if ($lowStockData !== []) {
             $this->table(
                 ['Store', 'Low Stock Products', 'Critical Items'],
-                collect($lowStockData)->map(fn ($storeData) => [
+                collect($lowStockData)->map(fn ($storeData): array => [
                     $storeData['store']->name,
                     $storeData['products']->count(),
                     $storeData['products']->where('severity', '>=', 4)->count(),
@@ -126,7 +128,7 @@ class CheckLowStockCommand extends Command
             $this->warn("\n⚠️  Most Critical Items:");
             $this->table(
                 ['Store', 'Product', 'Current Stock', 'Status'],
-                $criticalStock->take(10)->map(fn ($item) => [
+                $criticalStock->take(10)->map(fn ($item): array => [
                     $item['store']->name,
                     $item['product']->name,
                     $item['current_stock'],
@@ -141,7 +143,7 @@ class CheckLowStockCommand extends Command
      */
     private function updateThresholds(?string $storeId): void
     {
-        if ($storeId) {
+        if ($storeId !== null && $storeId !== '' && $storeId !== '0') {
             $updated = $this->inventoryAlertService->updateOptimalThresholds((int) $storeId);
             $this->info("   ✅ Updated {$updated} thresholds for store {$storeId}");
         } else {
