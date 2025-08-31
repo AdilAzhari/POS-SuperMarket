@@ -1,11 +1,14 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Database\Seeders;
 
+use App\Enums\UserRole;
 use App\Models\User;
 use Illuminate\Database\Seeder;
 
-class DatabaseSeeder extends Seeder
+final class DatabaseSeeder extends Seeder
 {
     /**
      * Seed the application's database.
@@ -14,16 +17,18 @@ class DatabaseSeeder extends Seeder
     {
         $this->command->info('🌱 Starting database seeding...');
 
-        // Create admin user
-        //        User::factory()->create([
-        //            'name' => 'Admin User',
-        //            'email' => 'admin@supermarket.com',
-        //        ]);
+        //         Create admin user
+        User::factory()->create([
+            'name' => 'Admin User',
+            'email' => 'admin@supermarket.com',
+            'role' => UserRole::ADMIN,
+            'password' => bcrypt('supermarket'),
+        ]);
 
-        // Create additional users
-        //        User::factory(5)->create();
+        //         Create additional users
+        User::factory(5)->create();
 
-        //        $this->command->info('👤 Users created');
+        $this->command->info('👤 Users created');
 
         // Seed in proper order (respecting foreign key dependencies)
         $this->call([

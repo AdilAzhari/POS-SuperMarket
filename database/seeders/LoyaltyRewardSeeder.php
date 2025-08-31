@@ -1,12 +1,14 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Database\Seeders;
 
 use App\Models\LoyaltyReward;
 use App\Models\Product;
 use Illuminate\Database\Seeder;
 
-class LoyaltyRewardSeeder extends Seeder
+final class LoyaltyRewardSeeder extends Seeder
 {
     public function run(): void
     {

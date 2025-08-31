@@ -1,11 +1,13 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Database\Seeders;
 
 use App\Models\Store;
 use Illuminate\Database\Seeder;
 
-class StoreSeeder extends Seeder
+final class StoreSeeder extends Seeder
 {
     /**
      * Run the database seeds.
@@ -18,13 +20,13 @@ class StoreSeeder extends Seeder
         Store::factory()->main()->create();
 
         // Create branch stores
-        Store::factory(5)->branch()->create();
+        Store::factory(2)->branch()->create();
 
         // Create outlet stores
         Store::factory(3)->outlet()->create();
 
         // Create additional regular stores
-        Store::factory(6)->create();
+        Store::factory(2)->create();
 
         $this->command->info('Stores created successfully.');
     }

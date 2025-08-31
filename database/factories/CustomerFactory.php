@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Database\Factories;
 
 use Illuminate\Database\Eloquent\Factories\Factory;
@@ -7,7 +9,7 @@ use Illuminate\Database\Eloquent\Factories\Factory;
 /**
  * @extends \Illuminate\Database\Eloquent\Factories\Factory<\App\Models\Customer>
  */
-class CustomerFactory extends Factory
+final class CustomerFactory extends Factory
 {
     /**
      * Define the model's default state.
@@ -37,7 +39,7 @@ class CustomerFactory extends Factory
      */
     public function withPurchases(): static
     {
-        return $this->state(fn (array $attributes) => [
+        return $this->state(fn (array $attributes): array => [
             'total_purchases' => fake()->numberBetween(5, 50),
             'total_spent' => fake()->randomFloat(2, 100, 5000),
             'last_purchase_at' => fake()->dateTimeBetween('-30 days', 'now'),
@@ -49,7 +51,7 @@ class CustomerFactory extends Factory
      */
     public function vip(): static
     {
-        return $this->state(fn (array $attributes) => [
+        return $this->state(fn (array $attributes): array => [
             'total_purchases' => fake()->numberBetween(50, 200),
             'total_spent' => fake()->randomFloat(2, 10000, 50000),
             'last_purchase_at' => fake()->dateTimeBetween('-7 days', 'now'),
@@ -64,7 +66,7 @@ class CustomerFactory extends Factory
      */
     public function inactive(): static
     {
-        return $this->state(fn (array $attributes) => [
+        return $this->state(fn (array $attributes): array => [
             'status' => 'inactive',
             'last_purchase_at' => fake()->dateTimeBetween('-2 years', '-6 months'),
         ]);
@@ -75,7 +77,7 @@ class CustomerFactory extends Factory
      */
     public function noEmail(): static
     {
-        return $this->state(fn (array $attributes) => [
+        return $this->state(fn (array $attributes): array => [
             'email' => null,
         ]);
     }
@@ -85,7 +87,7 @@ class CustomerFactory extends Factory
      */
     public function withLoyaltyPoints(): static
     {
-        return $this->state(fn (array $attributes) => [
+        return $this->state(fn (array $attributes): array => [
             'loyalty_points' => fake()->numberBetween(50, 500),
             'loyalty_tier' => fake()->randomElement(['bronze', 'silver']),
         ]);
@@ -96,7 +98,7 @@ class CustomerFactory extends Factory
      */
     public function silver(): static
     {
-        return $this->state(fn (array $attributes) => [
+        return $this->state(fn (array $attributes): array => [
             'loyalty_points' => fake()->numberBetween(100, 1000),
             'loyalty_tier' => 'silver',
             'total_spent' => fake()->randomFloat(2, 500, 1500),
@@ -108,7 +110,7 @@ class CustomerFactory extends Factory
      */
     public function gold(): static
     {
-        return $this->state(fn (array $attributes) => [
+        return $this->state(fn (array $attributes): array => [
             'loyalty_points' => fake()->numberBetween(500, 2000),
             'loyalty_tier' => 'gold',
             'total_spent' => fake()->randomFloat(2, 1500, 5000),
@@ -120,7 +122,7 @@ class CustomerFactory extends Factory
      */
     public function platinum(): static
     {
-        return $this->state(fn (array $attributes) => [
+        return $this->state(fn (array $attributes): array => [
             'loyalty_points' => fake()->numberBetween(1000, 5000),
             'loyalty_tier' => 'platinum',
             'total_spent' => fake()->randomFloat(2, 5000, 20000),
@@ -132,7 +134,7 @@ class CustomerFactory extends Factory
      */
     public function withBirthday(): static
     {
-        return $this->state(fn (array $attributes) => [
+        return $this->state(fn (array $attributes): array => [
             'birthday' => fake()->date(),
         ]);
     }
@@ -142,7 +144,7 @@ class CustomerFactory extends Factory
      */
     public function marketingConsent(): static
     {
-        return $this->state(fn (array $attributes) => [
+        return $this->state(fn (array $attributes): array => [
             'marketing_consent' => true,
         ]);
     }

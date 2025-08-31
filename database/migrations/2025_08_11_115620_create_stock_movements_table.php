@@ -1,5 +1,8 @@
 <?php
 
+declare(strict_types=1);
+
+use App\Enums\StockMovementType;
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
@@ -11,14 +14,14 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('stock_movements', function (Blueprint $table) {
+        Schema::create('stock_movements', function (Blueprint $table): void {
             $table->id();
             $table->string('code')->unique(); // e.g. ADJ-001
 
             $table->foreignId('product_id')->constrained()->cascadeOnDelete();
             $table->foreignId('store_id')->constrained('stores')->cascadeOnDelete();
 
-            $table->enum('type', ['addition', 'reduction', 'transfer_out', 'transfer_in']);
+            $table->enum('type', array_column(StockMovementType::cases(), 'value'));
             $table->unsignedInteger('quantity');
             $table->string('reason');
             $table->text('notes')->nullable();
