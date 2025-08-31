@@ -3,6 +3,7 @@ import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue'
 import DeleteUserForm from './Partials/DeleteUserForm.vue'
 import UpdatePasswordForm from './Partials/UpdatePasswordForm.vue'
 import UpdateProfileInformationForm from './Partials/UpdateProfileInformationForm.vue'
+import ThemeSettings from '@/Components/ThemeSettings.vue'
 import { Head, usePage } from '@inertiajs/vue3'
 import { computed, ref } from 'vue'
 import { 
@@ -46,7 +47,7 @@ defineProps({
   <AuthenticatedLayout>
     <div class="max-w-6xl mx-auto space-y-8">
       <!-- Profile Header -->
-      <div class="bg-gradient-to-r from-blue-600 to-purple-700 rounded-xl shadow-lg p-8 text-white">
+      <div class="bg-gradient-to-r from-blue-600 to-purple-700 dark:from-blue-700 dark:to-purple-800 rounded-xl shadow-lg dark:shadow-2xl p-8 text-white">
         <div class="flex items-start justify-between">
           <div class="flex items-center space-x-6">
             <!-- Avatar -->
@@ -98,7 +99,7 @@ defineProps({
       </div>
 
       <!-- Navigation Tabs -->
-      <div class="bg-white rounded-lg shadow-sm border border-gray-200">
+      <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700">
         <nav class="flex space-x-8 px-6" aria-label="Tabs">
           <button
             v-for="tab in tabs"
@@ -139,7 +140,7 @@ defineProps({
         <!-- Security Tab -->
         <div v-show="activeTab === 'security'" class="space-y-6">
           <!-- Update Password -->
-          <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-8">
+          <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-8">
             <div class="max-w-2xl">
               <div class="mb-6">
                 <h2 class="text-lg font-semibold text-gray-900 flex items-center space-x-2">
@@ -153,7 +154,7 @@ defineProps({
           </div>
 
           <!-- Delete Account -->
-          <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-8">
+          <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-8">
             <div class="max-w-2xl">
               <div class="mb-6">
                 <h2 class="text-lg font-semibold text-red-600 flex items-center space-x-2">
@@ -208,7 +209,7 @@ defineProps({
         </div>
 
         <!-- Preferences Tab -->
-        <div v-show="activeTab === 'preferences'" class="bg-white rounded-lg shadow-sm border border-gray-200 p-8">
+        <div v-show="activeTab === 'preferences'" class="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-8">
           <div class="mb-6">
             <h2 class="text-lg font-semibold text-gray-900 flex items-center space-x-2">
               <Settings class="h-5 w-5" />
@@ -237,31 +238,48 @@ defineProps({
               </div>
             </div>
 
-            <!-- Display Preferences -->
+            <!-- Theme Settings -->
             <div>
-              <h3 class="text-sm font-medium text-gray-900 mb-4">Display</h3>
+              <ThemeSettings />
+            </div>
+            
+            <!-- Other Display Preferences -->
+            <div>
+              <h3 class="text-sm font-medium text-gray-900 dark:text-gray-100 mb-4">Language & Region</h3>
               <div class="space-y-3">
                 <div>
-                  <label class="block text-sm text-gray-700 mb-1">Theme</label>
-                  <select class="border border-gray-300 rounded-md px-3 py-2 text-sm focus:ring-blue-500 focus:border-blue-500">
-                    <option>Light</option>
-                    <option>Dark</option>
-                    <option>Auto</option>
+                  <label class="block text-sm text-gray-700 dark:text-gray-300 mb-1">Language</label>
+                  <select class="border border-gray-300 dark:border-gray-600 rounded-md px-3 py-2 text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:ring-emerald-500 focus:border-emerald-500">
+                    <option>English (US)</option>
+                    <option>English (UK)</option>
+                    <option>Bahasa Malaysia</option>
+                    <option>中文 (简体)</option>
+                    <option>中文 (繁體)</option>
                   </select>
                 </div>
                 <div>
-                  <label class="block text-sm text-gray-700 mb-1">Language</label>
-                  <select class="border border-gray-300 rounded-md px-3 py-2 text-sm focus:ring-blue-500 focus:border-blue-500">
-                    <option>English</option>
-                    <option>Spanish</option>
-                    <option>French</option>
+                  <label class="block text-sm text-gray-700 dark:text-gray-300 mb-1">Currency</label>
+                  <select class="border border-gray-300 dark:border-gray-600 rounded-md px-3 py-2 text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:ring-emerald-500 focus:border-emerald-500">
+                    <option>Malaysian Ringgit (RM)</option>
+                    <option>US Dollar ($)</option>
+                    <option>Singapore Dollar (S$)</option>
+                    <option>Thai Baht (฿)</option>
+                  </select>
+                </div>
+                <div>
+                  <label class="block text-sm text-gray-700 dark:text-gray-300 mb-1">Timezone</label>
+                  <select class="border border-gray-300 dark:border-gray-600 rounded-md px-3 py-2 text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:ring-emerald-500 focus:border-emerald-500">
+                    <option>Asia/Kuala_Lumpur (UTC+8)</option>
+                    <option>Asia/Singapore (UTC+8)</option>
+                    <option>Asia/Bangkok (UTC+7)</option>
+                    <option>Asia/Jakarta (UTC+7)</option>
                   </select>
                 </div>
               </div>
             </div>
 
             <div class="pt-4">
-              <button class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium">
+              <button class="bg-emerald-600 text-white px-4 py-2 rounded-lg hover:bg-emerald-700 transition-colors text-sm font-medium">
                 Save Preferences
               </button>
             </div>

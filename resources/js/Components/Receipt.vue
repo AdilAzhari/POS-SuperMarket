@@ -17,127 +17,149 @@
     </div>
 
     <!-- Receipt Content -->
-    <div id="receipt-content" class="receipt bg-white max-w-md mx-auto p-6 border border-gray-200">
+    <div id="receipt-content" class="receipt bg-white max-w-xs mx-auto p-4 border border-gray-200 font-mono text-sm">
       <!-- Store Header -->
-      <div class="text-center mb-4">
-        <h1 class="text-xl font-bold">{{ sale?.store?.name || 'SuperMarket' }}</h1>
-        <p class="text-sm text-gray-600">{{ sale?.store?.address || 'Store Address' }}</p>
-        <p class="text-sm text-gray-600">{{ sale?.store?.phone || 'Phone: (555) 123-4567' }}</p>
-        <div class="border-b border-gray-300 my-3"></div>
+      <div class="text-center mb-3">
+        <h1 class="text-base font-bold uppercase tracking-wide">{{ settings.store?.name || 'SuperMarket POS' }}</h1>
+        <div class="text-xs text-gray-700 leading-tight">
+          <div>{{ settings.store?.address || '123 Main Street\nAnytown, ST 12345' }}</div>
+          <div>Tel: {{ settings.store?.phone || '+1-555-0123' }}</div>
+          <div v-if="settings.store?.email">{{ settings.store.email }}</div>
+        </div>
+        <div class="border-b border-dashed border-gray-400 my-2"></div>
       </div>
 
       <!-- Transaction Info -->
-      <div class="text-center mb-4">
-        <h2 class="font-semibold text-lg">RECEIPT</h2>
-        <p class="text-sm">Transaction: {{ sale?.code || 'TXN-000000' }}</p>
-        <p class="text-sm">Date: {{ formatDate(sale?.created_at || new Date()) }}</p>
-        <p class="text-sm">Cashier: {{ sale?.cashier?.name || 'Cashier' }}</p>
-        <div v-if="sale?.customer" class="text-sm">
-          Customer: {{ sale.customer.name }}
+      <div class="text-center mb-3 text-xs">
+        <div class="font-bold text-sm mb-1">SALES RECEIPT</div>
+        <div class="space-y-0.5">
+          <div>Receipt #: {{ sale?.code || 'R-000000' }}</div>
+          <div>{{ formatDate(sale?.created_at || new Date()) }}</div>
+          <div>Cashier: {{ sale?.cashier?.name || 'Staff' }}</div>
+          <div v-if="sale?.customer" class="font-medium">
+            Customer: {{ sale.customer.name }}
+          </div>
         </div>
+        <div class="border-b border-dashed border-gray-400 my-2"></div>
       </div>
 
       <!-- Items -->
-      <div class="mb-4">
-        <div class="border-b border-gray-300 mb-2 pb-1">
-          <div class="flex justify-between text-sm font-semibold">
-            <span>Item</span>
-            <span>Amount</span>
-          </div>
-        </div>
-
-        <div v-for="item in sale?.items || []" :key="item.id" class="mb-2">
-          <div class="flex justify-between text-sm">
-            <div class="flex-1">
-              <div class="font-medium">{{ item.product_name || item.name }}</div>
-              <div class="text-xs text-gray-600">
-                SKU: {{ item.sku }}
-              </div>
-              <div class="text-xs text-gray-600">
-                {{ item.quantity }}x @ ${{ Number(item.price).toFixed(2) }}
-                <span v-if="Number(item.discount) > 0"> - ${{ Number(item.discount).toFixed(2) }}</span>
-              </div>
+      <div class="mb-3">
+        <!-- Items List -->
+        <div v-for="item in sale?.items || []" :key="item.id" class="mb-1 text-xs">
+          <!-- Item Name Row -->
+          <div class="flex justify-between items-start">
+            <div class="flex-1 pr-2">
+              <div class="font-medium truncate">{{ item.product_name || item.name }}</div>
             </div>
-            <div class="text-right">
-              ${{ Number(item.line_total).toFixed(2) }}
+            <div class="text-right font-medium">
+              RM {{ Number(item.line_total).toFixed(2) }}
             </div>
           </div>
+          <!-- Quantity and Price Row -->
+          <div class="flex justify-between text-xs text-gray-600 ml-2">
+            <div>{{ item.quantity }} x RM {{ Number(item.price).toFixed(2) }}</div>
+            <div v-if="item.sku" class="text-xs">SKU: {{ item.sku }}</div>
+          </div>
+          <!-- Item Discount -->
+          <div v-if="Number(item.discount) > 0" class="flex justify-between text-xs text-red-600 ml-2">
+            <div>Item Discount</div>
+            <div>-RM {{ Number(item.discount).toFixed(2) }}</div>
+          </div>
         </div>
+        <div class="border-b border-dashed border-gray-400 my-2"></div>
       </div>
 
       <!-- Totals -->
-      <div class="border-t border-gray-300 pt-2 mb-4">
-        <div class="flex justify-between text-sm mb-1">
-          <span>Subtotal:</span>
-          <span>${{ Number(sale?.subtotal || 0).toFixed(2) }}</span>
+      <div class="mb-3 text-xs">
+        <div class="space-y-0.5">
+          <div class="flex justify-between">
+            <span>Subtotal:</span>
+            <span>RM {{ Number(sale?.subtotal || 0).toFixed(2) }}</span>
+          </div>
+          <div v-if="Number(sale?.discount || 0) > 0" class="flex justify-between text-red-600">
+            <span>Discount:</span>
+            <span>-RM {{ Number(sale?.discount || 0).toFixed(2) }}</span>
+          </div>
+          <div v-if="Number(sale?.tax || 0) > 0" class="flex justify-between">
+            <span>Tax ({{ ((Number(sale?.tax || 0) / Number(sale?.subtotal || 1)) * 100).toFixed(1) }}%):</span>
+            <span>RM {{ Number(sale?.tax || 0).toFixed(2) }}</span>
+          </div>
         </div>
-        <div v-if="Number(sale?.discount || 0) > 0" class="flex justify-between text-sm mb-1">
-          <span>Discount:</span>
-          <span>-${{ Number(sale?.discount || 0).toFixed(2) }}</span>
-        </div>
-        <div v-if="Number(sale?.tax || 0) > 0" class="flex justify-between text-sm mb-1">
-          <span>Tax:</span>
-          <span>${{ Number(sale?.tax || 0).toFixed(2) }}</span>
-        </div>
-        <div class="flex justify-between text-lg font-bold border-t border-gray-300 pt-2">
+        <div class="border-b border-double border-gray-600 my-1"></div>
+        <div class="flex justify-between text-sm font-bold">
           <span>TOTAL:</span>
-          <span>${{ Number(sale?.total || 0).toFixed(2) }}</span>
+          <span>RM {{ Number(sale?.total || 0).toFixed(2) }}</span>
         </div>
+        <div class="border-b border-dashed border-gray-400 my-2"></div>
       </div>
 
       <!-- Payment Info -->
-      <div class="text-center mb-4 text-sm">
-        <p>Payment Method: {{ formatPaymentMethod(sale?.payment_method || 'cash') }}</p>
-        <p>Status: {{ sale?.status?.toUpperCase() || 'COMPLETED' }}</p>
-        
+      <div class="mb-3 text-xs">
+        <div class="flex justify-between mb-1">
+          <span>Payment:</span>
+          <span class="font-medium">{{ formatPaymentMethod(sale?.payment_method || 'cash').toUpperCase() }}</span>
+        </div>
+
         <!-- Cash Payment Details -->
-        <div v-if="sale?.payment_method === 'cash' && sale?.payment" class="mt-2 border-t pt-2">
-          <div class="flex justify-between text-sm">
-            <span>Amount Received:</span>
-            <span>${{ Number(sale.payment.cash_received || sale.total).toFixed(2) }}</span>
+        <div v-if="sale?.payment_method === 'cash' && sale?.payment" class="space-y-0.5">
+          <div class="flex justify-between">
+            <span>Amount Tendered:</span>
+            <span>RM {{ Number(sale.payment.cash_received || sale.total).toFixed(2) }}</span>
           </div>
-          <div v-if="Number(sale.payment.change_amount || 0) > 0" class="flex justify-between text-sm">
-            <span>Change Given:</span>
-            <span>${{ Number(sale.payment.change_amount || 0).toFixed(2) }}</span>
+          <div v-if="Number(sale.payment.change_amount || 0) > 0" class="flex justify-between font-medium">
+            <span>Change:</span>
+            <span>RM {{ Number(sale.payment.change_amount || 0).toFixed(2) }}</span>
           </div>
         </div>
 
         <!-- Card Payment Details -->
-        <div v-if="['card', 'digital'].includes(sale?.payment_method) && sale?.payment" class="mt-2 border-t pt-2">
-          <div v-if="sale.payment.card_last_four" class="flex justify-between text-sm">
-            <span>Card Number:</span>
-            <span>**** **** **** {{ sale.payment.card_last_four }}</span>
+        <div v-if="['card', 'digital'].includes(sale?.payment_method) && sale?.payment" class="space-y-0.5">
+          <div v-if="sale.payment.card_last_four" class="flex justify-between">
+            <span>Card:</span>
+            <span>****{{ sale.payment.card_last_four }}</span>
           </div>
-          <div v-if="sale.payment.card_brand" class="flex justify-between text-sm">
-            <span>Card Type:</span>
+          <div v-if="sale.payment.card_brand" class="flex justify-between">
+            <span>Type:</span>
             <span>{{ formatCardBrand(sale.payment.card_brand) }}</span>
           </div>
-          <div v-if="sale.payment.gateway_transaction_id" class="flex justify-between text-sm">
-            <span>Transaction ID:</span>
-            <span class="font-mono text-xs">{{ sale.payment.gateway_transaction_id.substring(0, 16) }}...</span>
+          <div v-if="sale.payment.gateway_transaction_id" class="flex justify-between text-xs">
+            <span>Auth:</span>
+            <span class="font-mono">{{ sale.payment.gateway_transaction_id.substring(0, 8) }}</span>
           </div>
-          <div v-if="Number(sale.payment.fee || 0) > 0" class="flex justify-between text-sm text-gray-500">
-            <span>Processing Fee:</span>
-            <span>${{ Number(sale.payment.fee || 0).toFixed(2) }}</span>
+          <div v-if="Number(sale.payment.fee || 0) > 0" class="flex justify-between text-gray-500">
+            <span>Fee:</span>
+            <span>RM {{ Number(sale.payment.fee || 0).toFixed(2) }}</span>
           </div>
         </div>
+        <div class="border-b border-dashed border-gray-400 my-2"></div>
       </div>
 
       <!-- Footer -->
-      <div class="text-center text-xs text-gray-500 border-t border-gray-300 pt-3">
-        <p>Thank you for shopping with us!</p>
-        <p>{{ sale?.store?.email || 'info@supermarket.com' }}</p>
-        <p class="mt-2">Return Policy: Items must be returned within 30 days with receipt</p>
-        <div class="mt-3">
-          <div class="barcode text-center">
-            <!-- Simple barcode representation -->
-            <div class="font-mono text-xs">{{ sale?.code || 'TXN-000000' }}</div>
-            <div class="flex justify-center mt-1">
-              <div v-for="i in 20" :key="i"
-                   :class="['inline-block', 'bg-black', i % 3 === 0 ? 'w-px' : 'w-0.5', 'h-8', 'mr-px']">
-              </div>
+      <div class="text-center text-xs">
+        <div class="mb-2">
+          <div class="font-bold">{{ settings.receipt.header.split('\n')[0] || 'THANK YOU!' }}</div>
+          <div class="text-gray-600" v-if="settings.receipt.header.split('\n')[1]">{{ settings.receipt.header.split('\n')[1] }}</div>
+          <div class="text-gray-600" v-else>Please come again</div>
+        </div>
+
+        <div class="text-xs text-gray-500 space-y-0.5 mb-2">
+          <div v-if="settings.store.email">{{ settings.store.email }}</div>
+          <div v-for="line in settings.receipt.footer.split('\n')" :key="line">{{ line }}</div>
+        </div>
+
+        <!-- Simple Barcode -->
+        <div class="barcode text-center mb-2">
+          <div class="font-mono text-xs mb-1">{{ sale?.code || 'R-000000' }}</div>
+          <div class="flex justify-center space-x-px">
+            <div v-for="i in 24" :key="i"
+                 :class="['bg-black', i % 4 === 0 || i % 7 === 0 ? 'w-0.5' : 'w-px', 'h-6']">
             </div>
           </div>
+        </div>
+
+        <div class="text-xs text-gray-400">
+          {{ formatShortDate(sale?.created_at || new Date()) }} | {{ sale?.cashier?.name || 'Staff' }}
         </div>
       </div>
     </div>
@@ -145,12 +167,44 @@
 </template>
 
 <script setup>
-import { computed } from 'vue'
+import { computed, ref, onMounted } from 'vue'
+import axios from 'axios'
 
 const props = defineProps({
   sale: {
     type: Object,
     default: () => ({})
+  }
+})
+
+// Settings data
+const settings = ref({
+  store: {
+    name: 'SuperMarket POS',
+    address: '123 Main Street\nAnytown, ST 12345',
+    phone: '+1-555-0123',
+    email: 'info@supermarketpos.com',
+  },
+  receipt: {
+    header: 'Thank you for shopping with us!',
+    footer: 'Please come again!\nReturn policy: 30 days with receipt',
+    showLogo: true,
+  }
+})
+
+// Fetch settings on component mount
+onMounted(async () => {
+  try {
+    const response = await axios.get('/api/settings/receipt')
+    if (response.data) {
+      // Merge with defaults instead of replacing
+      settings.value = {
+        store: { ...settings.value.store, ...response.data.store },
+        receipt: { ...settings.value.receipt, ...response.data.receipt }
+      }
+    }
+  } catch (error) {
+    console.warn('Could not load receipt settings, using defaults:', error)
   }
 })
 
@@ -166,10 +220,23 @@ const formatDate = (dateString) => {
   })
 }
 
+const formatShortDate = (dateString) => {
+  const date = new Date(dateString)
+  return date.toLocaleDateString('en-US', {
+    month: '2-digit',
+    day: '2-digit',
+    year: '2-digit'
+  }) + ' ' + date.toLocaleTimeString('en-US', {
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false
+  })
+}
+
 const formatPaymentMethod = (method) => {
   const methods = {
     'cash': 'Cash',
-    'card': 'Credit/Debit Card', 
+    'card': 'Credit/Debit Card',
     'digital': 'Digital Payment',
     'credit_card': 'Credit Card',
     'debit_card': 'Debit Card',
@@ -207,54 +274,69 @@ const downloadReceipt = () => {
     '<!DOCTYPE html>',
     '<html>',
     '<head>',
-    `<title>Receipt - ${props.sale?.code || 'TXN-000000'}</title>`,
+    `<title>Receipt - ${props.sale?.code || 'R-000000'} - ${settings.value.store.name}</title>`,
     '<style>',
-    'body { font-family: Arial, sans-serif; margin: 0; padding: 20px; background: white; }',
-    '.receipt { max-width: 400px; margin: 0 auto; padding: 20px; border: 1px solid #ccc; }',
+    'body { font-family: "Courier New", monospace; margin: 0; padding: 20px; background: white; line-height: 1.3; }',
+    '.receipt { max-width: 280px; margin: 0 auto; padding: 16px; border: 1px solid #ccc; font-size: 12px; }',
     '.text-center { text-align: center; }',
     '.text-right { text-align: right; }',
+    '.text-left { text-align: left; }',
     '.text-sm { font-size: 14px; }',
-    '.text-xs { font-size: 12px; }',
-    '.text-lg { font-size: 18px; }',
+    '.text-xs { font-size: 10px; }',
+    '.text-base { font-size: 16px; }',
     '.font-bold { font-weight: bold; }',
-    '.font-semibold { font-weight: 600; }',
     '.font-medium { font-weight: 500; }',
-    '.font-mono { font-family: monospace; }',
-    '.text-gray-600 { color: #666; }',
-    '.text-gray-500 { color: #999; }',
-    '.border-b { border-bottom: 1px solid #ccc; }',
-    '.border-t { border-top: 1px solid #ccc; }',
+    '.font-mono { font-family: "Courier New", monospace; }',
+    '.uppercase { text-transform: uppercase; }',
+    '.tracking-wide { letter-spacing: 0.5px; }',
+    '.truncate { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }',
+    '.text-gray-700 { color: #374151; }',
+    '.text-gray-600 { color: #4b5563; }',
+    '.text-gray-500 { color: #6b7280; }',
+    '.text-gray-400 { color: #9ca3af; }',
+    '.text-red-600 { color: #dc2626; }',
+    '.border-b { border-bottom: 1px solid #000; }',
+    '.border-dashed { border-style: dashed !important; }',
+    '.border-double { border-style: double !important; border-width: 3px !important; }',
+    '.border-gray-400 { border-color: #9ca3af; }',
+    '.border-gray-600 { border-color: #4b5563; }',
     '.mb-1 { margin-bottom: 4px; }',
     '.mb-2 { margin-bottom: 8px; }',
     '.mb-3 { margin-bottom: 12px; }',
-    '.mb-4 { margin-bottom: 16px; }',
-    '.mt-1 { margin-top: 4px; }',
-    '.mt-2 { margin-top: 8px; }',
-    '.mt-3 { margin-top: 12px; }',
-    '.pb-1 { padding-bottom: 4px; }',
-    '.pt-2 { padding-top: 8px; }',
-    '.pt-3 { padding-top: 12px; }',
+    '.my-1 { margin-top: 4px; margin-bottom: 4px; }',
+    '.my-2 { margin-top: 8px; margin-bottom: 8px; }',
+    '.ml-2 { margin-left: 8px; }',
+    '.pr-2 { padding-right: 8px; }',
+    '.leading-tight { line-height: 1.1; }',
+    '.space-y-0\\.5 > * + * { margin-top: 2px; }',
+    '.space-x-px > * + * { margin-left: 1px; }',
     '.flex { display: flex; }',
     '.justify-between { justify-content: space-between; }',
     '.justify-center { justify-content: center; }',
+    '.items-start { align-items: flex-start; }',
     '.flex-1 { flex: 1; }',
-    '.inline-block { display: inline-block; }',
     '.bg-black { background-color: black; }',
     '.w-px { width: 1px; }',
     '.w-0\\.5 { width: 2px; }',
-    '.h-8 { height: 32px; }',
-    '.mr-px { margin-right: 1px; }',
-    '</' + 'style>',
-    '</' + 'head>',
+    '.h-6 { height: 24px; }',
+    '@media print {',
+    '  body { padding: 0; }',
+    '  .receipt { border: none; margin: 0 auto; max-width: none; width: 58mm; font-size: 10px; }',
+    '  .text-sm { font-size: 11px; }',
+    '  .text-xs { font-size: 9px; }',
+    '  .text-base { font-size: 12px; }',
+    '}',
+    '</style>',
+    '</head>',
     '<body>',
     '<div class="receipt">',
     receiptContent,
-    '</' + 'div>',
+    '</div>',
     '<script>',
     'window.onload = function() { window.print(); window.onafterprint = function() { window.close(); } }',
     '</' + 'script>',
-    '</' + 'body>',
-    '</' + 'html>'
+    '</body>',
+    '</html>'
   ].join('\n')
 
   printWindow.document.write(htmlTemplate)
@@ -277,9 +359,22 @@ const downloadReceipt = () => {
   .receipt {
     box-shadow: none !important;
     border: none !important;
-    margin: 0 !important;
+    margin: 0 auto !important;
     max-width: none !important;
     width: 58mm; /* Thermal printer width */
+    font-size: 10px !important;
+    line-height: 1.2 !important;
+  }
+
+  .text-sm {
+    font-size: 11px !important;
+  }
+
+  .text-xs {
+    font-size: 9px !important;
+  }
+
+  .text-base {
     font-size: 12px !important;
   }
 
@@ -290,17 +385,25 @@ const downloadReceipt = () => {
 
   @page {
     margin: 0;
-    size: 58mm auto; /* Thermal receipt size */
+    size: 58mm; /* Thermal receipt width, auto height */
   }
 }
 
 /* Screen styles */
 .receipt {
   font-family: 'Courier New', monospace;
-  line-height: 1.4;
+  line-height: 1.3;
 }
 
 .barcode div {
   transition: all 0.2s ease;
+}
+
+/* Responsive adjustments */
+@media (max-width: 320px) {
+  .receipt {
+    max-width: 100%;
+    margin: 0;
+  }
 }
 </style>

@@ -208,10 +208,10 @@ export const useNotificationStore = defineStore('notifications', () => {
     )
   }
 
-  const stockMovementError = (error) => {
+  const stockMovementError = (errorMessage) => {
     return error(
       'Stock Movement Failed',
-      error || 'Failed to update stock. Please try again.',
+      errorMessage || 'Failed to update stock. Please try again.',
       { persistent: true }
     )
   }

@@ -209,15 +209,15 @@
       </div>
 
       <!-- Pagination -->
-      <div v-if="totalPages > 1" class="px-6 py-4 bg-gray-50 border-t border-gray-200 flex items-center justify-between">
-        <div class="text-sm text-gray-500">
+      <div v-if="totalPages > 1" class="px-6 py-4 bg-gray-50 dark:bg-gray-700 border-t border-gray-200 dark:border-gray-600 flex items-center justify-between">
+        <div class="text-sm text-gray-500 dark:text-gray-300">
           Showing {{ (currentPage - 1) * itemsPerPage + 1 }} to {{ Math.min(currentPage * itemsPerPage, filteredSales.length) }} of {{ filteredSales.length }} sales
         </div>
         <div class="flex items-center space-x-2">
           <button
             @click="currentPage = Math.max(1, currentPage - 1)"
             :disabled="currentPage === 1"
-            class="px-3 py-1 border rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+            class="px-3 py-1 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-600 disabled:opacity-50 disabled:cursor-not-allowed text-gray-700 dark:text-gray-300"
           >
             Previous
           </button>
@@ -227,10 +227,10 @@
               :key="page"
               @click="currentPage = page"
               :class="[
-                'px-3 py-1 border rounded-lg',
+                'px-3 py-1 border rounded-lg transition-colors',
                 page === currentPage
                   ? 'bg-blue-600 text-white border-blue-600'
-                  : 'hover:bg-gray-50'
+                  : 'border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300'
               ]"
             >
               {{ page }}
@@ -239,11 +239,16 @@
           <button
             @click="currentPage = Math.min(totalPages, currentPage + 1)"
             :disabled="currentPage === totalPages"
-            class="px-3 py-1 border rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+            class="px-3 py-1 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-600 disabled:opacity-50 disabled:cursor-not-allowed text-gray-700 dark:text-gray-300"
           >
             Next
           </button>
         </div>
+      </div>
+      
+      <!-- Debug info for pagination (remove in production) -->
+      <div v-if="filteredSales.length > 0" class="px-6 py-2 bg-blue-50 dark:bg-blue-900/20 border-t border-blue-200 dark:border-blue-700 text-sm text-blue-700 dark:text-blue-300">
+        Debug: Total Sales: {{ filteredSales.length }}, Items Per Page: {{ itemsPerPage }}, Total Pages: {{ totalPages }}, Current Page: {{ currentPage }}
       </div>
     </div>
   </div>

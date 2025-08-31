@@ -4,21 +4,31 @@
       {{ flashMessage }}
     </div>
 
-    <div>
-      <h2 class="text-2xl font-bold text-gray-900">Stock Management</h2>
-      <p class="text-gray-600">Record stock movements and adjustments</p>
+    <div class="flex items-center justify-between">
+      <div>
+        <h2 class="text-2xl font-bold text-gray-900 dark:text-white">Stock Management</h2>
+        <p class="text-gray-600 dark:text-gray-300">Record stock movements and adjustments</p>
+      </div>
+      <button
+        class="inline-flex items-center bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700 disabled:opacity-50"
+        @click="clearInventoryCache"
+        :disabled="loading.clearCache"
+      >
+        <RefreshCw class="w-4 h-4 mr-2" :class="{ 'animate-spin': loading.clearCache }" />
+        Clear Cache
+      </button>
     </div>
 
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-      <div class="bg-white rounded-lg shadow-sm p-4 lg:col-span-1">
-        <h3 class="font-semibold text-gray-900 mb-3">New Adjustment</h3>
+      <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-4 lg:col-span-1">
+        <h3 class="font-semibold text-gray-900 dark:text-white mb-3">New Adjustment</h3>
         <form class="space-y-3" @submit.prevent="submit">
           <div>
-            <label class="text-xs text-gray-500">Product *</label>
+            <label class="text-xs text-gray-500 dark:text-gray-400">Product *</label>
             <select 
               v-model="selectedProductId" 
               required 
-              class="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
             >
               <option value="">Select product</option>
               <option 
@@ -31,11 +41,11 @@
             </select>
           </div>
           <div>
-            <label class="text-xs text-gray-500">Type *</label>
+            <label class="text-xs text-gray-500 dark:text-gray-400">Type *</label>
             <select 
               v-model="type" 
               required 
-              class="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               @change="resetReasonOnTypeChange"
             >
               <option value="">Select type</option>
@@ -50,21 +60,21 @@
             </select>
           </div>
           <div>
-            <label class="text-xs text-gray-500">Quantity</label>
+            <label class="text-xs text-gray-500 dark:text-gray-400">Quantity</label>
             <input
               v-model.number="quantity"
               type="number"
               min="1"
               required
-              class="w-full px-3 py-2 border rounded-lg"
+              class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
             />
           </div>
           <div>
-            <label class="text-xs text-gray-500">Reason *</label>
+            <label class="text-xs text-gray-500 dark:text-gray-400">Reason *</label>
             <select 
               v-model="reason" 
               required 
-              class="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
             >
               <option value="">Select reason</option>
               <optgroup 
@@ -84,8 +94,8 @@
           </div>
           <div v-if="isTransfer" class="grid grid-cols-2 gap-2">
             <div>
-              <label class="text-xs text-gray-500">From Store</label>
-              <select v-model="fromStore" class="w-full px-3 py-2 border rounded-lg">
+              <label class="text-xs text-gray-500 dark:text-gray-400">From Store</label>
+              <select v-model="fromStore" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white">
                 <option value="">—</option>
                 <option v-for="s in appStore.stores" :key="s.id" :value="s.id">
                   {{ s.name }}
@@ -93,8 +103,8 @@
               </select>
             </div>
             <div>
-              <label class="text-xs text-gray-500">To Store</label>
-              <select v-model="toStore" class="w-full px-3 py-2 border rounded-lg">
+              <label class="text-xs text-gray-500 dark:text-gray-400">To Store</label>
+              <select v-model="toStore" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white">
                 <option value="">—</option>
                 <option v-for="s in appStore.stores" :key="s.id" :value="s.id">
                   {{ s.name }}
@@ -103,11 +113,11 @@
             </div>
           </div>
           <div>
-            <label class="text-xs text-gray-500">Notes</label>
+            <label class="text-xs text-gray-500 dark:text-gray-400">Notes</label>
             <textarea
               v-model="notes"
               rows="3"
-              class="w-full px-3 py-2 border rounded-lg"
+              class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
             ></textarea>
           </div>
           <button
@@ -145,10 +155,10 @@
         </form>
       </div>
 
-      <div class="bg-white rounded-lg shadow-sm p-4 lg:col-span-2">
+      <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-4 lg:col-span-2">
         <div class="flex items-center justify-between mb-3">
-          <h3 class="font-semibold text-gray-900">Stock Movements</h3>
-          <span class="text-xs text-gray-500">Total: {{ movementsData.pagination.total }}</span>
+          <h3 class="font-semibold text-gray-900 dark:text-white">Stock Movements</h3>
+          <span class="text-xs text-gray-500 dark:text-gray-400">Total: {{ movementsData.pagination.total }}</span>
         </div>
 
         <!-- Search and Filters -->
@@ -163,7 +173,7 @@
                 class="w-full pl-9 pr-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
               />
             </div>
-            <div class="text-sm text-gray-500">
+            <div class="text-sm text-gray-500 dark:text-gray-400">
               {{ movementsData.pagination.from || 0 }} - {{ movementsData.pagination.to || 0 }} of {{ movementsData.pagination.total }} movements
             </div>
           </div>
@@ -202,7 +212,7 @@
 
               <!-- Quantity Range -->
               <div class="flex items-center gap-2">
-                <span class="text-sm text-gray-600">Qty:</span>
+                <span class="text-sm text-gray-600 dark:text-gray-300">Qty:</span>
                 <input
                   v-model.number="filters.minQuantity"
                   type="number"
@@ -232,7 +242,7 @@
 
             <!-- Sorting -->
             <div class="flex items-center gap-2 lg:ml-auto">
-              <span class="text-sm text-gray-600">Sort by:</span>
+              <span class="text-sm text-gray-600 dark:text-gray-300">Sort by:</span>
               <select
                 v-model="sortBy"
                 class="px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 text-sm"
@@ -256,7 +266,7 @@
 
         <div class="overflow-x-auto">
           <table class="min-w-full text-sm">
-            <thead class="bg-gray-50 text-gray-600">
+            <thead class="bg-gray-50 text-gray-600 dark:text-gray-300">
               <tr>
                 <th class="text-left px-4 py-2 font-medium">ID</th>
                 <th class="text-left px-4 py-2 font-medium">Product</th>
@@ -271,7 +281,7 @@
             </thead>
             <tbody>
               <tr v-for="a in paginatedMovements" :key="a.id" class="border-t">
-                <td class="px-4 py-2 font-medium text-gray-900">
+                <td class="px-4 py-2 font-medium text-gray-900 dark:text-white">
                   {{ a.id }}
                 </td>
                 <td class="px-4 py-2">{{ a.product?.name }}</td>
@@ -290,7 +300,7 @@
                 <td class="px-4 py-2">{{ a.user?.name || 'System' }}</td>
               </tr>
               <tr v-if="movementsData.data.length === 0">
-                <td colspan="9" class="px-4 py-8 text-center text-gray-500">
+                <td colspan="9" class="px-4 py-8 text-center text-gray-500 dark:text-gray-400">
                   <div v-if="isLoadingMovements" class="flex items-center justify-center space-x-2">
                     <div class="w-4 h-4 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
                     <span>Loading movements...</span>
@@ -304,7 +314,7 @@
 
         <!-- Pagination -->
         <div v-if="totalPages > 1" class="mt-4 flex items-center justify-between">
-          <div class="text-sm text-gray-500">
+          <div class="text-sm text-gray-500 dark:text-gray-400">
             Showing {{ movementsData.pagination.from || 0 }} to {{ movementsData.pagination.to || 0 }} of {{ movementsData.pagination.total }} movements
           </div>
           <div class="flex items-center space-x-2">
@@ -369,7 +379,7 @@
     <div class="bg-white rounded-lg max-w-4xl w-full max-h-[90vh] overflow-y-auto">
       <div class="p-4 border-b flex items-center justify-between">
         <h3 class="text-lg font-semibold">Bulk Stock Operations</h3>
-        <button @click="closeBulkModal" class="text-gray-500 hover:text-gray-700">
+        <button @click="closeBulkModal" class="text-gray-500 dark:text-gray-400 hover:text-gray-700">
           <X class="w-6 h-6" />
         </button>
       </div>
@@ -389,7 +399,7 @@
     <div class="bg-white rounded-lg max-w-2xl w-full">
       <div class="p-4 border-b flex items-center justify-between">
         <h3 class="text-lg font-semibold">Store to Store Transfer</h3>
-        <button @click="closeTransferModal" class="text-gray-500 hover:text-gray-700">
+        <button @click="closeTransferModal" class="text-gray-500 dark:text-gray-400 hover:text-gray-700">
           <X class="w-6 h-6" />
         </button>
       </div>
@@ -432,7 +442,7 @@ import StockTransfer from '@/Components/StockTransfer.vue'
 // import type { StockAdjustment } from '@/types'
 import axios from 'axios'
 import { useNotificationStore } from '@/stores/notifications'
-import { Search, ArrowUpDown, X } from 'lucide-vue-next'
+import { Search, ArrowUpDown, X, RefreshCw } from 'lucide-vue-next'
 
 const inventory = useInventoryStore()
 const appStore = useAppStore()
@@ -440,14 +450,7 @@ const productsStore = useProductsStore()
 const modal = useMessageModal()
 const notificationStore = useNotificationStore()
 
-// ensure products available for SKU->ID mapping
-productsStore.fetchProducts().catch(() => {})
-
-// Load initial data
-inventory.fetchInventoryData().catch(() => {})
-fetchStockMovementsWithPagination()
-appStore.fetchStores().catch(() => {})
-
+// Form state
 const selectedProductId = ref('')
 const type = ref('addition')
 const quantity = ref(1)
@@ -519,6 +522,11 @@ const notify = (msg, type = 'success') => {
   if (flashTimer) window.clearTimeout(flashTimer)
   flashTimer = window.setTimeout(() => (flashMessage.value = ''), 3000)
 }
+
+// Loading states
+const loading = reactive({
+  clearCache: false
+})
 
 // Computed properties for search, filter, sort, and pagination
 const uniqueReasons = computed(() => {
@@ -904,6 +912,25 @@ const submit = async () => {
   }
 }
 
+const clearInventoryCache = async () => {
+  loading.clearCache = true
+  try {
+    const response = await axios.post('/api/cache/clear-inventory')
+    
+    if (response.data.success) {
+      notify('Inventory cache cleared successfully', 'success')
+      // Refresh inventory data after clearing cache
+      await inventory.fetchInventoryData()
+    } else {
+      notify(response.data.message || 'Failed to clear cache', 'error')
+    }
+  } catch (error) {
+    notify('Failed to clear inventory cache', 'error')
+  } finally {
+    loading.clearCache = false
+  }
+}
+
 const typeText = (t) => {
   switch (t) {
     case 'addition':
@@ -924,4 +951,10 @@ const typePill = (t) => {
     return 'inline-flex px-2 py-1 text-xs rounded-full bg-yellow-100 text-yellow-800'
   return 'inline-flex px-2 py-1 text-xs rounded-full bg-gray-100 text-gray-800'
 }
+
+// Initialize data after all functions are declared
+productsStore.fetchProducts().catch(() => {})
+inventory.fetchInventoryData().catch(() => {})
+appStore.fetchStores().catch(() => {})
+fetchStockMovementsWithPagination().catch(() => {})
 </script>

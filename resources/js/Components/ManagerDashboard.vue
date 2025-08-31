@@ -1,12 +1,12 @@
 <template>
   <div class="space-y-6">
     <!-- Header with Role-based Welcome -->
-    <div class="bg-gradient-to-r from-blue-600 to-purple-700 rounded-lg shadow-lg p-6 text-white">
+    <div class="bg-gradient-to-r from-blue-600 to-purple-700 dark:from-blue-700 dark:to-purple-800 rounded-lg shadow-lg p-6 text-white">
       <div class="flex items-center justify-between">
         <div>
-          <h1 class="text-2xl font-bold">Manager Dashboard</h1>
-          <p class="text-blue-100 mt-1">Welcome back, {{ currentUser?.name }}</p>
-          <p class="text-blue-200 text-sm">{{ currentUser?.role === 'admin' ? 'System Administrator' : 'Store Manager' }}</p>
+          <h1 class="text-2xl font-bold">Operations Dashboard</h1>
+          <p class="text-blue-100 mt-1">Real-time store management for {{ currentUser?.name }}</p>
+          <p class="text-blue-200 text-sm">{{ currentUser?.role === 'admin' ? 'System Administrator' : 'Store Manager' }} • Live Operations</p>
         </div>
         <div class="flex items-center space-x-4">
           <div class="text-right">
@@ -26,60 +26,72 @@
 
     <!-- Real-time Stats -->
     <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-      <div class="bg-white rounded-lg shadow-sm p-6 border-l-4 border-green-500">
+      <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6 border-l-4 border-green-500">
         <div class="flex items-center">
-          <div class="p-3 bg-green-100 rounded-full">
+          <div class="p-3 bg-green-100 dark:bg-green-900/20 rounded-full">
             <TrendingUp class="h-6 w-6 text-green-600" />
           </div>
           <div class="ml-4">
-            <h3 class="text-sm font-medium text-gray-600">Today's Sales</h3>
+            <h3 class="text-sm font-medium text-gray-600 dark:text-gray-300">Today's Sales</h3>
             <div class="flex items-baseline">
-              <p class="text-2xl font-bold text-gray-900">${{ realtimeStats.today_sales?.revenue?.toFixed(2) || '0.00' }}</p>
-              <span class="ml-2 text-sm text-green-600">{{ realtimeStats.today_sales?.count || 0 }} orders</span>
+              <p class="text-2xl font-bold text-gray-900 dark:text-white">${{ dashboardData.today_metrics?.revenue?.toFixed(2) || '0.00' }}</p>
+              <span class="ml-2 text-sm text-green-600">{{ dashboardData.today_metrics?.sales_count || 0 }} transactions</span>
+            </div>
+            <div class="mt-1 text-xs text-gray-500 dark:text-gray-400">
+              Pace: ${{ dashboardData.today_metrics?.hourly_pace?.toFixed(0) || '0' }}/hr
             </div>
           </div>
         </div>
       </div>
 
-      <div class="bg-white rounded-lg shadow-sm p-6 border-l-4 border-blue-500">
+      <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6 border-l-4 border-blue-500">
         <div class="flex items-center">
-          <div class="p-3 bg-blue-100 rounded-full">
+          <div class="p-3 bg-blue-100 dark:bg-blue-900/20 rounded-full">
             <Users class="h-6 w-6 text-blue-600" />
           </div>
           <div class="ml-4">
-            <h3 class="text-sm font-medium text-gray-600">Active Employees</h3>
-            <p class="text-2xl font-bold text-gray-900">{{ realtimeStats.active_employees || 0 }}</p>
+            <h3 class="text-sm font-medium text-gray-600 dark:text-gray-300">Active Staff</h3>
+            <p class="text-2xl font-bold text-gray-900 dark:text-white">{{ dashboardData.live_stats?.active_transactions || 0 }}</p>
+            <div class="mt-1 text-xs text-gray-500 dark:text-gray-400">
+              {{ dashboardData.current_shift?.active_cashiers?.length || 0 }} cashiers on duty
+            </div>
           </div>
         </div>
       </div>
 
-      <div class="bg-white rounded-lg shadow-sm p-6 border-l-4 border-yellow-500">
+      <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6 border-l-4 border-yellow-500">
         <div class="flex items-center">
-          <div class="p-3 bg-yellow-100 rounded-full">
+          <div class="p-3 bg-yellow-100 dark:bg-yellow-900/20 rounded-full">
             <Clock class="h-6 w-6 text-yellow-600" />
           </div>
           <div class="ml-4">
-            <h3 class="text-sm font-medium text-gray-600">Pending Orders</h3>
-            <p class="text-2xl font-bold text-gray-900">{{ realtimeStats.pending_orders || 0 }}</p>
+            <h3 class="text-sm font-medium text-gray-600 dark:text-gray-300">System Status</h3>
+            <p class="text-2xl font-bold text-gray-900 dark:text-white">{{ dashboardData.live_stats?.system_load?.cpu || 0 }}%</p>
+            <div class="mt-1 text-xs text-gray-500 dark:text-gray-400">
+              CPU Load • {{ dashboardData.live_stats?.register_status ? Object.keys(dashboardData.live_stats.register_status).length : 0 }} registers
+            </div>
           </div>
         </div>
       </div>
 
-      <div class="bg-white rounded-lg shadow-sm p-6 border-l-4 border-red-500">
+      <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6 border-l-4 border-red-500">
         <div class="flex items-center">
-          <div class="p-3 bg-red-100 rounded-full">
+          <div class="p-3 bg-red-100 dark:bg-red-900/20 rounded-full">
             <AlertTriangle class="h-6 w-6 text-red-600" />
           </div>
           <div class="ml-4">
-            <h3 class="text-sm font-medium text-gray-600">Low Stock Items</h3>
-            <p class="text-2xl font-bold text-gray-900">{{ realtimeStats.low_stock_count || 0 }}</p>
+            <h3 class="text-sm font-medium text-gray-600 dark:text-gray-300">Urgent Alerts</h3>
+            <p class="text-2xl font-bold text-gray-900 dark:text-white">{{ dashboardData.urgent_alerts?.length || 0 }}</p>
+            <div class="mt-1 text-xs text-gray-500 dark:text-gray-400">
+              {{ dashboardData.alerts_count?.critical || 0 }} critical, {{ dashboardData.alerts_count?.warnings || 0 }} warnings
+            </div>
           </div>
         </div>
       </div>
     </div>
 
     <!-- Controls -->
-    <div class="bg-white rounded-lg shadow-sm p-6">
+    <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6">
       <div class="flex flex-wrap items-center justify-between gap-4">
         <div class="flex items-center space-x-4">
           <div>
@@ -113,7 +125,7 @@
         <div class="flex items-center space-x-2">
           <button
             @click="toggleAutoRefresh"
-            :class="autoRefresh ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-600'"
+            :class="autoRefresh ? 'bg-green-100 dark:bg-green-900/20 text-green-700' : 'bg-gray-100 text-gray-600 dark:text-gray-300'"
             class="px-4 py-2 rounded-lg text-sm font-medium transition-colors"
           >
             <div class="flex items-center space-x-2">
@@ -125,215 +137,235 @@
       </div>
     </div>
 
-    <!-- Analytics Overview -->
-    <div class="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-4 gap-6">
-      <div class="bg-white rounded-lg shadow-sm p-6">
-        <div class="flex items-center justify-between mb-4">
-          <h3 class="text-lg font-semibold text-gray-900">Revenue</h3>
-          <DollarSign class="h-5 w-5 text-green-500" />
-        </div>
-        <div class="space-y-2">
-          <p class="text-3xl font-bold text-gray-900">${{ analytics.overview?.total_revenue?.toFixed(2) || '0.00' }}</p>
-          <div class="flex items-center">
-            <TrendingUp v-if="analytics.overview?.revenue_growth >= 0" class="h-4 w-4 text-green-500 mr-1" />
-            <TrendingDown v-else class="h-4 w-4 text-red-500 mr-1" />
-            <span :class="analytics.overview?.revenue_growth >= 0 ? 'text-green-600' : 'text-red-600'" class="text-sm">
-              {{ Math.abs(analytics.overview?.revenue_growth || 0) }}% vs last period
+    <!-- Urgent Alerts & Quick Actions -->
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <!-- Urgent Alerts -->
+      <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm">
+        <div class="p-6 border-b border-gray-200">
+          <div class="flex items-center justify-between">
+            <h3 class="text-lg font-semibold text-gray-900 dark:text-white">Urgent Alerts</h3>
+            <span v-if="dashboardData.urgent_alerts?.length" class="px-3 py-1 bg-red-100 dark:bg-red-900/20 text-red-800 rounded-full text-sm font-medium">
+              {{ dashboardData.urgent_alerts.length }}
             </span>
+          </div>
+        </div>
+        <div class="p-6">
+          <div v-if="dashboardData.urgent_alerts?.length" class="space-y-3">
+            <div
+              v-for="alert in dashboardData.urgent_alerts.slice(0, 5)"
+              :key="alert.type"
+              :class="[
+                'flex items-center justify-between p-3 rounded-lg border',
+                alert.severity === 'critical' ? 'bg-red-50 border-red-200' :
+                alert.severity === 'warning' ? 'bg-yellow-50 border-yellow-200' :
+                'bg-blue-50 border-blue-200'
+              ]"
+            >
+              <div class="flex items-center space-x-3">
+                <div :class="[
+                  'w-3 h-3 rounded-full',
+                  alert.severity === 'critical' ? 'bg-red-500' :
+                  alert.severity === 'warning' ? 'bg-yellow-500' :
+                  'bg-blue-500'
+                ]"></div>
+                <div>
+                  <p class="font-medium text-gray-900 dark:text-white">{{ alert.message }}</p>
+                  <p class="text-sm text-gray-500 dark:text-gray-400">{{ alert.type.replace('_', ' ').toUpperCase() }}</p>
+                </div>
+              </div>
+              <button
+                @click="acknowledgeAlert(alert)"
+                class="text-sm px-3 py-1 bg-white border border-gray-300 rounded hover:bg-gray-50"
+              >
+                Acknowledge
+              </button>
+            </div>
+          </div>
+          <div v-else class="text-center py-8">
+            <CheckCircle class="w-12 h-12 text-green-400 mx-auto mb-2" />
+            <p class="text-gray-500 dark:text-gray-400">No urgent alerts at this time</p>
           </div>
         </div>
       </div>
 
-      <div class="bg-white rounded-lg shadow-sm p-6">
-        <div class="flex items-center justify-between mb-4">
-          <h3 class="text-lg font-semibold text-gray-900">Sales Count</h3>
-          <ShoppingBag class="h-5 w-5 text-blue-500" />
+      <!-- Quick Actions -->
+      <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm">
+        <div class="p-6 border-b border-gray-200">
+          <h3 class="text-lg font-semibold text-gray-900 dark:text-white">Quick Actions</h3>
         </div>
-        <div class="space-y-2">
-          <p class="text-3xl font-bold text-gray-900">{{ analytics.overview?.total_sales || 0 }}</p>
-          <div class="flex items-center">
-            <TrendingUp v-if="analytics.overview?.sales_growth >= 0" class="h-4 w-4 text-green-500 mr-1" />
-            <TrendingDown v-else class="h-4 w-4 text-red-500 mr-1" />
-            <span :class="analytics.overview?.sales_growth >= 0 ? 'text-green-600' : 'text-red-600'" class="text-sm">
-              {{ Math.abs(analytics.overview?.sales_growth || 0) }}% vs last period
-            </span>
+        <div class="p-6">
+          <div class="grid grid-cols-2 gap-3">
+            <button
+              v-for="action in dashboardData.quick_actions"
+              :key="action.id"
+              @click="executeQuickAction(action)"
+              :class="[
+                'p-4 rounded-lg border-2 border-dashed transition-colors text-left',
+                action.type === 'primary' ? 'border-blue-300 hover:border-blue-400 hover:bg-blue-50' :
+                action.type === 'secondary' ? 'border-gray-300 hover:border-gray-400 hover:bg-gray-50' :
+                'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
+              ]"
+            >
+              <div class="flex items-center space-x-3">
+                <div :class="[
+                  'p-2 rounded',
+                  action.type === 'primary' ? 'bg-blue-100 dark:bg-blue-900/20' :
+                  action.type === 'secondary' ? 'bg-gray-100' :
+                  'bg-gray-50'
+                ]">
+                  <!-- Icon would be dynamically rendered based on action.icon -->
+                  <div class="w-5 h-5 bg-gray-400 rounded"></div>
+                </div>
+                <span class="text-sm font-medium text-gray-900 dark:text-white">{{ action.label }}</span>
+              </div>
+            </button>
           </div>
-        </div>
-      </div>
-
-      <div class="bg-white rounded-lg shadow-sm p-6">
-        <div class="flex items-center justify-between mb-4">
-          <h3 class="text-lg font-semibold text-gray-900">Avg. Sale</h3>
-          <Calculator class="h-5 w-5 text-purple-500" />
-        </div>
-        <div class="space-y-2">
-          <p class="text-3xl font-bold text-gray-900">${{ analytics.overview?.average_sale?.toFixed(2) || '0.00' }}</p>
-          <p class="text-sm text-gray-600">Per transaction</p>
-        </div>
-      </div>
-
-      <div class="bg-white rounded-lg shadow-sm p-6">
-        <div class="flex items-center justify-between mb-4">
-          <h3 class="text-lg font-semibold text-gray-900">New Customers</h3>
-          <UserPlus class="h-5 w-5 text-indigo-500" />
-        </div>
-        <div class="space-y-2">
-          <p class="text-3xl font-bold text-gray-900">{{ analytics.overview?.new_customers || 0 }}</p>
-          <p class="text-sm text-gray-600">This period</p>
         </div>
       </div>
     </div>
 
-    <!-- Charts and Detailed Analytics -->
+    <!-- Real-time Activity & System Status -->
     <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-      <!-- Sales Trend Chart -->
-      <div class="bg-white rounded-lg shadow-sm p-6">
-        <h3 class="text-lg font-semibold text-gray-900 mb-4">Sales Trend</h3>
-        <div class="h-64 flex items-center justify-center bg-gray-50 rounded-lg">
-          <div v-if="analytics.sales_trend?.length" class="w-full h-full p-4">
-            <!-- Simple visualization - in production, use a chart library -->
-            <div class="grid grid-cols-7 gap-2 h-full">
-              <div 
-                v-for="(day, index) in analytics.sales_trend" 
-                :key="index"
-                class="flex flex-col items-center justify-end"
-              >
-                <div 
-                  class="bg-blue-500 w-full rounded-t"
-                  :style="{ height: `${(day.revenue / maxDayRevenue) * 100}%` }"
-                ></div>
-                <span class="text-xs text-gray-500 mt-1">{{ formatDate(day.date) }}</span>
+      <!-- Recent Activity Feed -->
+      <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm">
+        <div class="p-6 border-b border-gray-200">
+          <h3 class="text-lg font-semibold text-gray-900 dark:text-white">Recent Activity</h3>
+        </div>
+        <div class="p-6">
+          <div class="space-y-4 max-h-80 overflow-y-auto">
+            <div
+              v-for="activity in dashboardData.recent_activity"
+              :key="activity.id || activity.description"
+              class="flex items-start space-x-3"
+            >
+              <div :class="[
+                'w-2 h-2 rounded-full mt-2 flex-shrink-0',
+                activity.severity === 'success' ? 'bg-green-500' :
+                activity.severity === 'warning' ? 'bg-yellow-500' :
+                activity.severity === 'info' ? 'bg-blue-500' : 'bg-gray-500'
+              ]"></div>
+              <div class="flex-1 min-w-0">
+                <p class="text-sm text-gray-900 dark:text-white">{{ activity.description }}</p>
+                <div class="flex items-center space-x-2 mt-1">
+                  <p class="text-xs text-gray-500 dark:text-gray-400">{{ activity.time }}</p>
+                  <span class="text-xs text-gray-400">•</span>
+                  <p class="text-xs text-gray-500 dark:text-gray-400">{{ activity.user }}</p>
+                </div>
               </div>
             </div>
           </div>
-          <div v-else class="text-center">
-            <BarChart3 class="w-12 h-12 text-gray-400 mx-auto mb-2" />
-            <p class="text-gray-500">Sales trend data</p>
-          </div>
         </div>
       </div>
 
-      <!-- Top Products -->
-      <div class="bg-white rounded-lg shadow-sm p-6">
-        <h3 class="text-lg font-semibold text-gray-900 mb-4">Top Performing Products</h3>
-        <div class="space-y-3">
-          <div 
-            v-for="product in analytics.top_products?.slice(0, 5)" 
-            :key="product.id"
+      <!-- System Status -->
+      <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm">
+        <div class="p-6 border-b border-gray-200">
+          <h3 class="text-lg font-semibold text-gray-900 dark:text-white">System Status</h3>
+        </div>
+        <div class="p-6">
+          <div class="space-y-4">
+            <!-- Payment Systems -->
+            <div>
+              <h4 class="text-sm font-medium text-gray-900 dark:text-white mb-2">Payment Systems</h4>
+              <div class="grid grid-cols-2 gap-2">
+                <div
+                  v-for="(status, method) in dashboardData.live_stats?.payment_methods_status"
+                  :key="method"
+                  class="flex items-center justify-between p-2 bg-gray-50 rounded"
+                >
+                  <span class="text-sm text-gray-700">{{ method.replace('_', ' ') }}</span>
+                  <div :class="[
+                    'w-2 h-2 rounded-full',
+                    status === 'online' ? 'bg-green-500' : 'bg-red-500'
+                  ]"></div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Registers -->
+            <div>
+              <h4 class="text-sm font-medium text-gray-900 dark:text-white mb-2">POS Registers</h4>
+              <div class="grid grid-cols-2 gap-2">
+                <div
+                  v-for="(status, register) in dashboardData.live_stats?.register_status"
+                  :key="register"
+                  class="flex items-center justify-between p-2 bg-gray-50 rounded"
+                >
+                  <span class="text-sm text-gray-700">{{ register.replace('_', ' ') }}</span>
+                  <div :class="[
+                    'w-2 h-2 rounded-full',
+                    status === 'open' ? 'bg-green-500' :
+                    status === 'closed' ? 'bg-gray-500' : 'bg-yellow-500'
+                  ]"></div>
+                </div>
+              </div>
+            </div>
+
+            <!-- System Load -->
+            <div v-if="dashboardData.live_stats?.system_load">
+              <h4 class="text-sm font-medium text-gray-900 dark:text-white mb-2">System Performance</h4>
+              <div class="space-y-2">
+                <div class="flex items-center justify-between">
+                  <span class="text-sm text-gray-700">CPU</span>
+                  <div class="flex items-center space-x-2">
+                    <div class="w-16 bg-gray-200 rounded-full h-2">
+                      <div
+                        class="bg-blue-500 h-2 rounded-full"
+                        :style="{ width: `${dashboardData.live_stats.system_load.cpu}%` }"
+                      ></div>
+                    </div>
+                    <span class="text-xs text-gray-500 dark:text-gray-400">{{ dashboardData.live_stats.system_load.cpu }}%</span>
+                  </div>
+                </div>
+                <div class="flex items-center justify-between">
+                  <span class="text-sm text-gray-700">Memory</span>
+                  <div class="flex items-center space-x-2">
+                    <div class="w-16 bg-gray-200 rounded-full h-2">
+                      <div
+                        class="bg-green-500 h-2 rounded-full"
+                        :style="{ width: `${dashboardData.live_stats.system_load.memory}%` }"
+                      ></div>
+                    </div>
+                    <span class="text-xs text-gray-500 dark:text-gray-400">{{ dashboardData.live_stats.system_load.memory }}%</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Active Staff Performance (if user can manage users) -->
+    <div v-if="currentUser?.role === 'admin' || currentUser?.role === 'manager'" class="bg-white dark:bg-gray-800 rounded-lg shadow-sm">
+      <div class="p-6 border-b border-gray-200">
+        <h3 class="text-lg font-semibold text-gray-900 dark:text-white">Active Staff Performance</h3>
+      </div>
+      <div class="p-6">
+        <div v-if="dashboardData.current_shift?.shift_performance?.length" class="space-y-3">
+          <div
+            v-for="staff in dashboardData.current_shift.shift_performance.slice(0, 5)"
+            :key="staff.name"
             class="flex items-center justify-between p-3 bg-gray-50 rounded-lg"
           >
-            <div>
-              <p class="font-medium text-gray-900">{{ product.name }}</p>
-              <p class="text-sm text-gray-500">{{ product.sku }}</p>
+            <div class="flex items-center space-x-3">
+              <div class="w-8 h-8 bg-blue-100 dark:bg-blue-900/20 rounded-full flex items-center justify-center">
+                <span class="text-sm font-medium text-blue-600">{{ staff.name.charAt(0) }}</span>
+              </div>
+              <div>
+                <p class="font-medium text-gray-900 dark:text-white">{{ staff.name }}</p>
+                <p class="text-sm text-gray-500 dark:text-gray-400">{{ staff.transactions }} transactions today</p>
+              </div>
             </div>
             <div class="text-right">
-              <p class="font-medium text-gray-900">{{ product.total_quantity }} sold</p>
-              <p class="text-sm text-gray-500">${{ parseFloat(product.total_revenue).toFixed(2) }}</p>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- Employee Performance (if user can manage users) -->
-    <div v-if="currentUser?.role === 'admin' || currentUser?.role === 'manager'" class="bg-white rounded-lg shadow-sm">
-      <div class="p-6 border-b border-gray-200">
-        <h3 class="text-lg font-semibold text-gray-900">Employee Performance</h3>
-      </div>
-      <div class="p-6">
-        <div class="overflow-x-auto">
-          <table class="min-w-full divide-y divide-gray-200">
-            <thead class="bg-gray-50">
-              <tr>
-                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Employee</th>
-                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Role</th>
-                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Sales Count</th>
-                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Revenue</th>
-                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Avg Sale</th>
-              </tr>
-            </thead>
-            <tbody class="bg-white divide-y divide-gray-200">
-              <tr v-for="employee in analytics.employee_performance?.slice(0, 10)" :key="employee.id">
-                <td class="px-6 py-4 whitespace-nowrap">
-                  <div class="font-medium text-gray-900">{{ employee.name }}</div>
-                </td>
-                <td class="px-6 py-4 whitespace-nowrap">
-                  <span class="px-2 py-1 text-xs font-medium bg-blue-100 text-blue-800 rounded-full">
-                    {{ employee.role }}
-                  </span>
-                </td>
-                <td class="px-6 py-4 whitespace-nowrap text-gray-900">{{ employee.sales_count }}</td>
-                <td class="px-6 py-4 whitespace-nowrap text-gray-900">${{ parseFloat(employee.total_revenue).toFixed(2) }}</td>
-                <td class="px-6 py-4 whitespace-nowrap text-gray-900">${{ parseFloat(employee.avg_sale).toFixed(2) }}</td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-      </div>
-    </div>
-
-    <!-- Inventory Alerts (if user can manage inventory) -->
-    <div v-if="currentUser?.role === 'admin' || currentUser?.role === 'manager'" class="bg-white rounded-lg shadow-sm">
-      <div class="p-6 border-b border-gray-200">
-        <div class="flex items-center justify-between">
-          <h3 class="text-lg font-semibold text-gray-900">Inventory Alerts</h3>
-          <span class="px-3 py-1 bg-red-100 text-red-800 rounded-full text-sm font-medium">
-            {{ analytics.inventory_alerts?.length || 0 }} items
-          </span>
-        </div>
-      </div>
-      <div class="p-6">
-        <div v-if="analytics.inventory_alerts?.length" class="space-y-3">
-          <div 
-            v-for="item in analytics.inventory_alerts.slice(0, 8)" 
-            :key="item.id"
-            class="flex items-center justify-between p-3 bg-red-50 border border-red-200 rounded-lg"
-          >
-            <div>
-              <p class="font-medium text-gray-900">{{ item.name }}</p>
-              <p class="text-sm text-gray-500">SKU: {{ item.sku }}</p>
-            </div>
-            <div class="text-right">
-              <p class="font-medium text-red-600">{{ item.stock }} left</p>
-              <p class="text-xs text-gray-500">Min: {{ item.low_stock_threshold }}</p>
+              <p class="font-medium text-gray-900 dark:text-white">${{ parseFloat(staff.revenue).toFixed(0) }}</p>
+              <p class="text-sm text-gray-500 dark:text-gray-400">Avg: ${{ parseFloat(staff.avg_sale).toFixed(0) }}</p>
             </div>
           </div>
         </div>
         <div v-else class="text-center py-8">
-          <CheckCircle class="w-12 h-12 text-green-400 mx-auto mb-2" />
-          <p class="text-gray-500">All inventory levels are healthy</p>
-        </div>
-      </div>
-    </div>
-
-    <!-- Store Comparison (Admin only) -->
-    <div v-if="currentUser?.role === 'admin' && analytics.store_comparison?.length" class="bg-white rounded-lg shadow-sm">
-      <div class="p-6 border-b border-gray-200">
-        <h3 class="text-lg font-semibold text-gray-900">Store Performance Comparison</h3>
-      </div>
-      <div class="p-6">
-        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          <div 
-            v-for="store in analytics.store_comparison" 
-            :key="store.id"
-            class="p-4 border border-gray-200 rounded-lg"
-          >
-            <h4 class="font-medium text-gray-900 mb-2">{{ store.name }}</h4>
-            <div class="space-y-2 text-sm">
-              <div class="flex justify-between">
-                <span class="text-gray-600">Sales:</span>
-                <span class="font-medium">{{ store.sales_count }}</span>
-              </div>
-              <div class="flex justify-between">
-                <span class="text-gray-600">Revenue:</span>
-                <span class="font-medium">${{ parseFloat(store.revenue).toFixed(2) }}</span>
-              </div>
-              <div class="flex justify-between">
-                <span class="text-gray-600">Avg Sale:</span>
-                <span class="font-medium">${{ parseFloat(store.avg_sale).toFixed(2) }}</span>
-              </div>
-            </div>
-          </div>
+          <Users class="w-12 h-12 text-gray-400 mx-auto mb-2" />
+          <p class="text-gray-500 dark:text-gray-400">No active staff performance data</p>
         </div>
       </div>
     </div>
@@ -344,6 +376,7 @@
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { usePage } from '@inertiajs/vue3'
 import { useNotificationStore } from '@/stores/notifications'
+import axios from 'axios'
 import {
   TrendingUp,
   TrendingDown,
@@ -365,28 +398,27 @@ const currentUser = computed(() => page.props.auth?.user)
 
 // State
 const isLoading = ref(false)
-const selectedPeriod = ref('month')
 const selectedStore = ref('')
+const selectedPeriod = ref('today')
 const autoRefresh = ref(false)
 const lastUpdated = ref(new Date())
 const refreshInterval = ref(null)
 
-const analytics = ref({
-  overview: {},
-  sales_trend: [],
-  top_products: [],
-  employee_performance: [],
-  inventory_alerts: [],
-  customer_insights: {},
-  store_comparison: [],
+const dashboardData = ref({
+  today_metrics: {},
+  live_stats: {},
+  urgent_alerts: [],
+  quick_actions: [],
+  recent_activity: [],
+  current_shift: {},
+  alerts_count: {},
 })
 
 const realtimeStats = ref({
-  today_sales: {},
-  active_employees: 0,
-  pending_orders: 0,
-  low_stock_count: 0,
-  hourly_sales: [],
+  live_sales: {},
+  current_shift: {},
+  system_status: {},
+  alerts_count: {},
 })
 
 const stores = ref([
@@ -396,66 +428,129 @@ const stores = ref([
 ])
 
 // Computed
-const maxDayRevenue = computed(() => {
-  if (!analytics.value.sales_trend?.length) return 1
-  return Math.max(...analytics.value.sales_trend.map(day => parseFloat(day.revenue)))
+const totalAlerts = computed(() => {
+  const alerts = dashboardData.value.alerts_count || {}
+  return (alerts.critical || 0) + (alerts.warnings || 0) + (alerts.info || 0)
 })
 
 // Methods
-const loadAnalytics = async () => {
+const loadDashboardOverview = async () => {
+  // Check if user is authenticated before making API call
+  if (!currentUser.value) {
+    console.log('User not authenticated, skipping dashboard overview load')
+    return
+  }
+
   try {
     isLoading.value = true
-    const params = new URLSearchParams({
-      date_range: selectedPeriod.value,
-    })
-    
+    const params = {}
+
     if (selectedStore.value) {
-      params.append('store_id', selectedStore.value)
+      params.store_id = selectedStore.value
+    }
+    if (selectedPeriod.value) {
+      params.period = selectedPeriod.value
     }
 
-    const response = await fetch(`/api/manager-dashboard/analytics?${params}`)
-    if (!response.ok) throw new Error('Failed to load analytics')
-    
-    analytics.value = await response.json()
+    const response = await axios.get('/api/manager-dashboard/overview', { params })
+    dashboardData.value = response.data
     lastUpdated.value = new Date()
-    
+
   } catch (error) {
-    notificationStore.error('Error', 'Failed to load analytics data')
-    console.error('Analytics error:', error)
+    if (error.response?.status === 403) {
+      notificationStore.error('Access Denied', 'You do not have permission to view dashboard data')
+    } else {
+      notificationStore.error('Error', 'Failed to load dashboard data')
+    }
+    console.error('Dashboard error:', error)
   } finally {
     isLoading.value = false
   }
 }
 
 const loadRealtimeStats = async () => {
+  // Check if user is authenticated before making API call
+  if (!currentUser.value) {
+    console.log('User not authenticated, skipping realtime stats load')
+    return
+  }
+
   try {
-    const params = new URLSearchParams()
+    const params = {}
     if (selectedStore.value) {
-      params.append('store_id', selectedStore.value)
+      params.store_id = selectedStore.value
+    }
+    if (selectedPeriod.value) {
+      params.period = selectedPeriod.value
     }
 
-    const response = await fetch(`/api/manager-dashboard/realtime?${params}`)
-    if (!response.ok) throw new Error('Failed to load realtime stats')
-    
-    realtimeStats.value = await response.json()
-    
+    const response = await axios.get('/api/manager-dashboard/realtime-stats', { params })
+    realtimeStats.value = response.data
+
   } catch (error) {
-    console.error('Realtime stats error:', error)
+    if (error.response?.status === 403) {
+      notificationStore.error('Access Denied', 'You do not have permission to view realtime stats')
+    } else {
+      console.error('Realtime stats error:', error)
+    }
   }
 }
 
 const refreshData = async () => {
-  await Promise.all([loadAnalytics(), loadRealtimeStats()])
+  await Promise.all([loadDashboardOverview(), loadRealtimeStats()])
+}
+
+const loadAnalytics = async () => {
+  // Called when period or store changes
+  await refreshData()
+}
+
+// New methods for real-time actions
+const acknowledgeAlert = async (alert) => {
+  try {
+    await axios.post('/api/manager-dashboard/quick-action', {
+      action: 'acknowledge_alert',
+      params: { alert_id: alert.id || alert.type }
+    })
+
+    // Remove the alert from the list
+    const index = dashboardData.value.urgent_alerts.findIndex(a => a.type === alert.type)
+    if (index > -1) {
+      dashboardData.value.urgent_alerts.splice(index, 1)
+    }
+    notificationStore.success('Alert acknowledged')
+  } catch (error) {
+    console.error('Failed to acknowledge alert:', error)
+    notificationStore.error('Failed to acknowledge alert')
+  }
+}
+
+const executeQuickAction = async (action) => {
+  try {
+    const response = await axios.post('/api/manager-dashboard/quick-action', {
+      action: action.id,
+      params: {}
+    })
+
+    notificationStore.success(response.data.message || `${action.label} executed successfully`)
+  } catch (error) {
+    console.error('Failed to execute action:', error)
+    notificationStore.error(`Failed to execute ${action.label}`)
+  }
 }
 
 const toggleAutoRefresh = () => {
   autoRefresh.value = !autoRefresh.value
-  
+
   if (autoRefresh.value) {
     refreshInterval.value = setInterval(() => {
       loadRealtimeStats()
+      // Refresh full data every 5 minutes
+      if (Date.now() - lastUpdated.value.getTime() > 300000) {
+        loadDashboardOverview()
+      }
     }, 30000) // Refresh every 30 seconds
-    notificationStore.info('Auto-refresh enabled', 'Data will update every 30 seconds')
+    notificationStore.info('Auto-refresh enabled', 'Real-time data will update every 30 seconds')
   } else {
     if (refreshInterval.value) {
       clearInterval(refreshInterval.value)

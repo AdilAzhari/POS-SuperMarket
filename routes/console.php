@@ -1,10 +1,12 @@
 <?php
 
+declare(strict_types=1);
+
 use Illuminate\Foundation\Inspiring;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Schedule;
 
-Artisan::command('inspire', function () {
+Artisan::command('inspire', function (): void {
     $this->comment(Inspiring::quote());
 })->purpose('Display an inspiring quote');
 
@@ -13,33 +15,33 @@ Schedule::command('pos:generate-daily-sales-report')
     ->dailyAt('06:00')
     ->timezone('Asia/Kuala_Lumpur')
     ->description('Generate daily sales report for all stores')
-    ->onSuccess(function () {
-        \Log::info('Daily sales report generated successfully');
+    ->onSuccess(function (): void {
+        Log::info('Daily sales report generated successfully');
     })
-    ->onFailure(function () {
-        \Log::error('Daily sales report generation failed');
+    ->onFailure(function (): void {
+        Log::error('Daily sales report generation failed');
     });
 
 Schedule::command('inventory:check-low-stock --send-alerts --update-thresholds')
     ->dailyAt('08:00')
     ->timezone('Asia/Kuala_Lumpur')
     ->description('Check for low stock items, send alerts, and update thresholds')
-    ->onSuccess(function () {
-        \Log::info('Low stock check and alert sending completed successfully');
+    ->onSuccess(function (): void {
+        Log::info('Low stock check and alert sending completed successfully');
     })
-    ->onFailure(function () {
-        \Log::error('Low stock check failed');
+    ->onFailure(function (): void {
+        Log::error('Low stock check failed');
     });
 
 Schedule::command('pos:process-loyalty-points')
     ->dailyAt('02:00')
     ->timezone('Asia/Kuala_Lumpur')
     ->description('Process loyalty points: expire old points, tier upgrades, birthday rewards')
-    ->onSuccess(function () {
-        \Log::info('Loyalty points processing completed successfully');
+    ->onSuccess(function (): void {
+        Log::info('Loyalty points processing completed successfully');
     })
-    ->onFailure(function () {
-        \Log::error('Loyalty points processing failed');
+    ->onFailure(function (): void {
+        Log::error('Loyalty points processing failed');
     });
 
 // Weekly tasks
