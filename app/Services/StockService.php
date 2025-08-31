@@ -1,34 +1,21 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Services;
 
 use App\Models\Product;
 use Illuminate\Support\Facades\Log;
 
-class StockService extends BaseService
+final class StockService extends BaseService
 {
     protected string $cachePrefix = 'stock:';
-
-    protected function logInfo(string $message, array $context = []): void
-    {
-        Log::channel('inventory')->info("[{$this->getServiceName()}] $message", $context);
-    }
-
-    protected function logError(string $message, array $context = []): void
-    {
-        Log::channel('inventory')->error("[{$this->getServiceName()}] $message", $context);
-    }
-
-    protected function logWarning(string $message, array $context = []): void
-    {
-        Log::channel('inventory')->warning("[{$this->getServiceName()}] $message", $context);
-    }
 
     public function getStockForStore(int $productId, int $storeId): int
     {
         $cacheKey = "product:$productId:store:$storeId";
 
-        return $this->remember($cacheKey, function () use ($productId, $storeId) {
+        return $this->remember($cacheKey, function () use ($productId, $storeId): int {
             $product = Product::query()->findOrFail($productId);
             $pivotRecord = $product->stores()->where('stores.id', $storeId)->first();
 
@@ -219,7 +206,22 @@ class StockService extends BaseService
             'valid' => ! $hasErrors,
             'items' => $results,
             'total_items' => count($items),
-            'invalid_items' => array_filter($results, fn ($item) => ! $item['valid']),
+            'invalid_items' => array_filter($results, fn (array $item): bool => ! $item['valid']),
         ];
+    }
+
+    protected function logInfo(string $message, array $context = []): void
+    {
+        Log::channel('inventory')->info("[{$this->getServiceName()}] $message", $context);
+    }
+
+    protected function logError(string $message, array $context = []): void
+    {
+        Log::channel('inventory')->error("[{$this->getServiceName()}] $message", $context);
+    }
+
+    protected function logWarning(string $message, array $context = []): void
+    {
+        Log::channel('inventory')->warning("[{$this->getServiceName()}] $message", $context);
     }
 }

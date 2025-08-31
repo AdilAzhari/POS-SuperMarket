@@ -1,14 +1,17 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Services;
 
+use App\DTOs\UserDTO;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
 use Random\RandomException;
 
-class EmployeeService extends BaseService
+final class EmployeeService extends BaseService
 {
     protected string $cachePrefix = 'employee:';
 
@@ -31,7 +34,7 @@ class EmployeeService extends BaseService
 
         if (isset($filters['search'])) {
             $search = $filters['search'];
-            $query->where(function ($q) use ($search) {
+            $query->where(function ($q) use ($search): void {
                 $q->where('name', 'like', "%$search%")
                     ->orWhere('email', 'like', "%$search%")
                     ->orWhere('employee_id', 'like', "%$search%")
@@ -45,24 +48,19 @@ class EmployeeService extends BaseService
     /**
      * Create a new employee
      */
-    public function createEmployee(array $data): User
+    public function createEmployee(UserDTO $employeeDTO): User
     {
-        $this->logInfo('Creating new employee', ['name' => $data['name'], 'role' => $data['role']]);
+        $this->logInfo('Creating new employee', ['name' => $employeeDTO->name, 'role' => $employeeDTO->role->value]);
+
+        $data = $employeeDTO->toCreateArray();
 
         // Generate employee ID if not provided
         if (empty($data['employee_id'])) {
             $data['employee_id'] = $this->generateEmployeeId();
         }
 
-        // Hash password
-        if (isset($data['password'])) {
-            $data['password'] = Hash::make($data['password']);
-        } else {
-            $data['password'] = Hash::make('password123'); // Default password
-        }
-
         // Set default permissions based on role
-        $data['permissions'] = $this->getDefaultPermissions($data['role']);
+        $data['permissions'] = $this->getDefaultPermissions($employeeDTO->role->value);
 
         $employee = User::create($data);
 
@@ -130,7 +128,7 @@ class EmployeeService extends BaseService
         $startDate = $startDate ?: now()->startOfMonth();
         $endDate = $endDate ?: now()->endOfMonth();
 
-        return $this->remember("performance:$employee->id:{$startDate->format('Y-m-d')}:{$endDate->format('Y-m-d')}", function () use ($employee, $startDate, $endDate) {
+        return $this->remember("performance:$employee->id:{$startDate->format('Y-m-d')}:{$endDate->format('Y-m-d')}", function () use ($employee, $startDate, $endDate): array {
             $sales = $employee->sales()
                 ->whereBetween('created_at', [$startDate, $endDate])
                 ->get();
@@ -140,19 +138,47 @@ class EmployeeService extends BaseService
                 'total_revenue' => $sales->sum('total'),
                 'average_sale' => $sales->count() > 0 ? $sales->sum('total') / $sales->count() : 0,
                 'total_items_sold' => $sales->sum('items_count'),
-                'sales_by_day' => $sales->groupBy(function ($sale) {
-                    return $sale->created_at->format('Y-m-d');
-                })->map(function ($daySales) {
-                    return [
-                        'count' => $daySales->count(),
-                        'revenue' => $daySales->sum('total'),
-                    ];
-                }),
-                'busiest_hours' => $sales->groupBy(function ($sale) {
-                    return $sale->created_at->format('H');
-                })->map->count(),
+                'sales_by_day' => $sales->groupBy(fn ($sale) => $sale->created_at->format('Y-m-d'))->map(fn ($daySales): array => [
+                    'count' => $daySales->count(),
+                    'revenue' => $daySales->sum('total'),
+                ]),
+                'busiest_hours' => $sales->groupBy(fn ($sale) => $sale->created_at->format('H'))->map->count(),
             ];
         }, 1800); // Cache for 30 minutes
+    }
+
+    /**
+     * Get employee analytics summary
+     */
+    public function getEmployeeAnalytics(): array
+    {
+        return $this->remember('analytics', function (): array {
+            $employees = User::all();
+
+            return [
+                'total_employees' => $employees->count(),
+                'active_employees' => $employees->where('is_active', true)->count(),
+                'by_role' => $employees->groupBy('role')->map->count(),
+                'recent_hires' => $employees->where('hire_date', '>=', now()->subDays(30))->count(),
+                'average_tenure' => $employees->filter(fn ($emp): bool => $emp->hire_date !== null)->avg(fn ($emp) => $emp->hire_date->diffInDays(now())),
+            ];
+        }, 3600); // Cache for 1 hour
+    }
+
+    /**
+     * Reset employee password
+     */
+    public function resetPassword(User $employee, ?string $newPassword = null): string
+    {
+        $password = $newPassword !== null && $newPassword !== '' && $newPassword !== '0' ? $newPassword : Str::random(8);
+
+        $employee->update([
+            'password' => Hash::make($password),
+        ]);
+
+        $this->logInfo('Password reset for employee', ['employee_id' => $employee->id]);
+
+        return $password;
     }
 
     /**
@@ -163,7 +189,7 @@ class EmployeeService extends BaseService
     private function generateEmployeeId(): string
     {
         do {
-            $employeeId = 'EMP'.str_pad(random_int(1, 9999), 4, '0', STR_PAD_LEFT);
+            $employeeId = 'EMP'.mb_str_pad(random_int(1, 9999), 4, '0', STR_PAD_LEFT);
         } while (User::query()->where('employee_id', $employeeId)->exists());
 
         return $employeeId;
@@ -202,43 +228,5 @@ class EmployeeService extends BaseService
             ],
             default => []
         };
-    }
-
-    /**
-     * Get employee analytics summary
-     */
-    public function getEmployeeAnalytics(): array
-    {
-        return $this->remember('analytics', function () {
-            $employees = User::all();
-
-            return [
-                'total_employees' => $employees->count(),
-                'active_employees' => $employees->where('is_active', true)->count(),
-                'by_role' => $employees->groupBy('role')->map->count(),
-                'recent_hires' => $employees->where('hire_date', '>=', now()->subDays(30))->count(),
-                'average_tenure' => $employees->filter(function ($emp) {
-                    return $emp->hire_date !== null;
-                })->avg(function ($emp) {
-                    return $emp->hire_date->diffInDays(now());
-                }),
-            ];
-        }, 3600); // Cache for 1 hour
-    }
-
-    /**
-     * Reset employee password
-     */
-    public function resetPassword(User $employee, ?string $newPassword = null): string
-    {
-        $password = $newPassword ?: Str::random(8);
-
-        $employee->update([
-            'password' => Hash::make($password),
-        ]);
-
-        $this->logInfo('Password reset for employee', ['employee_id' => $employee->id]);
-
-        return $password;
     }
 }
