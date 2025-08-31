@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 use App\Http\Middleware\HandleInertiaRequests;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
@@ -35,7 +37,7 @@ return Application::configure(basePath: dirname(__DIR__))
             }
         });
 
-        $exceptions->render(function (\Illuminate\Database\QueryException $e, $request) {
+        $exceptions->render(function (Illuminate\Database\QueryException $e, $request) {
             if ($request->expectsJson()) {
                 return response()->json([
                     'message' => 'Database operation failed.',
@@ -44,7 +46,7 @@ return Application::configure(basePath: dirname(__DIR__))
             }
         });
 
-        $exceptions->render(function (\Exception $e, $request) {
+        $exceptions->render(function (Exception $e, $request) {
             if ($request->expectsJson()) {
                 return response()->json([
                     'message' => 'An error occurred.',
