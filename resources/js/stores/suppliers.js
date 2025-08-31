@@ -29,7 +29,7 @@ export const useSuppliersStore = defineStore('suppliers', () => {
     isLoading.value = true
     errorMessage.value = null
     try {
-      const { data } = await axios.get('/suppliers')
+      const { data } = await axios.get('/api/suppliers')
       const list = Array.isArray(data?.data) ? data.data : data
       suppliers.value = list.map(mapApiSupplierToUi)
     } catch (err) {
@@ -41,7 +41,7 @@ export const useSuppliersStore = defineStore('suppliers', () => {
   }
 
   const fetchSupplierDetails = async (id) => {
-    const { data } = await axios.get(`/suppliers/${id}`)
+    const { data } = await axios.get(`/api/suppliers/${id}`)
     const details = mapApiSupplierToUi(data)
     selectedSupplier.value = details
     const idx = suppliers.value.findIndex(s => String(s.id) === String(id))
@@ -62,7 +62,7 @@ export const useSuppliersStore = defineStore('suppliers', () => {
         contact_email: payload.contactEmail ?? null,
         address: payload.address ?? null,
       }
-      const { data } = await axios.post('/suppliers', body)
+      const { data } = await axios.post('/api/suppliers', body)
       suppliers.value.unshift(mapApiSupplierToUi(data))
       return { success: true, data }
     } catch (err) {
@@ -84,7 +84,7 @@ export const useSuppliersStore = defineStore('suppliers', () => {
       if (updates.contactPhone !== undefined) body.contact_phone = updates.contactPhone
       if (updates.contactEmail !== undefined) body.contact_email = updates.contactEmail
       if (updates.address !== undefined) body.address = updates.address
-      const { data } = await axios.put(`/suppliers/${id}`, body)
+      const { data } = await axios.put(`/api/suppliers/${id}`, body)
       const updated = mapApiSupplierToUi(data)
       const index = suppliers.value.findIndex(s => String(s.id) === String(id))
       if (index !== -1) suppliers.value[index] = updated
@@ -103,7 +103,7 @@ export const useSuppliersStore = defineStore('suppliers', () => {
 
   const deleteSupplier = async (id) => {
     try {
-      await axios.delete(`/suppliers/${id}`)
+      await axios.delete(`/api/suppliers/${id}`)
       const index = suppliers.value.findIndex(s => String(s.id) === String(id))
       if (index !== -1) suppliers.value.splice(index, 1)
       return { success: true }

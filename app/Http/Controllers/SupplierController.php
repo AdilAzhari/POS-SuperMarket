@@ -1,25 +1,47 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Http\Controllers;
 
+use App\Actions\Common\FormatApiResponseAction;
+use App\Actions\Common\HandleControllerErrorsAction;
+use App\Actions\Common\HandleValidatedRequestAction;
 use App\Http\Requests\StoreSupplierRequest;
-use App\Http\Requests\UpdateSupplierRequest;
 use App\Models\Supplier;
+use Exception;
+use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
 
-class SupplierController extends Controller
+final class SupplierController extends Controller
 {
+    public function __construct(
+        private readonly HandleValidatedRequestAction $validationHandler,
+        private readonly FormatApiResponseAction $responseFormatter,
+        private readonly HandleControllerErrorsAction $errorHandler
+    ) {}
+
     /**
      * Display a listing of the resource.
      */
-    public function index()
+    public function index(Request $request): JsonResponse
     {
-        return response()->json(Supplier::withCount('products')->paginate(20));
+        try {
+            $validated = $this->validationHandler->validatePagination($request);
+            $perPage = $validated['per_page'] ?? 20;
+
+            $suppliers = Supplier::query()->withCount('products')->paginate($perPage);
+
+            return $this->responseFormatter->paginated($suppliers);
+        } catch (Exception $e) {
+            return $this->errorHandler->execute($e, 'supplier listing');
+        }
     }
 
     /**
      * Show the form for creating a new resource.
      */
-    public function create()
+    public function create(): void
     {
         //
     }
@@ -27,32 +49,30 @@ class SupplierController extends Controller
     /**
      * Store a newly created resource in storage.
      */
-    public function store(StoreSupplierRequest $request)
+    public function store(StoreSupplierRequest $request): JsonResponse
     {
         try {
-            $supplier = Supplier::create($request->validated());
+            $validated = $this->validationHandler->execute($request);
+            $supplier = Supplier::query()->create($validated);
 
-            return response()->json($supplier, 201);
-        } catch (\Exception $e) {
-            return response()->json([
-                'message' => 'Failed to create supplier',
-                'error' => config('app.debug') ? $e->getMessage() : 'An error occurred while processing your request.'
-            ], 500);
+            return $this->responseFormatter->created($supplier, 'Supplier created successfully');
+        } catch (Exception $e) {
+            return $this->errorHandler->execute($e, 'supplier creation');
         }
     }
 
     /**
      * Display the specified resource.
      */
-    public function show(Supplier $supplier)
+    public function show(Supplier $supplier): JsonResponse
     {
-        return response()->json($supplier->load('products'));
+        return $this->responseFormatter->resource($supplier->load('products'));
     }
 
     /**
      * Show the form for editing the specified resource.
      */
-    public function edit(Supplier $supplier)
+    public function edit(Supplier $supplier): void
     {
         //
     }
@@ -60,34 +80,29 @@ class SupplierController extends Controller
     /**
      * Update the specified resource in storage.
      */
-    public function update(UpdateSupplierRequest $request, Supplier $supplier)
+    public function update(StoreSupplierRequest $request, Supplier $supplier): JsonResponse
     {
         try {
-            $supplier->update($request->validated());
+            $validated = $this->validationHandler->execute($request);
+            $supplier->update($validated);
 
-            return response()->json($supplier->fresh());
-        } catch (\Exception $e) {
-            return response()->json([
-                'message' => 'Failed to update supplier',
-                'error' => config('app.debug') ? $e->getMessage() : 'An error occurred while processing your request.'
-            ], 500);
+            return $this->responseFormatter->updated($supplier->fresh(), 'Supplier updated successfully');
+        } catch (Exception $e) {
+            return $this->errorHandler->execute($e, 'supplier update');
         }
     }
 
     /**
      * Remove the specified resource from storage.
      */
-    public function destroy(Supplier $supplier)
+    public function destroy(Supplier $supplier): JsonResponse
     {
         try {
             $supplier->delete();
 
-            return response()->noContent();
-        } catch (\Exception $e) {
-            return response()->json([
-                'message' => 'Failed to delete supplier',
-                'error' => config('app.debug') ? $e->getMessage() : 'An error occurred while processing your request.'
-            ], 500);
+            return $this->responseFormatter->deleted('Supplier deleted successfully');
+        } catch (Exception $e) {
+            return $this->errorHandler->execute($e, 'supplier deletion');
         }
     }
 }

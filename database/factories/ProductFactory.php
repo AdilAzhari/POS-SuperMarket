@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Database\Factories;
 
 use App\Models\Category;
@@ -9,7 +11,7 @@ use Illuminate\Database\Eloquent\Factories\Factory;
 /**
  * @extends \Illuminate\Database\Eloquent\Factories\Factory<\App\Models\Product>
  */
-class ProductFactory extends Factory
+final class ProductFactory extends Factory
 {
     /**
      * Define the model's default state.
@@ -23,8 +25,8 @@ class ProductFactory extends Factory
 
         return [
             'name' => fake()->words(3, true),
-            'sku' => strtoupper(fake()->bothify('SKU-####')),
-            'barcode' => strtoupper(fake()->bothify('BAR#########')),
+            'sku' => 'SKU-'.fake()->unique()->numberBetween(10000000, 99999999),
+            'barcode' => 'BAR'.fake()->unique()->numberBetween(100000000, 999999999),
             'price' => round($price, 2),
             'cost' => $cost,
             'active' => true,
@@ -40,7 +42,7 @@ class ProductFactory extends Factory
      */
     public function inactive(): static
     {
-        return $this->state(fn (array $attributes) => [
+        return $this->state(fn (array $attributes): array => [
             'active' => false,
         ]);
     }
@@ -50,7 +52,7 @@ class ProductFactory extends Factory
      */
     public function expensive(): static
     {
-        return $this->state(fn (array $attributes) => [
+        return $this->state(fn (array $attributes): array => [
             'price' => fake()->randomFloat(2, 100, 500),
             'cost' => fake()->randomFloat(2, 50, 250),
         ]);
@@ -61,7 +63,7 @@ class ProductFactory extends Factory
      */
     public function cheap(): static
     {
-        return $this->state(fn (array $attributes) => [
+        return $this->state(fn (array $attributes): array => [
             'price' => fake()->randomFloat(2, 1, 10),
             'cost' => fake()->randomFloat(2, 0.5, 5),
         ]);
@@ -72,7 +74,7 @@ class ProductFactory extends Factory
      */
     public function noBarcode(): static
     {
-        return $this->state(fn (array $attributes) => [
+        return $this->state(fn (array $attributes): array => [
             'barcode' => null,
         ]);
     }
@@ -82,7 +84,7 @@ class ProductFactory extends Factory
      */
     public function highStockThreshold(): static
     {
-        return $this->state(fn (array $attributes) => [
+        return $this->state(fn (array $attributes): array => [
             'low_stock_threshold' => fake()->numberBetween(50, 100),
         ]);
     }

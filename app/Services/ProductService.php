@@ -1,14 +1,18 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Services;
 
 use App\Models\Product;
-use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Collection;
+use Illuminate\Pagination\LengthAwarePaginator;
 
-class ProductService extends BaseService
+final class ProductService extends BaseService
 {
     protected string $cachePrefix = 'products:';
+
+    protected array $cacheTags = ['products'];
 
     public function getPaginatedProducts(int $perPage = 20): LengthAwarePaginator
     {
@@ -16,8 +20,9 @@ class ProductService extends BaseService
 
         return $this->remember(
             "paginated:$perPage",
-            fn() => Product::with(['category', 'supplier', 'stores'])
-                ->paginate($perPage)
+            fn () => Product::with(['category', 'supplier', 'stores'])
+                ->paginate($perPage),
+            600 // 10 minutes
         );
     }
 
@@ -27,7 +32,8 @@ class ProductService extends BaseService
 
         return $this->remember(
             "product:$id",
-            fn() => Product::with(['category', 'supplier', 'stores'])->findOrFail($id)
+            fn () => Product::with(['category', 'supplier', 'stores'])->findOrFail($id),
+            1800 // 30 minutes
         );
     }
 
@@ -37,12 +43,12 @@ class ProductService extends BaseService
 
         $product = Product::query()->create($data);
 
-        $this->clearProductCaches();
+        $this->flushTag('products');
 
         $this->logInfo('Product created successfully', [
             'product_id' => $product->id,
             'name' => $product->name,
-            'sku' => $product->sku
+            'sku' => $product->sku,
         ]);
 
         return $product->load(['category', 'supplier', 'stores']);
@@ -55,12 +61,11 @@ class ProductService extends BaseService
         $product = Product::query()->findOrFail($id);
         $product->update($data);
 
-        $this->forget("product:$id");
-        $this->clearProductCaches();
+        $this->flushTag('products');
 
         $this->logInfo('Product updated successfully', [
             'product_id' => $product->id,
-            'name' => $product->name
+            'name' => $product->name,
         ]);
 
         return $product->fresh()->load(['category', 'supplier', 'stores']);
@@ -74,8 +79,7 @@ class ProductService extends BaseService
         $deleted = $product->delete();
 
         if ($deleted) {
-            $this->forget("product:$id");
-            $this->clearProductCaches();
+            $this->flushTag('products');
 
             $this->logInfo('Product deleted successfully', ['product_id' => $id]);
         }
@@ -85,20 +89,21 @@ class ProductService extends BaseService
 
     public function searchProducts(string $query): Collection
     {
-        if (empty($query)) {
-            return new Collection();
+        if ($query === '' || $query === '0') {
+            return new Collection;
         }
 
         $this->logInfo('Searching products', ['query' => $query]);
 
         return $this->remember(
-            "search:" . md5($query),
-            fn() => Product::with(['category:id,name', 'supplier:id,name'])
+            'search:'.md5($query),
+            fn () => Product::with(['category:id,name', 'supplier:id,name'])
                 ->active()
                 ->search($query)
                 ->limit(50) // Limit results for performance
                 ->get(),
-            600 // 10 minutes for search results
+            600, // 10 minutes for search results
+            ['search']
         );
     }
 
@@ -108,11 +113,12 @@ class ProductService extends BaseService
 
         return $this->remember(
             "low_stock:store:$storeId",
-            fn() => Product::with(['category:id,name', 'supplier:id,name'])
+            fn () => Product::with(['category:id,name', 'supplier:id,name'])
                 ->active()
                 ->lowStock($storeId)
                 ->get(),
-            300 // 5 minutes cache
+            300, // 5 minutes cache
+            ["store_$storeId", 'inventory']
         );
     }
 
@@ -122,12 +128,13 @@ class ProductService extends BaseService
 
         return $this->remember(
             "category:$categoryId:limit:$limit",
-            fn() => Product::with(['supplier:id,name'])
+            fn () => Product::with(['supplier:id,name'])
                 ->active()
                 ->inCategory($categoryId)
                 ->limit($limit)
                 ->get(),
-            600
+            600,
+            ["category_$categoryId"]
         );
     }
 
@@ -136,12 +143,12 @@ class ProductService extends BaseService
         $this->logInfo('Fetching top selling products', [
             'store_id' => $storeId,
             'days' => $days,
-            'limit' => $limit
+            'limit' => $limit,
         ]);
 
         return $this->remember(
             "top_selling:store:$storeId:days:$days:limit:$limit",
-            fn() => Product::with(['category:id,name'])
+            fn () => Product::with(['category:id,name'])
                 ->select('products.*')
                 ->selectRaw('SUM(sale_items.quantity) as total_sold')
                 ->join('sale_items', 'products.id', '=', 'sale_items.product_id')
@@ -153,15 +160,39 @@ class ProductService extends BaseService
                 ->orderByDesc('total_sold')
                 ->limit($limit)
                 ->get(),
-            1800 // 30 minutes cache
+            1800, // 30 minutes cache
+            ["store_$storeId", 'analytics', 'sales']
         );
     }
 
-    private function clearProductCaches(): void
+    public function findByBarcode(string $barcode): ?Product
     {
-        $this->forget('paginated:10');
-        $this->forget('paginated:20');
-        $this->forget('paginated:50');
-        // Clear search caches would require a more sophisticated approach in production
+        if ($barcode === '' || $barcode === '0') {
+            return null;
+        }
+
+        $this->logInfo('Finding product by barcode', ['barcode' => $barcode]);
+
+        return $this->remember(
+            "barcode:$barcode",
+            fn () => Product::with(['category:id,name', 'supplier:id,name', 'stores'])
+                ->where('barcode', $barcode)
+                ->active()
+                ->first(),
+            1800, // 30 minutes cache for barcode lookups
+            ['barcodes']
+        );
+    }
+
+    public function clearProductSearchCache(): void
+    {
+        $this->flushTag('search');
+        $this->logInfo('Product search cache cleared');
+    }
+
+    public function clearBarcodeCache(): void
+    {
+        $this->flushTag('barcodes');
+        $this->logInfo('Barcode cache cleared');
     }
 }

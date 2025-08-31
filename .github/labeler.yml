@@ -1,0 +1,46 @@
+# Configuration for the labeler action
+
+# Add 'backend' label to PHP files
+backend:
+  - 'app/**/*.php'
+  - 'database/**/*.php'
+  - 'config/**/*.php'
+  - 'routes/**/*.php'
+
+# Add 'frontend' label to Vue/JS files  
+frontend:
+  - 'resources/js/**/*.vue'
+  - 'resources/js/**/*.js'
+  - 'resources/css/**/*.css'
+
+# Add 'tests' label to test files
+tests:
+  - 'tests/**/*.php'
+
+# Add 'docs' label to documentation files
+docs:
+  - '**/*.md'
+  - 'docs/**/*'
+
+# Add 'hotfix' label to hotfix branches
+hotfix:
+  - head-branch: '^hotfix\/.*'
+
+# Add 'feature' label to feature branches  
+feature:
+  - head-branch: '^feature\/.*'
+
+# Add 'enhancement' label to enhancement branches
+enhancement:
+  - head-branch: '^enhance\/.*'
+
+# Add 'refactor' label to refactor branches
+refactor:
+  - head-branch: '^refactor\/.*'
+
+# Add 'dependencies' label to dependency files
+dependencies:
+  - 'composer.json'
+  - 'composer.lock'
+  - 'package.json'
+  - 'package-lock.json'

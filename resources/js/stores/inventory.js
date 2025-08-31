@@ -1,80 +1,11 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import axios from 'axios'
-// import type { InventoryItem, StockAdjustment } from '@/types'
 
 export const useInventoryStore = defineStore('inventory', () => {
-  const inventoryItems = ref([
-    {
-      id: '1',
-      name: 'Coca Cola 500ml',
-      sku: 'BEV-001',
-      category: 'Beverages',
-      currentStock: 150,
-      lowStockThreshold: 20,
-      averageDailySales: 12,
-      daysOfStock: 12.5,
-      lastRestocked: '2024-01-10',
-      costValue: 180.0,
-      retailValue: 375.0,
-      supplier: 'Coca Cola Company',
-    },
-    {
-      id: '2',
-      name: 'White Bread Loaf',
-      sku: 'BAK-001',
-      category: 'Bakery',
-      currentStock: 45,
-      lowStockThreshold: 10,
-      averageDailySales: 8,
-      daysOfStock: 5.6,
-      lastRestocked: '2024-01-12',
-      costValue: 94.5,
-      retailValue: 179.55,
-      supplier: 'Fresh Bakery Co',
-    },
-    {
-      id: '3',
-      name: 'Organic Bananas 1kg',
-      sku: 'FRU-001',
-      category: 'Fruits',
-      currentStock: 8,
-      lowStockThreshold: 15,
-      averageDailySales: 5,
-      daysOfStock: 1.6,
-      lastRestocked: '2024-01-08',
-      costValue: 22.4,
-      retailValue: 36.0,
-      supplier: 'Organic Farms Ltd',
-    },
-  ])
+  const inventoryItems = ref([])
 
-  const stockAdjustments = ref([
-    {
-      id: 'ADJ-001',
-      productName: 'Coca Cola 500ml',
-      sku: 'BEV-001',
-      type: 'addition',
-      quantity: 50,
-      reason: 'New stock delivery',
-      notes: 'Weekly delivery from supplier',
-      date: '2024-01-10',
-      time: '09:30:00',
-      user: 'Admin User',
-    },
-    {
-      id: 'ADJ-002',
-      productName: 'Organic Bananas 1kg',
-      sku: 'FRU-001',
-      type: 'reduction',
-      quantity: 5,
-      reason: 'Damaged goods',
-      notes: 'Overripe bananas removed from shelf',
-      date: '2024-01-12',
-      time: '16:45:00',
-      user: 'Admin User',
-    },
-  ])
+  const stockAdjustments = ref([])
 
   const lowStockItems = computed(() =>
     inventoryItems.value.filter(item => item.currentStock <= item.lowStockThreshold)
@@ -111,6 +42,40 @@ export const useInventoryStore = defineStore('inventory', () => {
     }
   }
 
+  const fetchInventoryData = async (storeId = 1) => {
+    try {
+      const { data } = await axios.get('/api/products')
+      const products = Array.isArray(data?.data) ? data.data : data
+
+      inventoryItems.value = products.map(product => {
+        // Find stock for the specific store
+        const storeData = product.stores?.find(store => store.id === storeId || store.id === String(storeId))
+        const stock = storeData?.pivot?.stock ?? 0
+        const lowStockThreshold = storeData?.pivot?.low_stock_threshold ?? product.low_stock_threshold ?? 10
+
+        return {
+          id: String(product.id),
+          name: product.name,
+          sku: product.sku,
+          category: product.category?.name || 'Uncategorized',
+          currentStock: Number(stock),
+          lowStockThreshold: Number(lowStockThreshold),
+          averageDailySales: 5, // TODO: Calculate from actual sales data
+          daysOfStock: Math.round((Number(stock) / 5) * 10) / 10,
+          lastRestocked: product.updated_at?.split('T')[0] || new Date().toISOString().split('T')[0],
+          cost: Number(product.cost || 0),
+          price: Number(product.price || 0),
+          costValue: Number(product.cost || 0) * Number(stock),
+          retailValue: Number(product.price || 0) * Number(stock),
+          supplier: product.supplier?.name || 'Unknown Supplier',
+          unit: product.unit || 'pcs',
+        }
+      })
+    } catch (error) {
+      console.error('Failed to fetch inventory data:', error)
+    }
+  }
+
   const fetchStockMovements = async () => {
     try {
       const { data } = await axios.get('/api/stock-movements')
@@ -118,13 +83,15 @@ export const useInventoryStore = defineStore('inventory', () => {
       const movements = Array.isArray(data?.data) ? data.data : []
       stockAdjustments.value = movements.map(movement => ({
         id: movement.id,
+        product: movement.product,
         productName: movement.product?.name || 'Unknown Product',
         sku: movement.product?.sku || '',
         type: movement.type,
         quantity: movement.quantity,
         reason: movement.reason || '',
-        date: movement.created_at?.split('T')[0] || new Date().toISOString().split('T')[0],
-        user: movement.user?.name || 'System'
+        notes: movement.notes || '',
+        createdAt: movement.created_at?.split('T')[0] || new Date().toISOString().split('T')[0],
+        user: movement.user || { name: 'System' }
       }))
     } catch (error) {
       console.error('Failed to fetch stock movements:', error)
@@ -138,6 +105,7 @@ export const useInventoryStore = defineStore('inventory', () => {
     outOfStockItems,
     totalInventoryValue,
     addStockAdjustment,
+    fetchInventoryData,
     fetchStockMovements,
   }
 })

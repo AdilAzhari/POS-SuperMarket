@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Database\Factories;
 
 use Illuminate\Database\Eloquent\Factories\Factory;
@@ -7,7 +9,7 @@ use Illuminate\Database\Eloquent\Factories\Factory;
 /**
  * @extends \Illuminate\Database\Eloquent\Factories\Factory<\App\Models\Store>
  */
-class StoreFactory extends Factory
+final class StoreFactory extends Factory
 {
     /**
      * Define the model's default state.
@@ -17,7 +19,7 @@ class StoreFactory extends Factory
     public function definition(): array
     {
         return [
-            'name' => fake()->company() . ' Store',
+            'name' => fake()->company().' Store',
             'address' => fake()->address(),
             'phone' => fake()->phoneNumber(),
             'email' => fake()->companyEmail(),
@@ -29,7 +31,7 @@ class StoreFactory extends Factory
      */
     public function main(): static
     {
-        return $this->state(fn (array $attributes) => [
+        return $this->state(fn (array $attributes): array => [
             'name' => 'Main Store',
         ]);
     }
@@ -39,8 +41,8 @@ class StoreFactory extends Factory
      */
     public function branch(): static
     {
-        return $this->state(fn (array $attributes) => [
-            'name' => fake()->city() . ' Branch',
+        return $this->state(fn (array $attributes): array => [
+            'name' => fake()->city().' Branch',
         ]);
     }
 
@@ -49,8 +51,8 @@ class StoreFactory extends Factory
      */
     public function outlet(): static
     {
-        return $this->state(fn (array $attributes) => [
-            'name' => fake()->streetName() . ' Outlet',
+        return $this->state(fn (array $attributes): array => [
+            'name' => fake()->streetName().' Outlet',
         ]);
     }
 }

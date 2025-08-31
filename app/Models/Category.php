@@ -1,14 +1,43 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Models;
 
+use App\Observers\CategoryObserver;
+use Carbon\CarbonImmutable;
 use Database\Factories\CategoryFactory;
+use Eloquent;
+use Illuminate\Database\Eloquent\Attributes\ObservedBy;
+use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
-use Illuminate\Support\Str;
 
-class Category extends Model
+#[ObservedBy([CategoryObserver::class])]
+/**
+ * @property int $id
+ * @property string $name
+ * @property string $slug
+ * @property CarbonImmutable|null $created_at
+ * @property CarbonImmutable|null $updated_at
+ * @property-read Collection<int, Product> $products
+ * @property-read int|null $products_count
+ *
+ * @method static CategoryFactory factory($count = null, $state = [])
+ * @method static Builder<Category>|Category newModelQuery()
+ * @method static Builder<Category>|Category newQuery()
+ * @method static Builder<Category>|Category query()
+ * @method static Builder<Category>|Category whereCreatedAt($value)
+ * @method static Builder<Category>|Category whereId($value)
+ * @method static Builder<Category>|Category whereName($value)
+ * @method static Builder<Category>|Category whereSlug($value)
+ * @method static Builder<Category>|Category whereUpdatedAt($value)
+ *
+ * @mixin Eloquent
+ */
+final class Category extends Model
 {
     /** @use HasFactory<CategoryFactory> */
     use HasFactory;
@@ -17,39 +46,6 @@ class Category extends Model
         'name',
         'slug',
     ];
-
-    protected static function boot()
-    {
-        parent::boot();
-        
-        static::creating(function ($category) {
-            if (!$category->slug) {
-                $category->slug = static::generateUniqueSlug($category->name);
-            }
-        });
-        
-        static::updating(function ($category) {
-            if ($category->isDirty('name') && !$category->isDirty('slug')) {
-                $category->slug = static::generateUniqueSlug($category->name, $category->id);
-            }
-        });
-    }
-
-    protected static function generateUniqueSlug(string $name, ?int $excludeId = null): string
-    {
-        $baseSlug = Str::slug($name);
-        $slug = $baseSlug;
-        $counter = 1;
-        
-        while (static::where('slug', $slug)
-                     ->when($excludeId, fn($query) => $query->where('id', '!=', $excludeId))
-                     ->exists()) {
-            $slug = $baseSlug . '-' . $counter;
-            $counter++;
-        }
-        
-        return $slug;
-    }
 
     public function products(): HasMany
     {

@@ -19,15 +19,89 @@
     </div>
 
     <div class="bg-white rounded-lg shadow-sm p-4">
-      <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-        <div class="relative flex-1">
-          <Search class="w-4 h-4 text-gray-400 absolute left-3 top-2.5" />
-          <input
-            v-model="searchQuery"
-            type="text"
-            placeholder="Search by name, phone, email"
-            class="w-full pl-9 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-          />
+      <div class="space-y-4">
+        <!-- Search Bar -->
+        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+          <div class="relative flex-1">
+            <Search class="w-4 h-4 text-gray-400 absolute left-3 top-2.5" />
+            <input
+              v-model="searchQuery"
+              type="text"
+              placeholder="Search by name, phone, email"
+              class="w-full pl-9 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            />
+          </div>
+          <div class="text-sm text-gray-500">
+            {{ filteredCustomers.length }} customers
+          </div>
+        </div>
+
+        <!-- Filters and Sorting -->
+        <div class="flex flex-col lg:flex-row gap-4">
+          <!-- Filters -->
+          <div class="flex flex-wrap gap-4 items-center">
+            <!-- Status Filter -->
+            <div>
+              <select
+                v-model="filters.status"
+                class="px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 text-sm"
+              >
+                <option value="">All Status</option>
+                <option value="active">Active</option>
+                <option value="inactive">Inactive</option>
+              </select>
+            </div>
+
+            <!-- Purchase Count Range -->
+            <div class="flex items-center gap-2">
+              <span class="text-sm text-gray-600">Purchases:</span>
+              <input
+                v-model.number="filters.minPurchases"
+                type="number"
+                placeholder="Min"
+                class="w-20 px-2 py-1 border rounded focus:ring-1 focus:ring-blue-500 text-sm"
+                min="0"
+              />
+              <span class="text-gray-400">-</span>
+              <input
+                v-model.number="filters.maxPurchases"
+                type="number"
+                placeholder="Max"
+                class="w-20 px-2 py-1 border rounded focus:ring-1 focus:ring-blue-500 text-sm"
+                min="0"
+              />
+            </div>
+
+            <!-- Clear Filters -->
+            <button
+              v-if="hasActiveFilters"
+              @click="clearFilters"
+              class="text-sm text-blue-600 hover:text-blue-800"
+            >
+              Clear filters
+            </button>
+          </div>
+
+          <!-- Sorting -->
+          <div class="flex items-center gap-2">
+            <span class="text-sm text-gray-600">Sort by:</span>
+            <select
+              v-model="sortBy"
+              class="px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 text-sm"
+            >
+              <option value="name">Name</option>
+              <option value="totalPurchases">Purchase Count</option>
+              <option value="totalSpent">Total Spent</option>
+              <option value="created_at">Date Added</option>
+            </select>
+            <button
+              @click="toggleSortDirection"
+              class="p-2 border rounded-lg hover:bg-gray-50"
+              :title="sortDirection === 'asc' ? 'Sort descending' : 'Sort ascending'"
+            >
+              <ArrowUpDown class="w-4 h-4" :class="sortDirection === 'desc' ? 'rotate-180' : ''" />
+            </button>
+          </div>
         </div>
       </div>
 
@@ -45,7 +119,7 @@
             </tr>
           </thead>
           <tbody>
-            <tr v-for="c in filteredCustomers" :key="c.id" class="border-t">
+            <tr v-for="c in paginatedCustomers" :key="c.id" class="border-t">
               <td class="px-4 py-2 font-medium text-gray-900">
                 {{ c.name }}
               </td>
@@ -83,6 +157,120 @@
             </tr>
           </tbody>
         </table>
+      </div>
+
+      <!-- Enhanced Pagination -->
+      <div v-if="totalPages > 1" class="mt-6 bg-white rounded-lg shadow-sm border border-gray-200 p-4">
+        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between space-y-3 sm:space-y-0">
+          <!-- Items Info and Per Page Selector -->
+          <div class="flex flex-col sm:flex-row sm:items-center space-y-2 sm:space-y-0 sm:space-x-4">
+            <div class="text-sm text-gray-600">
+              Showing <span class="font-medium">{{ (currentPage - 1) * itemsPerPage + 1 }}</span>
+              to <span class="font-medium">{{ Math.min(currentPage * itemsPerPage, filteredCustomers.length) }}</span>
+              of <span class="font-medium">{{ filteredCustomers.length }}</span> customers
+            </div>
+            <div class="flex items-center space-x-2">
+              <label class="text-sm text-gray-600">Show:</label>
+              <select
+                v-model="itemsPerPage"
+                @change="currentPage = 1"
+                class="px-2 py-1 text-sm border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              >
+                <option :value="10">10</option>
+                <option :value="20">20</option>
+                <option :value="50">50</option>
+                <option :value="100">100</option>
+              </select>
+              <span class="text-sm text-gray-600">per page</span>
+            </div>
+          </div>
+
+          <!-- Pagination Controls -->
+          <div class="flex items-center justify-center space-x-1">
+            <!-- First Page -->
+            <button
+              @click="currentPage = 1"
+              :disabled="currentPage === 1"
+              class="px-2 py-2 text-sm font-medium text-gray-500 bg-white border border-gray-300 rounded-l-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              title="First page"
+            >
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 19l-7-7 7-7M21 19l-7-7 7-7"/>
+              </svg>
+            </button>
+
+            <!-- Previous Page -->
+            <button
+              @click="currentPage = Math.max(1, currentPage - 1)"
+              :disabled="currentPage === 1"
+              class="px-3 py-2 text-sm font-medium text-gray-500 bg-white border-t border-b border-gray-300 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            >
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
+              </svg>
+            </button>
+
+            <!-- Page Numbers -->
+            <div class="flex space-x-0">
+              <button
+                v-for="page in visiblePages"
+                :key="page"
+                @click="currentPage = page"
+                :class="[
+                  'px-3 py-2 text-sm font-medium border-t border-b border-gray-300 transition-colors',
+                  page === currentPage
+                    ? 'bg-blue-600 text-white border-blue-600 shadow-sm'
+                    : 'bg-white text-gray-700 hover:bg-gray-50'
+                ]"
+              >
+                {{ page }}
+              </button>
+            </div>
+
+            <!-- Next Page -->
+            <button
+              @click="currentPage = Math.min(totalPages, currentPage + 1)"
+              :disabled="currentPage === totalPages"
+              class="px-3 py-2 text-sm font-medium text-gray-500 bg-white border-t border-b border-gray-300 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            >
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+              </svg>
+            </button>
+
+            <!-- Last Page -->
+            <button
+              @click="currentPage = totalPages"
+              :disabled="currentPage === totalPages"
+              class="px-2 py-2 text-sm font-medium text-gray-500 bg-white border border-gray-300 rounded-r-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              title="Last page"
+            >
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 5l7 7-7 7M3 5l7 7-7 7"/>
+              </svg>
+            </button>
+          </div>
+
+          <!-- Jump to Page -->
+          <div class="flex items-center space-x-2">
+            <span class="text-sm text-gray-600">Go to:</span>
+            <input
+              v-model.number="jumpToPage"
+              @keyup.enter="goToPage"
+              type="number"
+              :min="1"
+              :max="totalPages"
+              class="w-16 px-2 py-1 text-sm border border-gray-300 rounded bg-white text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              placeholder="Page"
+            />
+            <button
+              @click="goToPage"
+              class="px-3 py-1 text-sm font-medium text-white bg-blue-600 rounded hover:bg-blue-700 transition-colors"
+            >
+              Go
+            </button>
+          </div>
+        </div>
       </div>
     </div>
 
@@ -137,17 +325,123 @@
       </div>
     </div>
   </div>
+  
+  <!-- Modal Component -->
+  <Modal
+    :show="modal.isVisible.value"
+    :title="modal.modalData.title"
+    :message="modal.modalData.message"
+    :type="modal.modalData.type"
+    :size="modal.modalData.size"
+    :show-cancel-button="modal.modalData.showCancelButton"
+    :confirm-text="modal.modalData.confirmText"
+    :cancel-text="modal.modalData.cancelText"
+    @close="modal.hide"
+    @confirm="modal.confirm"
+    @cancel="modal.cancel"
+  />
 </template>
 
 <script setup>
 import { computed, reactive, ref } from 'vue'
 import { useCustomersStore } from '@/stores/customers.js'
-import { Edit, Trash2, UserPlus, Search, X } from 'lucide-vue-next'
+import { useMessageModal } from '@/composables/useModal.js'
+import Modal from '@/Components/Modal.vue'
+import { Edit, Trash2, UserPlus, Search, X, ArrowUpDown } from 'lucide-vue-next'
 
 const customersStore = useCustomersStore()
+const modal = useMessageModal()
 
+// Search and filters
 const searchQuery = ref('')
-const filteredCustomers = computed(() => customersStore.searchCustomers(searchQuery.value))
+const filters = reactive({
+  status: '',
+  minPurchases: null,
+  maxPurchases: null
+})
+
+// Sorting
+const sortBy = ref('name')
+const sortDirection = ref('asc')
+
+// Pagination
+const currentPage = ref(1)
+const itemsPerPage = ref(20)
+const jumpToPage = ref(null)
+
+// Computed properties
+const hasActiveFilters = computed(() => {
+  return filters.status || filters.minPurchases !== null || filters.maxPurchases !== null
+})
+
+const filteredCustomers = computed(() => {
+  let customers = customersStore.searchCustomers(searchQuery.value)
+  
+  // Apply filters
+  if (filters.status) {
+    customers = customers.filter(c => (c.status || 'active') === filters.status)
+  }
+  
+  if (filters.minPurchases !== null) {
+    customers = customers.filter(c => (c.totalPurchases || 0) >= filters.minPurchases)
+  }
+  
+  if (filters.maxPurchases !== null) {
+    customers = customers.filter(c => (c.totalPurchases || 0) <= filters.maxPurchases)
+  }
+  
+  // Apply sorting
+  customers.sort((a, b) => {
+    let aValue = a[sortBy.value]
+    let bValue = b[sortBy.value]
+    
+    // Handle null/undefined values
+    if (aValue == null) aValue = 0
+    if (bValue == null) bValue = 0
+    
+    // Convert to strings for text comparison
+    if (typeof aValue === 'string') {
+      aValue = aValue.toLowerCase()
+      bValue = bValue.toLowerCase()
+    }
+    
+    if (sortDirection.value === 'asc') {
+      return aValue < bValue ? -1 : aValue > bValue ? 1 : 0
+    } else {
+      return aValue > bValue ? -1 : aValue < bValue ? 1 : 0
+    }
+  })
+  
+  return customers
+})
+
+const totalPages = computed(() => Math.ceil(filteredCustomers.value.length / itemsPerPage.value))
+
+const paginatedCustomers = computed(() => {
+  const start = (currentPage.value - 1) * itemsPerPage.value
+  const end = start + itemsPerPage.value
+  return filteredCustomers.value.slice(start, end)
+})
+
+const visiblePages = computed(() => {
+  const total = totalPages.value
+  const current = currentPage.value
+  const delta = 2
+  
+  let start = Math.max(1, current - delta)
+  let end = Math.min(total, current + delta)
+  
+  if (end - start < 2 * delta) {
+    start = Math.max(1, end - 2 * delta)
+    end = Math.min(total, start + 2 * delta)
+  }
+  
+  const pages = []
+  for (let i = start; i <= end; i++) {
+    pages.push(i)
+  }
+  return pages
+})
 
 const showModal = ref(false)
 const isEditing = ref(false)
@@ -198,33 +492,81 @@ const notify = (msg, type = 'success') => {
 
 const submit = async () => {
   try {
-    if (!form.name || !form.phone || !form.email) return
+    // Validate required fields
+    if (!form.name?.trim()) {
+      await modal.showError('Customer name is required')
+      return
+    }
+    if (!form.phone?.trim()) {
+      await modal.showError('Phone number is required')
+      return
+    }
+    if (!form.email?.trim()) {
+      await modal.showError('Email address is required')
+      return
+    }
+    
+    // Validate email format
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+    if (!emailRegex.test(form.email.trim())) {
+      await modal.showError('Please enter a valid email address')
+      return
+    }
+    
     if (isEditing.value && editingId.value) {
-      await customersStore.updateCustomer(editingId.value, { ...form })
-      notify('Customer updated')
+      await customersStore.updateCustomer(editingId.value, {
+        name: form.name.trim(),
+        phone: form.phone.trim(),
+        email: form.email.trim(),
+        address: form.address?.trim() || ''
+      })
+      await modal.showSuccess('Customer updated successfully')
     } else {
       await customersStore.addCustomer({
-        name: form.name,
-        phone: form.phone,
-        email: form.email,
-        address: form.address ?? '',
+        name: form.name.trim(),
+        phone: form.phone.trim(),
+        email: form.email.trim(),
+        address: form.address?.trim() || '',
       })
-      notify('Customer added')
+      await modal.showSuccess('Customer added successfully')
     }
     showModal.value = false
     resetForm()
   } catch (e) {
-    notify('Operation failed', 'error')
+    const errorMessage = e?.response?.data?.message || e?.message || 'Operation failed'
+    await modal.showError(errorMessage)
+  }
+}
+
+// Filter and sorting functions
+const clearFilters = () => {
+  filters.status = ''
+  filters.minPurchases = null
+  filters.maxPurchases = null
+  currentPage.value = 1
+}
+
+const toggleSortDirection = () => {
+  sortDirection.value = sortDirection.value === 'asc' ? 'desc' : 'asc'
+}
+
+const goToPage = () => {
+  if (jumpToPage.value && jumpToPage.value >= 1 && jumpToPage.value <= totalPages.value) {
+    currentPage.value = jumpToPage.value
+    jumpToPage.value = null
   }
 }
 
 const remove = async id => {
-  if (!confirm('Delete this customer?')) return
+  const confirmed = await modal.showConfirm('Are you sure you want to delete this customer? This action cannot be undone.')
+  if (!confirmed) return
+  
   try {
     await customersStore.deleteCustomer(id)
-    notify('Customer removed')
+    await modal.showSuccess('Customer deleted successfully')
   } catch (e) {
-    notify('Failed to remove customer', 'error')
+    const errorMessage = e?.response?.data?.message || e?.message || 'Failed to delete customer'
+    await modal.showError(errorMessage)
   }
 }
 

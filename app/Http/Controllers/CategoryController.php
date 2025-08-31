@@ -1,28 +1,41 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Http\Controllers;
 
+use App\Actions\Common\FormatApiResponseAction;
+use App\Actions\Common\HandleControllerErrorsAction;
+use App\Actions\Common\HandleValidatedRequestAction;
 use App\Http\Requests\StoreCategoryRequest;
-use App\Http\Requests\UpdateCategoryRequest;
 use App\Models\Category;
+use Exception;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
 
-class CategoryController extends Controller
+final class CategoryController extends Controller
 {
+    public function __construct(
+        private readonly HandleValidatedRequestAction $validationHandler,
+        private readonly FormatApiResponseAction $responseFormatter,
+        private readonly HandleControllerErrorsAction $errorHandler
+    ) {}
+
     /**
      * Display a listing of the resource.
      */
-    public function index(): JsonResponse
+    public function index(Request $request): JsonResponse
     {
-        return response()->json(Category::query()->withCount('products')->paginate(20));
-    }
+        try {
+            $validated = $this->validationHandler->validatePagination($request);
+            $perPage = $validated['per_page'] ?? 20;
 
-    /**
-     * Show the form for creating a new resource.
-     */
-    public function create()
-    {
-        //
+            $categories = Category::query()->withCount('products')->paginate($perPage);
+
+            return $this->responseFormatter->paginated($categories);
+        } catch (Exception $e) {
+            return $this->errorHandler->execute($e, 'category listing');
+        }
     }
 
     /**
@@ -30,18 +43,13 @@ class CategoryController extends Controller
      */
     public function store(StoreCategoryRequest $request): JsonResponse
     {
-//        dd($request->all());
         try {
-            $data = $request->validated();
-//            dd($data);
-            $category = Category::create($data);
+            $validated = $this->validationHandler->execute($request);
+            $category = Category::query()->create($validated);
 
-            return response()->json($category, 201);
-        } catch (\Exception $e) {
-            return response()->json([
-                'message' => 'Failed to create category',
-                'error' => config('app.debug') ? $e->getMessage() : 'An error occurred while processing your request.'
-            ], 500);
+            return $this->responseFormatter->created($category, 'Category created successfully');
+        } catch (Exception $e) {
+            return $this->errorHandler->execute($e, 'category creation');
         }
     }
 
@@ -50,48 +58,35 @@ class CategoryController extends Controller
      */
     public function show(Category $category): JsonResponse
     {
-        return response()->json($category->load('products'));
-    }
-
-    /**
-     * Show the form for editing the specified resource.
-     */
-    public function edit(Category $category)
-    {
-        //
+        return $this->responseFormatter->resource($category->load('products'));
     }
 
     /**
      * Update the specified resource in storage.
      */
-    public function update(UpdateCategoryRequest $request, Category $category)
+    public function update(StoreCategoryRequest $request, Category $category): JsonResponse
     {
         try {
-            $category->update($request->validated());
+            $validated = $this->validationHandler->execute($request);
+            $category->update($validated);
 
-            return response()->json($category->fresh());
-        } catch (\Exception $e) {
-            return response()->json([
-                'message' => 'Failed to update category',
-                'error' => config('app.debug') ? $e->getMessage() : 'An error occurred while processing your request.'
-            ], 500);
+            return $this->responseFormatter->updated($category->fresh(), 'Category updated successfully');
+        } catch (Exception $e) {
+            return $this->errorHandler->execute($e, 'category update');
         }
     }
 
     /**
      * Remove the specified resource from storage.
      */
-    public function destroy(Category $category)
+    public function destroy(Category $category): JsonResponse
     {
         try {
             $category->delete();
 
-            return response()->noContent();
-        } catch (\Exception $e) {
-            return response()->json([
-                'message' => 'Failed to delete category',
-                'error' => config('app.debug') ? $e->getMessage() : 'An error occurred while processing your request.'
-            ], 500);
+            return $this->responseFormatter->deleted('Category deleted successfully');
+        } catch (Exception $e) {
+            return $this->errorHandler->execute($e, 'category deletion');
         }
     }
 }

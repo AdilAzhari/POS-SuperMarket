@@ -1,11 +1,18 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Http\Requests;
 
+use App\DTOs\ConvertsToDTOs;
+use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
 
-class StoreSupplierRequest extends FormRequest
+final class StoreSupplierRequest extends FormRequest
 {
+    use ConvertsToDTOs;
+
     /**
      * Determine if the user is authorized to make this request.
      */
@@ -17,15 +24,48 @@ class StoreSupplierRequest extends FormRequest
     /**
      * Get the validation rules that apply to the request.
      *
-     * @return array<string, \Illuminate\Contracts\Validation\ValidationRule|array<mixed>|string>
+     * @return array<string, ValidationRule|array|string>
      */
     public function rules(): array
     {
+        $isUpdating = $this->getMethod() === 'PUT' || $this->getMethod() === 'PATCH';
+        $supplierId = $this->route('supplier')?->id ?? $this->route('id');
+
+        // For updates, make most fields optional with 'sometimes'
+        $requiredOrSometimes = $isUpdating ? 'sometimes' : 'required';
+
         return [
-            'name' => ['required', 'string', 'max:255', 'unique:suppliers,name'],
-            'contact_phone' => ['nullable', 'string', 'max:255'],
-            'contact_email' => ['nullable', 'email', 'max:255'],
-            'address' => ['nullable', 'string', 'max:255'],
+            'name' => [
+                $requiredOrSometimes,
+                'string',
+                'max:255',
+                Rule::unique('suppliers', 'name')->ignore($supplierId),
+            ],
+            'contact_phone' => ['sometimes', 'string', 'max:255'],
+            'contact_email' => ['sometimes', 'email', 'max:255'],
+            'address' => ['sometimes', 'string', 'max:255'],
+        ];
+    }
+
+    /**
+     * Get custom validation messages
+     */
+    public function messages(): array
+    {
+        return [
+            'name.unique' => 'This supplier name is already taken.',
+            'contact_email.email' => 'Please provide a valid email address.',
+        ];
+    }
+
+    /**
+     * Get custom attribute names
+     */
+    public function attributes(): array
+    {
+        return [
+            'contact_phone' => 'contact phone number',
+            'contact_email' => 'contact email address',
         ];
     }
 }

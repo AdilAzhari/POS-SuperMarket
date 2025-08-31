@@ -1,8 +1,13 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Database\Factories;
 
+use App\Enums\PaymentMethod;
+use App\Enums\SaleStatus;
 use App\Models\Customer;
+use App\Models\Sale;
 use App\Models\Store;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Factories\Factory;
@@ -10,7 +15,7 @@ use Illuminate\Database\Eloquent\Factories\Factory;
 /**
  * @extends \Illuminate\Database\Eloquent\Factories\Factory<\App\Models\Sale>
  */
-class SaleFactory extends Factory
+final class SaleFactory extends Factory
 {
     /**
      * Define the model's default state.
@@ -25,7 +30,7 @@ class SaleFactory extends Factory
         $total = $subtotal - $discount + $tax;
 
         return [
-            'code' => strtoupper(fake()->bothify('TXN-######')),
+            'code' => mb_strtoupper(fake()->bothify('TXN-######')),
             'store_id' => Store::factory(),
             'customer_id' => fake()->optional(0.7)->randomElement([Customer::factory()]),
             'cashier_id' => User::factory(),
@@ -34,9 +39,9 @@ class SaleFactory extends Factory
             'discount' => $discount,
             'tax' => $tax,
             'total' => $total,
-            'payment_method' => fake()->randomElement(['cash', 'card', 'mobile_payment']),
-            'status' => 'completed',
-            'paid_at' => fake()->dateTimeBetween('-30 days', 'now'),
+            'payment_method' => fake()->randomElement(PaymentMethod::cases()),
+            'status' => fake()->randomElement(SaleStatus::cases()),
+            'paid_at' => fake()->dateTimeBetween('-30 days'),
         ];
     }
 
@@ -45,7 +50,7 @@ class SaleFactory extends Factory
      */
     public function walkIn(): static
     {
-        return $this->state(fn (array $attributes) => [
+        return $this->state(fn (array $attributes): array => [
             'customer_id' => null,
         ]);
     }
@@ -55,7 +60,7 @@ class SaleFactory extends Factory
      */
     public function large(): static
     {
-        return $this->state(function (array $attributes) {
+        return $this->state(function (array $attributes): array {
             $subtotal = fake()->randomFloat(2, 1000, 5000);
             $discount = fake()->randomFloat(2, 0, $subtotal * 0.1);
             $tax = ($subtotal - $discount) * 0.1;
@@ -76,7 +81,7 @@ class SaleFactory extends Factory
      */
     public function discounted(): static
     {
-        return $this->state(function (array $attributes) {
+        return $this->state(function (array $attributes): array {
             $subtotal = $attributes['subtotal'];
             $discount = $subtotal * 0.3;
             $tax = ($subtotal - $discount) * 0.1;
@@ -95,8 +100,8 @@ class SaleFactory extends Factory
      */
     public function pending(): static
     {
-        return $this->state(fn (array $attributes) => [
-            'status' => 'pending',
+        return $this->state(fn (array $attributes): array => [
+            'status' => SaleStatus::PENDING,
             'paid_at' => null,
         ]);
     }
@@ -106,8 +111,8 @@ class SaleFactory extends Factory
      */
     public function cardPayment(): static
     {
-        return $this->state(fn (array $attributes) => [
-            'payment_method' => 'card',
+        return $this->state(fn (array $attributes): array => [
+            'payment_method' => PaymentMethod::CARD,
         ]);
     }
 
@@ -116,7 +121,7 @@ class SaleFactory extends Factory
      */
     public function today(): static
     {
-        return $this->state(fn (array $attributes) => [
+        return $this->state(fn (array $attributes): array => [
             'paid_at' => fake()->dateTimeBetween('today', 'now'),
         ]);
     }

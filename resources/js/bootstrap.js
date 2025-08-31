@@ -1,4 +1,13 @@
-// import axios from 'axios'
-// window.axios = axios
+import axios from 'axios'
 
-// window.axios.defaults.headers.common['X-Requested-With'] = 'XMLHttpRequest'
+// Configure axios for Laravel Sanctum with session-based authentication
+axios.defaults.withCredentials = true
+axios.defaults.headers.common['X-Requested-With'] = 'XMLHttpRequest'
+
+// Get CSRF token from meta tag
+const token = document.head.querySelector('meta[name="csrf-token"]')
+if (token) {
+    axios.defaults.headers.common['X-CSRF-TOKEN'] = token.content
+}
+
+window.axios = axios

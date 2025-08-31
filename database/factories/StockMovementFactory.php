@@ -1,16 +1,21 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Database\Factories;
 
+use App\Enums\StockMovementReason;
+use App\Enums\StockMovementType;
 use App\Models\Product;
+use App\Models\StockMovement;
 use App\Models\Store;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
 /**
- * @extends \Illuminate\Database\Eloquent\Factories\Factory<\App\Models\StockMovement>
+ * @extends Factory<StockMovement>
  */
-class StockMovementFactory extends Factory
+final class StockMovementFactory extends Factory
 {
     /**
      * Define the model's default state.
@@ -20,17 +25,17 @@ class StockMovementFactory extends Factory
     public function definition(): array
     {
         return [
-            'code' => strtoupper(fake()->bothify('STK-######')),
+            'code' => mb_strtoupper(fake()->bothify('STK-######')),
             'product_id' => Product::factory(),
             'store_id' => Store::factory(),
-            'type' => fake()->randomElement(['in', 'out', 'transfer', 'adjustment']),
             'quantity' => fake()->numberBetween(1, 100),
-            'reason' => fake()->randomElement(['purchase', 'sale', 'return', 'damaged', 'expired', 'recount']),
+            'reason' => fake()->randomElement(StockMovementReason::cases()),
             'notes' => fake()->optional()->sentence(),
             'from_store_id' => null,
             'to_store_id' => null,
             'user_id' => User::factory(),
             'occurred_at' => fake()->dateTimeBetween('-30 days', 'now'),
+            'type' => fake()->randomElement(StockMovementType::cases()),
         ];
     }
 
@@ -39,9 +44,9 @@ class StockMovementFactory extends Factory
      */
     public function stockIn(): static
     {
-        return $this->state(fn (array $attributes) => [
-            'type' => 'in',
-            'reason' => fake()->randomElement(['purchase', 'return']),
+        return $this->state(fn (array $attributes): array => [
+            'type' => StockMovementType::ADDITION,
+            'reason' => fake()->randomElement([StockMovementReason::PURCHASE, StockMovementReason::RETURN]),
             'quantity' => fake()->numberBetween(10, 200),
         ]);
     }
@@ -51,9 +56,9 @@ class StockMovementFactory extends Factory
      */
     public function stockOut(): static
     {
-        return $this->state(fn (array $attributes) => [
-            'type' => 'out',
-            'reason' => fake()->randomElement(['sale', 'damaged', 'expired']),
+        return $this->state(fn (array $attributes): array => [
+            'type' => StockMovementType::REDUCTION,
+            'reason' => fake()->randomElement([StockMovementReason::SALE, StockMovementReason::DAMAGED, StockMovementReason::EXPIRED]),
             'quantity' => fake()->numberBetween(1, 50),
         ]);
     }
@@ -63,13 +68,18 @@ class StockMovementFactory extends Factory
      */
     public function transfer(): static
     {
-        return $this->state(fn (array $attributes) => [
-            'type' => 'transfer',
-            'reason' => 'transfer',
-            'from_store_id' => Store::factory(),
-            'to_store_id' => Store::factory(),
-            'quantity' => fake()->numberBetween(5, 100),
-        ]);
+        return $this->state(function (array $attributes): array {
+            // Ensure store_id is treated as the source store for transfer_out
+            $fromStoreId = $attributes['store_id'] ?? Store::factory();
+
+            return [
+                'type' => StockMovementType::TRANSFER_OUT,
+                'reason' => StockMovementReason::TRANSFER,
+                'from_store_id' => $fromStoreId,
+                'to_store_id' => Store::factory(),
+                'quantity' => fake()->numberBetween(5, 100),
+            ];
+        });
     }
 
     /**
@@ -77,10 +87,11 @@ class StockMovementFactory extends Factory
      */
     public function adjustment(): static
     {
-        return $this->state(fn (array $attributes) => [
-            'type' => 'adjustment',
-            'reason' => 'recount',
-            'quantity' => fake()->numberBetween(-50, 50),
+        return $this->state(fn (array $attributes): array => [
+            // Use a valid enum and non-negative quantity for unsigned column
+            'type' => fake()->randomElement([StockMovementType::ADDITION, StockMovementType::REDUCTION]),
+            'reason' => StockMovementReason::RECOUNT,
+            'quantity' => fake()->numberBetween(1, 50),
             'notes' => 'Stock count adjustment after inventory',
         ]);
     }
@@ -90,10 +101,10 @@ class StockMovementFactory extends Factory
      */
     public function bulk(): static
     {
-        return $this->state(fn (array $attributes) => [
+        return $this->state(fn (array $attributes): array => [
             'quantity' => fake()->numberBetween(500, 2000),
-            'reason' => 'purchase',
-            'type' => 'in',
+            'reason' => StockMovementReason::PURCHASE,
+            'type' => StockMovementType::ADDITION,
         ]);
     }
 }

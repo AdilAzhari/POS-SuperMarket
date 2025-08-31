@@ -1,23 +1,20 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
+import axios from 'axios'
 
 export const useAppStore = defineStore('app', () => {
   const currentView = ref('pos')
   const selectedStore = ref(1)
-  const darkMode = ref(false)
+  const darkMode = ref(true)
   const userRole = ref('admin')
   const currentUser = ref({
     id: '1',
-    name: 'Admin User',
+    name: 'Admin Users',
     email: 'admin@pos.com',
     role: 'admin',
   })
 
-  const stores = ref([
-    { id: 'store-1', name: 'Downtown Branch', address: '123 Main St' },
-    { id: 'store-2', name: 'Mall Location', address: '456 Shopping Ave' },
-    { id: 'store-3', name: 'Suburban Store', address: '789 Residential Blvd' },
-  ])
+  const stores = ref([])
 
   const setCurrentView = (view) => {
     currentView.value = view
@@ -31,6 +28,32 @@ export const useAppStore = defineStore('app', () => {
     darkMode.value = !darkMode.value
   }
 
+  const fetchStores = async () => {
+    try {
+      const { data } = await axios.get('/api/stores')
+      const storeList = Array.isArray(data?.data) ? data.data : data
+      stores.value = storeList.map(store => ({
+        id: Number(store.id),
+        name: store.name,
+        address: store.address,
+        phone: store.phone,
+        email: store.email,
+      }))
+
+      // Set default selected store if none selected
+      if (stores.value.length > 0 && !selectedStore.value) {
+        selectedStore.value = stores.value[0].id
+      }
+    } catch (error) {
+      console.error('Failed to fetch stores:', error)
+      // Fallback to default store
+      stores.value = [
+        { id: 1, name: 'Main Store', address: 'Default Location' }
+      ]
+      selectedStore.value = 1
+    }
+  }
+
   return {
     currentView,
     selectedStore,
@@ -41,5 +64,6 @@ export const useAppStore = defineStore('app', () => {
     setCurrentView,
     setSelectedStore,
     toggleDarkMode,
+    fetchStores,
   }
 })

@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Database\Factories;
 
 use App\Models\Product;
@@ -9,7 +11,7 @@ use Illuminate\Database\Eloquent\Factories\Factory;
 /**
  * @extends \Illuminate\Database\Eloquent\Factories\Factory<\App\Models\SaleItem>
  */
-class SaleItemFactory extends Factory
+final class SaleItemFactory extends Factory
 {
     /**
      * Define the model's default state.
@@ -28,7 +30,7 @@ class SaleItemFactory extends Factory
             'sale_id' => Sale::factory(),
             'product_id' => Product::factory(),
             'product_name' => fake()->words(2, true),
-            'sku' => strtoupper(fake()->bothify('SKU-####')),
+            'sku' => mb_strtoupper(fake()->bothify('SKU-####')),
             'price' => $price,
             'quantity' => $quantity,
             'discount' => $discount,
@@ -42,7 +44,7 @@ class SaleItemFactory extends Factory
      */
     public function noDiscount(): static
     {
-        return $this->state(fn (array $attributes) => [
+        return $this->state(fn (array $attributes): array => [
             'discount' => 0,
         ]);
     }
@@ -52,7 +54,7 @@ class SaleItemFactory extends Factory
      */
     public function highDiscount(): static
     {
-        return $this->state(function (array $attributes) {
+        return $this->state(function (array $attributes): array {
             $price = $attributes['price'];
             $discount = $price * 0.5;
             $tax = ($price - $discount) * 0.1;
@@ -71,7 +73,7 @@ class SaleItemFactory extends Factory
      */
     public function bulkQuantity(): static
     {
-        return $this->state(fn (array $attributes) => [
+        return $this->state(fn (array $attributes): array => [
             'quantity' => fake()->numberBetween(10, 50),
         ]);
     }

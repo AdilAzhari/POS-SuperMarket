@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Database\Factories;
 
 use Illuminate\Database\Eloquent\Factories\Factory;
@@ -7,7 +9,7 @@ use Illuminate\Database\Eloquent\Factories\Factory;
 /**
  * @extends \Illuminate\Database\Eloquent\Factories\Factory<\App\Models\Supplier>
  */
-class SupplierFactory extends Factory
+final class SupplierFactory extends Factory
 {
     /**
      * Define the model's default state.
@@ -29,9 +31,9 @@ class SupplierFactory extends Factory
      */
     public function international(): static
     {
-        return $this->state(fn (array $attributes) => [
-            'name' => fake()->company() . ' International',
-            'contact_phone' => '+' . fake()->numberBetween(1, 999) . ' ' . fake()->phoneNumber(),
+        return $this->state(fn (array $attributes): array => [
+            'name' => fake()->company().' International',
+            'contact_phone' => '+'.fake()->numberBetween(1, 999).' '.fake()->phoneNumber(),
         ]);
     }
 
@@ -40,8 +42,8 @@ class SupplierFactory extends Factory
      */
     public function local(): static
     {
-        return $this->state(fn (array $attributes) => [
-            'name' => fake()->city() . ' ' . fake()->companySuffix(),
+        return $this->state(fn (array $attributes): array => [
+            'name' => fake()->city().' '.fake()->companySuffix(),
         ]);
     }
 
@@ -50,7 +52,7 @@ class SupplierFactory extends Factory
      */
     public function noEmail(): static
     {
-        return $this->state(fn (array $attributes) => [
+        return $this->state(fn (array $attributes): array => [
             'contact_email' => null,
         ]);
     }

@@ -374,7 +374,7 @@ const loadSettings = async () => {
   try {
     const response = await axios.get('/api/settings/all')
     const settings = response.data
-    
+
     if (settings.store_info) {
       storeSettings.value = { ...storeSettings.value, ...settings.store_info }
     }

@@ -1,8 +1,13 @@
 <?php
 
+declare(strict_types=1);
+
+use App\Http\Middleware\HandleInertiaRequests;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
+use Illuminate\Http\Middleware\AddLinkHeadersForPreloadedAssets;
+use Illuminate\Validation\ValidationException;
 
 return Application::configure(basePath: dirname(__DIR__))
     ->withRouting(
@@ -13,14 +18,17 @@ return Application::configure(basePath: dirname(__DIR__))
     )
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->web(append: [
-            \App\Http\Middleware\HandleInertiaRequests::class,
-            \Illuminate\Http\Middleware\AddLinkHeadersForPreloadedAssets::class,
+            HandleInertiaRequests::class,
+            AddLinkHeadersForPreloadedAssets::class,
         ]);
 
-        //
+        // Exclude API routes from CSRF protection
+        $middleware->validateCsrfTokens(except: [
+            'api/*',
+        ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
-        $exceptions->render(function (\Illuminate\Validation\ValidationException $e, $request) {
+        $exceptions->render(function (ValidationException $e, $request) {
             if ($request->expectsJson()) {
                 return response()->json([
                     'message' => 'The given data was invalid.',
@@ -29,7 +37,7 @@ return Application::configure(basePath: dirname(__DIR__))
             }
         });
 
-        $exceptions->render(function (\Illuminate\Database\QueryException $e, $request) {
+        $exceptions->render(function (Illuminate\Database\QueryException $e, $request) {
             if ($request->expectsJson()) {
                 return response()->json([
                     'message' => 'Database operation failed.',
@@ -38,7 +46,7 @@ return Application::configure(basePath: dirname(__DIR__))
             }
         });
 
-        $exceptions->render(function (\Exception $e, $request) {
+        $exceptions->render(function (Exception $e, $request) {
             if ($request->expectsJson()) {
                 return response()->json([
                     'message' => 'An error occurred.',

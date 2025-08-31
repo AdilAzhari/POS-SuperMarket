@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 return [
 
     /*
@@ -36,7 +38,7 @@ return [
     ],
 
     'stripe' => [
-        'key'    => env('STRIPE_PUBLISHABLE_KEY'),
+        'key' => env('STRIPE_PUBLISHABLE_KEY'),
         'secret' => env('STRIPE_SECRET_KEY'),
     ],
 

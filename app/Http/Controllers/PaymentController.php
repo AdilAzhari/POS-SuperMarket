@@ -1,20 +1,62 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Http\Controllers;
 
+use App\Enums\PaymentMethod;
+use App\Enums\PaymentStatus;
+use App\Enums\SaleStatus;
 use App\Models\Payment;
 use App\Models\Sale;
 use App\Services\PaymentService;
 use Exception;
-use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 
-class PaymentController extends Controller
+final class PaymentController extends Controller
 {
-    public function __construct()
+    public function __construct(private readonly PaymentService $paymentService) {}
+
+    /**
+     * Get all payments with pagination
+     */
+    public function index(Request $request): JsonResponse
     {
-        // PaymentService temporarily disabled due to Stripe dependency issues
+        $request->validate([
+            'per_page' => 'integer|min:1|max:100',
+            'payment_method' => 'string',
+            'status' => 'string',
+            'start_date' => 'date',
+            'end_date' => 'date|after_or_equal:start_date',
+        ]);
+
+        $query = Payment::with(['sale', 'store', 'user'])
+            ->orderBy('created_at', 'desc');
+
+        // Filter by payment method
+        if ($request->payment_method) {
+            $query->where('payment_method', $request->payment_method);
+        }
+
+        // Filter by status
+        if ($request->status) {
+            $query->where('status', $request->status);
+        }
+
+        // Filter by date range
+        if ($request->start_date) {
+            $query->whereDate('created_at', '>=', $request->start_date);
+        }
+
+        if ($request->end_date) {
+            $query->whereDate('created_at', '<=', $request->end_date);
+        }
+
+        $payments = $query->paginate($request->per_page ?? 20);
+
+        return response()->json($payments);
     }
 
     /**
@@ -22,33 +64,39 @@ class PaymentController extends Controller
      */
     public function processPayment(Request $request): JsonResponse
     {
+        $paymentMethods = collect(PaymentMethod::cases())->pluck('value')->toArray();
+
         $request->validate([
             'sale_id' => 'required|exists:sales,id',
-            'method' => ['required', Rule::in(['cash', 'stripe', 'visa', 'mastercard', 'amex', 'tng'])],
+            'method' => ['required', Rule::in($paymentMethods)],
             'currency' => 'string|size:3|in:MYR,USD,SGD',
 
             // Stripe specific
-            'payment_method_id' => 'required_if:method,stripe|string',
+            'payment_method_id' => 'required_if:method,card|string',
 
             // Card specific
-            'card_number' => 'required_if:method,visa,mastercard,amex|string|min:13|max:19',
-            'exp_month' => 'required_if:method,visa,mastercard,amex|integer|between:1,12',
-            'exp_year' => 'required_if:method,visa,mastercard,amex|integer|min:2024',
-            'cvv' => 'required_if:method,visa,mastercard,amex|string|size:3',
-            'cardholder_name' => 'required_if:method,visa,mastercard,amex|string|max:255',
+            'card_number' => 'required_if:method,card,digital|string|min:13|max:19',
+            'exp_month' => 'required_if:method,card,digital|integer|between:1,12',
+            'exp_year' => 'required_if:method,card,digital|integer|min:2024',
+            'cvv' => 'required_if:method,card,digital|string|min:3|max:4',
+            'cardholder_name' => 'required_if:method,card,digital|string|max:255',
 
             // TNG specific
             'phone' => 'required_if:method,tng|string|regex:/^(\+?6?01)[0-9]{8,9}$/',
+
+            // Cash specific
+            'cash_received' => 'numeric|min:0',
+            'change_amount' => 'numeric|min:0',
         ]);
 
         try {
             $sale = Sale::query()->findOrFail($request->sale_id);
 
             // Check if sale is already paid
-            if ($sale->status === 'completed' && $sale->payments()->where('status', 'completed')->exists()) {
+            if ($sale->status === SaleStatus::COMPLETED && $sale->payments()->where('status', PaymentStatus::COMPLETED)->exists()) {
                 return response()->json([
                     'message' => 'Sale is already paid',
-                    'error' => 'ALREADY_PAID'
+                    'error' => 'ALREADY_PAID',
                 ], 400);
             }
 
@@ -62,6 +110,8 @@ class PaymentController extends Controller
                 'cvv' => $request->cvv,
                 'cardholder_name' => $request->cardholder_name,
                 'phone' => $request->phone,
+                'cash_received' => $request->cash_received,
+                'change_amount' => $request->change_amount,
             ];
 
             $payment = $this->paymentService->processPayment($sale, $paymentData);
@@ -69,21 +119,21 @@ class PaymentController extends Controller
             // Update sale status if payment is completed
             if ($payment->isCompleted()) {
                 $sale->update([
-                    'status' => 'completed',
-                    'paid_at' => now()
+                    'status' => SaleStatus::COMPLETED,
+                    'paid_at' => now(),
                 ]);
             }
 
             return response()->json([
                 'message' => 'Payment processed successfully',
                 'payment' => $payment->load(['sale', 'store']),
-                'requires_action' => $payment->status === 'processing'
+                'requires_action' => $payment->status === PaymentStatus::PROCESSING,
             ], 201);
 
         } catch (Exception $e) {
             return response()->json([
                 'message' => 'Payment processing failed',
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ], 500);
         }
     }
@@ -93,53 +143,43 @@ class PaymentController extends Controller
      */
     public function getPaymentMethods(): JsonResponse
     {
-        return response()->json([
-            'methods' => [
-                [
-                    'code' => 'cash',
-                    'name' => 'Cash',
-                    'icon' => '💵',
-                    'fee_rate' => 0,
-                    'enabled' => true
-                ],
-                [
-                    'code' => 'stripe',
-                    'name' => 'Stripe (Credit/Debit Card)',
-                    'icon' => '💳',
-                    'fee_rate' => 2.9,
-                    'fee_fixed' => 0.50,
-                    'enabled' => true
-                ],
-                [
-                    'code' => 'visa',
-                    'name' => 'Visa',
-                    'icon' => '💳',
-                    'fee_rate' => 2.5,
-                    'enabled' => true
-                ],
-                [
-                    'code' => 'mastercard',
-                    'name' => 'Mastercard',
-                    'icon' => '💳',
-                    'fee_rate' => 2.5,
-                    'enabled' => true
-                ],
-                [
-                    'code' => 'amex',
-                    'name' => 'American Express',
-                    'icon' => '💳',
-                    'fee_rate' => 3.5,
-                    'enabled' => true
-                ],
-                [
-                    'code' => 'tng',
-                    'name' => 'Touch n Go eWallet',
-                    'icon' => '📱',
-                    'fee_rate' => 1.5,
-                    'enabled' => true
-                ]
-            ]
-        ]);
+        $methods = collect(PaymentMethod::cases())->map(function ($method): array {
+            $feeRate = match ($method) {
+                PaymentMethod::CASH => 0,
+                PaymentMethod::CARD => 2.9,
+                PaymentMethod::DIGITAL => 2.5,
+                PaymentMethod::BANK_TRANSFER => 1.0,
+                PaymentMethod::TOUCHNGO => 1.5,
+                PaymentMethod::GRAB_PAY => 2.0,
+                PaymentMethod::MOBILE_PAYMENT => 2.2,
+            };
+
+            $feeFixed = match ($method) {
+                PaymentMethod::CARD => 0.50,
+                default => 0,
+            };
+
+            $icon = match ($method) {
+                PaymentMethod::CASH => '💵',
+                PaymentMethod::CARD => '💳',
+                PaymentMethod::DIGITAL => '🔗',
+                PaymentMethod::BANK_TRANSFER => '🏦',
+                PaymentMethod::TOUCHNGO => '📱',
+                PaymentMethod::GRAB_PAY => '🚗',
+                PaymentMethod::MOBILE_PAYMENT => '📱',
+            };
+
+            return [
+                'code' => $method->value,
+                'name' => $method->label(),
+                'icon' => $icon,
+                'fee_rate' => $feeRate,
+                'fee_fixed' => $feeFixed,
+                'enabled' => true,
+            ];
+        });
+
+        return response()->json(['methods' => $methods]);
     }
 
     /**
@@ -154,8 +194,8 @@ class PaymentController extends Controller
 
         return response()->json([
             'payments' => $payments,
-            'total_paid' => $payments->where('status', 'completed')->sum('amount'),
-            'total_fees' => $payments->where('status', 'completed')->sum('fee')
+            'total_paid' => $payments->where('status', PaymentStatus::COMPLETED)->sum('amount'),
+            'total_fees' => $payments->where('status', PaymentStatus::COMPLETED)->sum('fee'),
         ]);
     }
 
@@ -175,8 +215,8 @@ class PaymentController extends Controller
     public function refund(Payment $payment, Request $request): JsonResponse
     {
         $request->validate([
-            'amount' => 'numeric|min:0.01|max:' . $payment->amount,
-            'reason' => 'required|string|max:500'
+            'amount' => 'numeric|min:0.01|max:'.$payment->amount,
+            'reason' => 'required|string|max:500',
         ]);
 
         try {
@@ -185,24 +225,24 @@ class PaymentController extends Controller
 
             if ($success) {
                 $payment->update([
-                    'notes' => $request->reason
+                    'notes' => $request->reason,
                 ]);
 
                 return response()->json([
                     'message' => 'Payment refunded successfully',
-                    'payment' => $payment->fresh()
+                    'payment' => $payment->fresh(),
                 ]);
-            } else {
-                return response()->json([
-                    'message' => 'Refund failed',
-                    'error' => 'REFUND_FAILED'
-                ], 500);
             }
+
+            return response()->json([
+                'message' => 'Refund failed',
+                'error' => 'REFUND_FAILED',
+            ], 500);
 
         } catch (Exception $e) {
             return response()->json([
                 'message' => 'Refund processing failed',
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ], 500);
         }
     }
@@ -215,11 +255,11 @@ class PaymentController extends Controller
         $request->validate([
             'start_date' => 'date',
             'end_date' => 'date|after_or_equal:start_date',
-            'store_id' => 'exists:stores,id'
+            'store_id' => 'exists:stores,id',
         ]);
 
         $query = Payment::query()
-            ->where('status', 'completed');
+            ->where('status', PaymentStatus::COMPLETED);
 
         if ($request->start_date) {
             $query->whereDate('created_at', '>=', $request->start_date);
@@ -240,13 +280,11 @@ class PaymentController extends Controller
             'total_amount' => $payments->sum('amount'),
             'total_fees' => $payments->sum('fee'),
             'net_amount' => $payments->sum('net_amount'),
-            'by_method' => $payments->groupBy('payment_method')->map(function ($methodPayments) {
-                return [
-                    'count' => $methodPayments->count(),
-                    'amount' => $methodPayments->sum('amount'),
-                    'fees' => $methodPayments->sum('fee')
-                ];
-            })
+            'by_method' => $payments->groupBy('payment_method')->map(fn ($methodPayments): array => [
+                'count' => $methodPayments->count(),
+                'amount' => $methodPayments->sum('amount'),
+                'fees' => $methodPayments->sum('fee'),
+            ]),
         ];
 
         return response()->json($stats);
