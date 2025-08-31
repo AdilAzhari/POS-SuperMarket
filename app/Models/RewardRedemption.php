@@ -1,12 +1,51 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Models;
 
+use Carbon\CarbonImmutable;
+use Database\Factories\RewardRedemptionFactory;
+use Eloquent;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
-class RewardRedemption extends Model
+/**
+ * @property int $id
+ * @property int $customer_id
+ * @property int $loyalty_reward_id
+ * @property int|null $sale_id
+ * @property int $points_used
+ * @property numeric $discount_amount
+ * @property CarbonImmutable|null $created_at
+ * @property CarbonImmutable|null $updated_at
+ * @property-read Customer $customer
+ * @property-read string $formatted_discount
+ * @property-read string $formatted_points
+ * @property-read LoyaltyReward $loyaltyReward
+ * @property-read Sale|null $sale
+ *
+ * @method static RewardRedemptionFactory factory($count = null, $state = [])
+ * @method static Builder<static>|RewardRedemption forCustomer($customerId)
+ * @method static Builder<static>|RewardRedemption forReward($rewardId)
+ * @method static Builder<static>|RewardRedemption newModelQuery()
+ * @method static Builder<static>|RewardRedemption newQuery()
+ * @method static Builder<static>|RewardRedemption query()
+ * @method static Builder<static>|RewardRedemption recent($days = 30)
+ * @method static Builder<static>|RewardRedemption whereCreatedAt($value)
+ * @method static Builder<static>|RewardRedemption whereCustomerId($value)
+ * @method static Builder<static>|RewardRedemption whereDiscountAmount($value)
+ * @method static Builder<static>|RewardRedemption whereId($value)
+ * @method static Builder<static>|RewardRedemption whereLoyaltyRewardId($value)
+ * @method static Builder<static>|RewardRedemption wherePointsUsed($value)
+ * @method static Builder<static>|RewardRedemption whereSaleId($value)
+ * @method static Builder<static>|RewardRedemption whereUpdatedAt($value)
+ *
+ * @mixin Eloquent
+ */
+final class RewardRedemption extends Model
 {
     use HasFactory;
 

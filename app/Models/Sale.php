@@ -1,17 +1,73 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Models;
 
 use App\Enums\PaymentMethod;
 use App\Enums\SaleStatus;
+use Carbon\CarbonImmutable;
 use Database\Factories\SaleFactory;
+use Eloquent;
+use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 
-class Sale extends Model
+/**
+ * @property int $id
+ * @property string $code
+ * @property int $store_id
+ * @property int|null $customer_id
+ * @property int $cashier_id
+ * @property-read int|null $items_count
+ * @property numeric $subtotal
+ * @property numeric $discount
+ * @property numeric $tax
+ * @property numeric $total
+ * @property PaymentMethod $payment_method
+ * @property SaleStatus $status
+ * @property CarbonImmutable|null $paid_at
+ * @property CarbonImmutable|null $created_at
+ * @property CarbonImmutable|null $updated_at
+ * @property-read User $cashier
+ * @property-read Customer|null $customer
+ * @property-read Collection<int, SaleItem> $items
+ * @property-read Payment|null $latestPayment
+ * @property-read Collection<int, Payment> $payments
+ * @property-read int|null $payments_count
+ * @property-read Store $store
+ *
+ * @method static Builder<static>|Sale byCustomer($customerId)
+ * @method static Builder<static>|Sale completed()
+ * @method static SaleFactory factory($count = null, $state = [])
+ * @method static Builder<static>|Sale inDateRange($startDate, $endDate)
+ * @method static Builder<static>|Sale newModelQuery()
+ * @method static Builder<static>|Sale newQuery()
+ * @method static Builder<static>|Sale query()
+ * @method static Builder<static>|Sale today()
+ * @method static Builder<static>|Sale whereCashierId($value)
+ * @method static Builder<static>|Sale whereCode($value)
+ * @method static Builder<static>|Sale whereCreatedAt($value)
+ * @method static Builder<static>|Sale whereCustomerId($value)
+ * @method static Builder<static>|Sale whereDiscount($value)
+ * @method static Builder<static>|Sale whereId($value)
+ * @method static Builder<static>|Sale whereItemsCount($value)
+ * @method static Builder<static>|Sale wherePaidAt($value)
+ * @method static Builder<static>|Sale wherePaymentMethod($value)
+ * @method static Builder<static>|Sale whereStatus($value)
+ * @method static Builder<static>|Sale whereStoreId($value)
+ * @method static Builder<static>|Sale whereSubtotal($value)
+ * @method static Builder<static>|Sale whereTax($value)
+ * @method static Builder<static>|Sale whereTotal($value)
+ * @method static Builder<static>|Sale whereUpdatedAt($value)
+ *
+ * @mixin Eloquent
+ */
+final class Sale extends Model
 {
     /** @use HasFactory<SaleFactory> */
     use HasFactory;
