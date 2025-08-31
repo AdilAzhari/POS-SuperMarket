@@ -1,11 +1,13 @@
 <?php
 
+declare(strict_types=1);
+
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 
 uses(RefreshDatabase::class);
 
-test('login page loads correctly', function () {
+test('login page loads correctly', function (): void {
     $response = $this->get('/login');
 
     $response->assertStatus(200);
@@ -15,18 +17,18 @@ test('login page loads correctly', function () {
     );
 });
 
-test('login page has csrf token', function () {
+test('login page has csrf token', function (): void {
     $response = $this->get('/login');
-    
+
     $response->assertStatus(200);
-    
+
     // Check that CSRF token meta tag is present
     $content = $response->getContent();
     expect($content)->toContain('name="csrf-token"');
     expect($content)->toContain('content="');
 });
 
-test('can login with valid credentials', function () {
+test('can login with valid credentials', function (): void {
     $user = User::factory()->create([
         'email' => 'test@example.com',
         'password' => bcrypt('password'),
@@ -41,7 +43,7 @@ test('can login with valid credentials', function () {
     $this->assertAuthenticatedAs($user);
 });
 
-test('cannot login with invalid credentials', function () {
+test('cannot login with invalid credentials', function (): void {
     User::factory()->create([
         'email' => 'test@example.com',
         'password' => bcrypt('password'),
@@ -56,14 +58,14 @@ test('cannot login with invalid credentials', function () {
     $this->assertGuest();
 });
 
-test('csrf token is required for login', function () {
+test('csrf token is required for login', function (): void {
     $user = User::factory()->create([
         'email' => 'test@example.com',
         'password' => bcrypt('password'),
     ]);
 
     // Attempt login without CSRF token
-    $response = $this->withoutMiddleware(\Illuminate\Foundation\Http\Middleware\ValidateCsrfToken::class)
+    $response = $this->withoutMiddleware(Illuminate\Foundation\Http\Middleware\ValidateCsrfToken::class)
         ->post('/login', [
             'email' => 'test@example.com',
             'password' => 'password',
@@ -71,7 +73,7 @@ test('csrf token is required for login', function () {
 
     // Should succeed when CSRF middleware is disabled
     $response->assertRedirect('/dashboard');
-    
+
     // Now test with CSRF middleware enabled (should fail without token)
     $this->post('/login', [
         'email' => 'test@example.com',
@@ -79,7 +81,7 @@ test('csrf token is required for login', function () {
     ])->assertStatus(419); // Page Expired / CSRF Token Mismatch
 });
 
-test('login form preserves email on validation error', function () {
+test('login form preserves email on validation error', function (): void {
     $response = $this->post('/login', [
         'email' => 'invalid-email',
         'password' => 'password',
@@ -89,7 +91,7 @@ test('login form preserves email on validation error', function () {
     $response->assertSessionHas('email', 'invalid-email');
 });
 
-test('register page loads correctly', function () {
+test('register page loads correctly', function (): void {
     $response = $this->get('/register');
 
     $response->assertStatus(200);
@@ -98,7 +100,7 @@ test('register page loads correctly', function () {
     );
 });
 
-test('can register new user', function () {
+test('can register new user', function (): void {
     $response = $this->post('/register', [
         'name' => 'Test User',
         'email' => 'test@example.com',
@@ -108,16 +110,16 @@ test('can register new user', function () {
 
     $response->assertRedirect('/dashboard');
     $this->assertAuthenticated();
-    
+
     $this->assertDatabaseHas('users', [
         'name' => 'Test User',
         'email' => 'test@example.com',
     ]);
 });
 
-test('registration requires csrf token', function () {
+test('registration requires csrf token', function (): void {
     // Test without CSRF middleware first
-    $response = $this->withoutMiddleware(\Illuminate\Foundation\Http\Middleware\ValidateCsrfToken::class)
+    $response = $this->withoutMiddleware(Illuminate\Foundation\Http\Middleware\ValidateCsrfToken::class)
         ->post('/register', [
             'name' => 'Test User',
             'email' => 'test@example.com',
@@ -126,7 +128,7 @@ test('registration requires csrf token', function () {
         ]);
 
     $response->assertRedirect('/dashboard');
-    
+
     // Now test with CSRF middleware (should fail)
     $response = $this->post('/register', [
         'name' => 'Test User 2',
