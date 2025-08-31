@@ -1,16 +1,17 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Console\Commands;
 
 use App\Models\Sale;
 use App\Models\Store;
-use App\Services\SaleService;
 use Carbon\Carbon;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Log;
 use Throwable;
 
-class GenerateDailySalesReport extends Command
+final class GenerateDailySalesReport extends Command
 {
     /**
      * The name and signature of the console command.
@@ -26,9 +27,8 @@ class GenerateDailySalesReport extends Command
      */
     protected $description = 'Generate daily sales report for all stores or a specific store';
 
-    public function __construct(
-        private readonly SaleService $saleService
-    ) {
+    public function __construct()
+    {
         parent::__construct();
     }
 
@@ -86,7 +86,7 @@ class GenerateDailySalesReport extends Command
 
         $this->displayReport($store->name, $date, $analytics);
 
-        if ($email) {
+        if ($email !== null && $email !== '' && $email !== '0') {
             $this->sendReportEmail($email, $store->name, $date, $analytics);
         }
 
@@ -134,7 +134,7 @@ class GenerateDailySalesReport extends Command
 
         $this->displayReport('All Stores', $date, $overallAnalytics);
 
-        if ($email) {
+        if ($email !== null && $email !== '' && $email !== '0') {
             $this->sendReportEmail($email, 'All Stores', $date, $overallAnalytics);
         }
     }
@@ -147,9 +147,7 @@ class GenerateDailySalesReport extends Command
             'total_items' => $sales->sum('items_count'),
             'average_sale' => $sales->count() > 0 ? $sales->sum('total') / $sales->count() : 0,
             'payment_methods' => $sales->groupBy('payment_method')->map->count()->toArray(),
-            'hourly_breakdown' => $sales->groupBy(function ($sale) {
-                return $sale->created_at->format('H');
-            })->map->count()->toArray(),
+            'hourly_breakdown' => $sales->groupBy(fn ($sale) => $sale->created_at->format('H'))->map->count()->toArray(),
         ];
     }
 

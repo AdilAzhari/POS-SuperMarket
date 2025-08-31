@@ -1,12 +1,14 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Console\Commands;
 
 use App\Models\User;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Hash;
 
-class CreateTestUser extends Command
+final class CreateTestUser extends Command
 {
     /**
      * The name and signature of the console command.
@@ -25,9 +27,9 @@ class CreateTestUser extends Command
     /**
      * Execute the console command.
      */
-    public function handle()
+    public function handle(): int
     {
-        $user = User::firstOrCreate(
+        User::firstOrCreate(
             ['email' => 'admin@test.com'],
             [
                 'name' => 'Test Admin',
@@ -36,10 +38,10 @@ class CreateTestUser extends Command
             ]
         );
 
-        $this->info("Test user created/updated:");
-        $this->info("Email: admin@test.com");
-        $this->info("Password: password");
-        
+        $this->info('Test user created/updated:');
+        $this->info('Email: admin@test.com');
+        $this->info('Password: password');
+
         return 0;
     }
 }

@@ -1,14 +1,16 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Console\Commands;
 
 use App\Models\Product;
 use App\Models\Store;
-use App\Services\StockService;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Log;
+use Throwable;
 
-class CheckLowStock extends Command
+final class CheckLowStock extends Command
 {
     /**
      * The name and signature of the console command.
@@ -24,9 +26,8 @@ class CheckLowStock extends Command
      */
     protected $description = 'Check for products with low stock levels and send alerts';
 
-    public function __construct(
-        private readonly StockService $stockService
-    ) {
+    public function __construct()
+    {
         parent::__construct();
     }
 
@@ -53,7 +54,7 @@ class CheckLowStock extends Command
 
             return self::SUCCESS;
 
-        } catch (\Throwable $e) {
+        } catch (Throwable $e) {
             $this->error("❌ Failed to check low stock: {$e->getMessage()}");
             Log::error('Low stock check failed', [
                 'error' => $e->getMessage(),
@@ -78,7 +79,7 @@ class CheckLowStock extends Command
 
         $this->displayLowStockReport($store->name, $lowStockProducts);
 
-        if ($email) {
+        if ($email !== null && $email !== '' && $email !== '0') {
             $this->sendLowStockAlert($email, $store->name, $lowStockProducts);
         }
 
@@ -118,7 +119,7 @@ class CheckLowStock extends Command
         if ($allLowStockProducts->isNotEmpty()) {
             $this->displayLowStockReport('All Stores', $allLowStockProducts);
 
-            if ($email) {
+            if ($email !== null && $email !== '' && $email !== '0') {
                 $this->sendLowStockAlert($email, 'All Stores', $allLowStockProducts);
             }
         } else {
@@ -134,7 +135,7 @@ class CheckLowStock extends Command
             ->where('product_store.store_id', $storeId)
             ->where('products.active', true);
 
-        if ($customThreshold) {
+        if ($customThreshold !== null && $customThreshold !== 0) {
             $query->whereRaw('product_store.stock <= ?', [$customThreshold]);
         } else {
             $query->whereRaw('product_store.stock <= product_store.low_stock_threshold');
@@ -149,31 +150,25 @@ class CheckLowStock extends Command
         $this->warn("⚠️  Low Stock Alert for {$storeName}");
         $this->line(str_repeat('=', 60));
 
-        $tableData = $lowStockProducts->map(function ($product) {
-            return [
-                $product->name,
-                $product->sku,
-                isset($product->store_name) ? $product->store_name : '',
-                $product->stock ?? 0,
-                $product->low_stock_threshold ?? 0,
-                $product->category?->name ?? 'N/A',
-            ];
-        })->toArray();
+        $tableData = $lowStockProducts->map(fn ($product): array => [
+            $product->name,
+            $product->sku,
+            $product->store_name ?? '',
+            $product->stock ?? 0,
+            $product->low_stock_threshold ?? 0,
+            $product->category?->name ?? 'N/A',
+        ])->toArray();
 
         $headers = ['Product', 'SKU', 'Store', 'Current Stock', 'Threshold', 'Category'];
         if ($storeName !== 'All Stores') {
             // Remove store column for single store reports
             $headers = ['Product', 'SKU', 'Current Stock', 'Threshold', 'Category'];
-            $tableData = array_map(function ($row) {
-                return [$row[0], $row[1], $row[3], $row[4], $row[5]];
-            }, $tableData);
+            $tableData = array_map(fn (array $row): array => [$row[0], $row[1], $row[3], $row[4], $row[5]], $tableData);
         }
 
         $this->table($headers, $tableData);
 
-        $critical = $lowStockProducts->filter(function ($product) {
-            return ($product->stock ?? 0) === 0;
-        });
+        $critical = $lowStockProducts->filter(fn ($product): bool => ($product->stock ?? 0) === 0);
 
         if ($critical->isNotEmpty()) {
             $this->error("🚨 {$critical->count()} products are completely out of stock!");
@@ -191,19 +186,17 @@ class CheckLowStock extends Command
                 'email' => $email,
                 'store' => $storeName,
                 'low_stock_count' => $lowStockProducts->count(),
-                'out_of_stock_count' => $lowStockProducts->filter(fn ($p) => ($p->stock ?? 0) === 0)->count(),
-                'products' => $lowStockProducts->map(function ($product) {
-                    return [
-                        'name' => $product->name,
-                        'sku' => $product->sku,
-                        'current_stock' => $product->stock ?? 0,
-                        'threshold' => $product->low_stock_threshold ?? 0,
-                    ];
-                })->toArray(),
+                'out_of_stock_count' => $lowStockProducts->filter(fn ($p): bool => ($p->stock ?? 0) === 0)->count(),
+                'products' => $lowStockProducts->map(fn ($product): array => [
+                    'name' => $product->name,
+                    'sku' => $product->sku,
+                    'current_stock' => $product->stock ?? 0,
+                    'threshold' => $product->low_stock_threshold ?? 0,
+                ])->toArray(),
             ]);
 
             $this->info("📧 Low stock alert email queued for: {$email}");
-        } catch (\Throwable $e) {
+        } catch (Throwable $e) {
             $this->warn("⚠️  Failed to send email alert: {$e->getMessage()}");
         }
     }
