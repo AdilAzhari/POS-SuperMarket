@@ -1,11 +1,18 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Http\Requests;
 
+use App\DTOs\ConvertsToDTOs;
+use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
 
-class StoreCustomerRequest extends FormRequest
+final class StoreCustomerRequest extends FormRequest
 {
+    use ConvertsToDTOs;
+
     /**
      * Determine if the user is authorized to make this request.
      */
@@ -17,16 +24,55 @@ class StoreCustomerRequest extends FormRequest
     /**
      * Get the validation rules that apply to the request.
      *
-     * @return array<string, \Illuminate\Contracts\Validation\ValidationRule|array<mixed>|string>
+     * @return array<string, ValidationRule|array|string>
      */
     public function rules(): array
     {
+        $isUpdating = $this->getMethod() === 'PUT' || $this->getMethod() === 'PATCH';
+        $customerId = $this->route('customer')?->id ?? $this->route('id');
+
+        // For updates, make most fields optional with 'sometimes'
+        $requiredOrSometimes = $isUpdating ? 'sometimes' : 'required';
+
         return [
-            'name' => ['required', 'string', 'max:255'],
-            'phone' => ['required', 'string', 'max:255', 'unique:customers,phone'],
-            'email' => ['nullable', 'email', 'max:255', 'unique:customers,email'],
-            'address' => ['nullable', 'string', 'max:255'],
-            'status' => ['nullable', 'in:active,inactive'],
+            'name' => [$requiredOrSometimes, 'string', 'max:255'],
+            'phone' => [
+                $requiredOrSometimes,
+                'string',
+                'max:255',
+                Rule::unique('customers', 'phone')->ignore($customerId),
+            ],
+            'email' => [
+                'sometimes',
+                'email',
+                'max:255',
+                Rule::unique('customers', 'email')->ignore($customerId),
+            ],
+            'address' => ['sometimes', 'string', 'max:255'],
+            'status' => ['sometimes', 'in:active,inactive'],
+        ];
+    }
+
+    /**
+     * Get custom validation messages
+     */
+    public function messages(): array
+    {
+        return [
+            'phone.unique' => 'This phone number is already taken by another customer.',
+            'email.unique' => 'This email address is already taken by another customer.',
+            'status.in' => 'Status must be either active or inactive.',
+        ];
+    }
+
+    /**
+     * Get custom attribute names
+     */
+    public function attributes(): array
+    {
+        return [
+            'phone' => 'phone number',
+            'email' => 'email address',
         ];
     }
 }

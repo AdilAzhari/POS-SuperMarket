@@ -1,7 +1,11 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Http\Controllers;
 
+use App\Actions\Loyalty\ApplyLoyaltyDiscountAction;
+use App\Actions\Loyalty\GenerateCustomerLoyaltySummaryAction;
 use App\Models\Customer;
 use App\Models\LoyaltyReward;
 use App\Models\RewardRedemption;
@@ -10,10 +14,12 @@ use Exception;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
-class LoyaltyController extends Controller
+final class LoyaltyController extends Controller
 {
     public function __construct(
-        private readonly LoyaltyService $loyaltyService
+        private readonly LoyaltyService $loyaltyService,
+        private readonly GenerateCustomerLoyaltySummaryAction $generateSummaryAction,
+        private readonly ApplyLoyaltyDiscountAction $applyDiscountAction
     ) {}
 
     /**
@@ -22,7 +28,7 @@ class LoyaltyController extends Controller
     public function getCustomerSummary(Customer $customer): JsonResponse
     {
         try {
-            $summary = $this->loyaltyService->getCustomerLoyaltySummary($customer);
+            $summary = $this->generateSummaryAction->execute($customer);
 
             return response()->json([
                 'data' => $summary,
@@ -48,7 +54,7 @@ class LoyaltyController extends Controller
         try {
             $sale = \App\Models\Sale::findOrFail($request->sale_id);
 
-            $result = $this->loyaltyService->applyLoyaltyDiscount(
+            $result = $this->applyDiscountAction->execute(
                 $sale,
                 $request->points_to_redeem
             );
@@ -252,6 +258,31 @@ class LoyaltyController extends Controller
         } catch (Exception $e) {
             return response()->json([
                 'error' => 'Failed to fetch rewards',
+                'message' => $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    /**
+     * Get available rewards for a specific customer
+     */
+    public function getAvailableRewards(Customer $customer): JsonResponse
+    {
+        try {
+            $rewards = LoyaltyReward::available()
+                ->where('points_required', '<=', $customer->loyalty_points)
+                ->orderBy('points_required')
+                ->get();
+
+            return response()->json([
+                'success' => true,
+                'rewards' => $rewards,
+                'customer_points' => $customer->loyalty_points,
+            ]);
+        } catch (Exception $e) {
+            return response()->json([
+                'success' => false,
+                'error' => 'Failed to fetch available rewards',
                 'message' => $e->getMessage(),
             ], 500);
         }

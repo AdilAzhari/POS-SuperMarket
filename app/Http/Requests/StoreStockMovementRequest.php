@@ -1,10 +1,12 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Http\Requests;
 
 use Illuminate\Foundation\Http\FormRequest;
 
-class StoreStockMovementRequest extends FormRequest
+final class StoreStockMovementRequest extends FormRequest
 {
     /**
      * Determine if the user is authorized to make this request.
@@ -25,13 +27,13 @@ class StoreStockMovementRequest extends FormRequest
             'code' => ['sometimes', 'string', 'max:255'],
             'product_id' => ['required', 'exists:products,id'],
             'store_id' => ['required', 'exists:stores,id'],
-            'type' => ['required', 'in:addition,reduction,transfer_out,transfer_in'],
+            'type' => ['required', 'in:addition,reduction,transfer_out,transfer_in,adjustment'],
             'quantity' => ['required', 'integer', 'min:1'],
             'reason' => ['required', 'string', 'max:255'],
             'notes' => ['nullable', 'string'],
             'from_store_id' => ['nullable', 'exists:stores,id'],
             'to_store_id' => ['nullable', 'exists:stores,id'],
-            'user_id' => ['required', 'exists:users,id'],
+            'user_id' => ['sometimes', 'exists:users,id'],
             'occurred_at' => ['nullable', 'date'],
         ];
     }

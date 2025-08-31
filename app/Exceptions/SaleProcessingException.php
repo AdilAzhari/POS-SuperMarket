@@ -1,11 +1,13 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Exceptions;
 
 use Exception;
 use Illuminate\Http\JsonResponse;
 
-class SaleProcessingException extends Exception
+final class SaleProcessingException extends Exception
 {
     public function render(): JsonResponse
     {
