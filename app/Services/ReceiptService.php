@@ -1,13 +1,16 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Services;
 
 use App\Models\Sale;
 use App\Models\Setting;
+use Exception;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\View;
 
-class ReceiptService extends BaseService
+final class ReceiptService extends BaseService
 {
     protected string $cachePrefix = 'receipts:';
 
@@ -17,14 +20,50 @@ class ReceiptService extends BaseService
     public function generateReceipt(Sale $sale, array $options = []): array
     {
         $receiptSettings = $this->getReceiptSettings();
-        $storeInfo = $sale->store;
+        $storeSettings = $this->getStoreSettings();
 
         // Load sale with all required relationships
-        $sale->load(['items', 'customer', 'cashier', 'payments']);
+        $sale->load(['items.product', 'customer', 'cashier', 'payments', 'store']);
+
+        // Ensure we have minimum required data
+        if (! $sale->cashier) {
+            // Create a default cashier if none exists
+            $sale->setRelation('cashier', (object) [
+                'id' => 0,
+                'name' => 'Staff',
+            ]);
+        }
+
+        // Ensure we have items with proper data
+        foreach ($sale->items as $item) {
+            if (! $item->product_name && $item->product) {
+                $item->product_name = $item->product->name;
+            }
+            if (! $item->product_name) {
+                $item->product_name = 'Unknown Product';
+            }
+            if (! $item->price) {
+                $item->price = 0;
+            }
+            if (! $item->quantity) {
+                $item->quantity = 1;
+            }
+            if (! $item->line_total) {
+                $item->line_total = $item->price * $item->quantity;
+            }
+        }
+
+        // Ensure we have totals
+        if (! $sale->subtotal) {
+            $sale->subtotal = $sale->items->sum('line_total');
+        }
+        if (! $sale->total) {
+            $sale->total = $sale->subtotal - ($sale->discount ?? 0) + ($sale->tax ?? 0);
+        }
 
         $receiptData = [
             'sale' => $sale,
-            'store' => $storeInfo,
+            'store' => (object) $storeSettings, // Convert to object for compatibility
             'settings' => $receiptSettings,
             'generated_at' => now(),
             'receipt_number' => $this->generateReceiptNumber($sale),
@@ -38,6 +77,65 @@ class ReceiptService extends BaseService
             'thermal' => $this->generateThermalReceipt($receiptData),
             'pdf_url' => $this->generatePdfReceipt($receiptData),
         ];
+    }
+
+    /**
+     * Print receipt to thermal printer
+     */
+    public function printReceipt(Sale $sale, array $options = []): bool
+    {
+        try {
+            $receipt = $this->generateReceipt($sale, $options);
+
+            // Get printer settings
+            $printerSettings = $this->getPrinterSettings();
+
+            if (! $printerSettings['enabled']) {
+                return false;
+            }
+
+            // Send to printer based on connection type
+            return match ($printerSettings['connection_type']) {
+                'usb' => $this->printToUSB($receipt['thermal'], $printerSettings),
+                'network' => $this->printToNetwork($receipt['thermal'], $printerSettings),
+                'bluetooth' => $this->printToBluetooth(),
+                default => false,
+            };
+        } catch (Exception $e) {
+            $this->logError('Receipt printing failed', [
+                'sale_id' => $sale->id,
+                'error' => $e->getMessage(),
+            ]);
+
+            return false;
+        }
+    }
+
+    /**
+     * Save receipt to storage for later retrieval
+     */
+    public function saveReceipt(Sale $sale): string
+    {
+        $receipt = $this->generateReceipt($sale);
+        $filename = "receipts/{$sale->store_id}/{$sale->created_at->format('Y/m')}/receipt-{$sale->id}.html";
+
+        Storage::disk('local')->put($filename, $receipt['html']);
+
+        return $filename;
+    }
+
+    /**
+     * Get saved receipt
+     */
+    public function getStoredReceipt(Sale $sale): ?string
+    {
+        $filename = "receipts/{$sale->store_id}/{$sale->created_at->format('Y/m')}/receipt-{$sale->id}.html";
+
+        if (Storage::disk('local')->exists($filename)) {
+            return Storage::disk('local')->get($filename);
+        }
+
+        return null;
     }
 
     /**
@@ -105,9 +203,14 @@ class ReceiptService extends BaseService
         // Payment info
         $receipt .= "\nPayment: ".ucfirst(is_string($sale->payment_method) ? $sale->payment_method : $sale->payment_method->value)."\n";
 
-        // Footer
-        if ($settings['receipt_footer'] ?? null) {
-            $receipt .= "\n".$this->centerText($settings['receipt_footer'], $width)."\n";
+        // Header/Thank you message
+        if ($settings['header'] ?? null) {
+            $lines = explode('\n', $settings['header']);
+            foreach ($lines as $line) {
+                $receipt .= "\n".$this->centerText($line, $width)."\n";
+            }
+        } else {
+            $receipt .= "\n".$this->centerText('Thank you for your purchase!', $width)."\n";
         }
 
         // Loyalty points if customer exists
@@ -115,10 +218,15 @@ class ReceiptService extends BaseService
             $receipt .= "\nLoyalty Points: {$sale->customer->loyalty_points}\n";
         }
 
-        $receipt .= "\n".$this->centerText('Thank you for your purchase!', $width)."\n";
-        $receipt .= "\n\n\n"; // Feed paper
+        // Footer
+        if ($settings['footer'] ?? null) {
+            $lines = explode('\n', $settings['footer']);
+            foreach ($lines as $line) {
+                $receipt .= "\n".$this->centerText($line, $width)."\n";
+            }
+        } // Feed paper
 
-        return $receipt;
+        return $receipt."\n\n\n";
     }
 
     /**
@@ -136,17 +244,17 @@ class ReceiptService extends BaseService
      */
     private function formatReceiptLine(string $left, string $middle, string $right, int $width, bool $bold = false): string
     {
-        $availableWidth = $width - strlen($right);
-        $leftAndMiddle = $left.($middle ? " {$middle}" : '');
+        $availableWidth = $width - mb_strlen($right);
+        $leftAndMiddle = $left.($middle !== '' && $middle !== '0' ? " {$middle}" : '');
 
-        if (strlen($leftAndMiddle) > $availableWidth - 1) {
-            $leftAndMiddle = substr($leftAndMiddle, 0, $availableWidth - 4).'...';
+        if (mb_strlen($leftAndMiddle) > $availableWidth - 1) {
+            $leftAndMiddle = mb_substr($leftAndMiddle, 0, $availableWidth - 4).'...';
         }
 
-        $padding = $availableWidth - strlen($leftAndMiddle);
+        $padding = $availableWidth - mb_strlen($leftAndMiddle);
         $line = $leftAndMiddle.str_repeat(' ', $padding).$right;
 
-        return $bold ? strtoupper($line) : $line."\n";
+        return $bold ? mb_strtoupper($line) : $line."\n";
     }
 
     /**
@@ -154,7 +262,7 @@ class ReceiptService extends BaseService
      */
     private function centerText(string $text, int $width): string
     {
-        $padding = ($width - strlen($text)) / 2;
+        $padding = ($width - mb_strlen($text)) / 2;
 
         return str_repeat(' ', max(0, floor($padding))).$text;
     }
@@ -164,7 +272,33 @@ class ReceiptService extends BaseService
      */
     private function generateReceiptNumber(Sale $sale): string
     {
-        return "R-{$sale->store_id}-".$sale->created_at->format('ymd')."-{$sale->id}";
+        $storeId = $sale->store_id ?? 1; // Default to store 1 if not set
+        $date = $sale->created_at ? $sale->created_at->format('ymd') : now()->format('ymd');
+        $saleId = mb_str_pad((string) $sale->id, 6, '0', STR_PAD_LEFT);
+
+        return "R-{$storeId}{$date}{$saleId}";
+    }
+
+    /**
+     * Get store settings from database
+     */
+    private function getStoreSettings(): array
+    {
+        return $this->remember('store_settings', function () {
+            $storeSetting = Setting::where('key', 'store_info')->first();
+
+            if ($storeSetting && $storeSetting->value) {
+                return $storeSetting->value;
+            }
+
+            // Default store settings if not found
+            return [
+                'name' => 'SuperMarket POS',
+                'address' => '123 Main Street, Anytown, ST 12345',
+                'phone' => '+1-555-0123',
+                'email' => 'info@supermarketpos.com',
+            ];
+        }, 3600);
     }
 
     /**
@@ -172,55 +306,20 @@ class ReceiptService extends BaseService
      */
     private function getReceiptSettings(): array
     {
-        return $this->remember('settings', function () {
-            // Use a simple key-based approach since the settings table might not have category column
-            return Setting::whereIn('key', [
-                'receipt_header',
-                'receipt_footer',
-                'receipt_show_logo',
-                'receipt_show_customer_info',
-                'receipt_show_loyalty_points',
-                'website',
-            ])
-                ->pluck('value', 'key')
-                ->toArray();
+        return $this->remember('receipt_settings', function () {
+            $receiptSetting = Setting::where('key', 'receipt_settings')->first();
+
+            if ($receiptSetting && $receiptSetting->value) {
+                return $receiptSetting->value;
+            }
+
+            // Default receipt settings if not found
+            return [
+                'header' => 'Thank you for shopping with us!',
+                'footer' => 'Please come again!\nReturn policy: 30 days with receipt',
+                'showLogo' => true,
+            ];
         }, 3600);
-    }
-
-    /**
-     * Print receipt to thermal printer
-     */
-    public function printReceipt(Sale $sale, array $options = []): bool
-    {
-        try {
-            $receipt = $this->generateReceipt($sale, $options);
-
-            // Get printer settings
-            $printerSettings = $this->getPrinterSettings();
-
-            if (! $printerSettings['enabled']) {
-                return false;
-            }
-
-            // Send to printer based on connection type
-            switch ($printerSettings['connection_type']) {
-                case 'usb':
-                    return $this->printToUSB($receipt['thermal'], $printerSettings);
-                case 'network':
-                    return $this->printToNetwork($receipt['thermal'], $printerSettings);
-                case 'bluetooth':
-                    return $this->printToBluetooth($receipt['thermal'], $printerSettings);
-                default:
-                    return false;
-            }
-        } catch (\Exception $e) {
-            $this->logError('Receipt printing failed', [
-                'sale_id' => $sale->id,
-                'error' => $e->getMessage(),
-            ]);
-
-            return false;
-        }
     }
 
     /**
@@ -238,7 +337,7 @@ class ReceiptService extends BaseService
             file_put_contents($device, $content);
 
             return true;
-        } catch (\Exception $e) {
+        } catch (Exception) {
             return false;
         }
     }
@@ -262,7 +361,7 @@ class ReceiptService extends BaseService
             socket_close($socket);
 
             return true;
-        } catch (\Exception $e) {
+        } catch (Exception) {
             return false;
         }
     }
@@ -270,7 +369,7 @@ class ReceiptService extends BaseService
     /**
      * Print to Bluetooth thermal printer
      */
-    private function printToBluetooth(string $content, array $settings): bool
+    private function printToBluetooth(): bool
     {
         // Bluetooth printing would require platform-specific implementation
         // This is a placeholder for future implementation
@@ -282,53 +381,24 @@ class ReceiptService extends BaseService
      */
     private function getPrinterSettings(): array
     {
-        return $this->remember('printer_settings', function () {
-            return Setting::whereIn('key', [
-                'printer_enabled',
-                'printer_connection_type',
-                'printer_usb_device',
-                'printer_network_ip',
-                'printer_network_port',
-                'printer_paper_width',
-                'printer_auto_print',
-            ])
-                ->pluck('value', 'key')
-                ->mapWithKeys(function ($value, $key) {
-                    // Convert string booleans to actual booleans
-                    if (in_array($value, ['true', 'false'])) {
-                        $value = $value === 'true';
-                    }
+        return $this->remember('printer_settings', fn () => Setting::whereIn('key', [
+            'printer_enabled',
+            'printer_connection_type',
+            'printer_usb_device',
+            'printer_network_ip',
+            'printer_network_port',
+            'printer_paper_width',
+            'printer_auto_print',
+        ])
+            ->pluck('value', 'key')
+            ->mapWithKeys(function ($value, $key) {
+                // Convert string booleans to actual booleans
+                if (in_array($value, ['true', 'false'])) {
+                    $value = $value === 'true';
+                }
 
-                    return [str_replace('printer_', '', $key) => $value];
-                })
-                ->toArray();
-        }, 300);
-    }
-
-    /**
-     * Save receipt to storage for later retrieval
-     */
-    public function saveReceipt(Sale $sale): string
-    {
-        $receipt = $this->generateReceipt($sale);
-        $filename = "receipts/{$sale->store_id}/{$sale->created_at->format('Y/m')}/receipt-{$sale->id}.html";
-
-        Storage::disk('local')->put($filename, $receipt['html']);
-
-        return $filename;
-    }
-
-    /**
-     * Get saved receipt
-     */
-    public function getStoredReceipt(Sale $sale): ?string
-    {
-        $filename = "receipts/{$sale->store_id}/{$sale->created_at->format('Y/m')}/receipt-{$sale->id}.html";
-
-        if (Storage::disk('local')->exists($filename)) {
-            return Storage::disk('local')->get($filename);
-        }
-
-        return null;
+                return [str_replace('printer_', '', $key) => $value];
+            })
+            ->toArray(), 300);
     }
 }

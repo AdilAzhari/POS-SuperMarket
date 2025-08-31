@@ -1,11 +1,13 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Services;
 
 use Exception;
 use Illuminate\Support\Facades\DB;
 
-class PerformanceService extends BaseService
+final class PerformanceService extends BaseService
 {
     protected string $cachePrefix = 'performance:';
 
@@ -18,7 +20,7 @@ class PerformanceService extends BaseService
 
         return $this->remember(
             'slow_queries',
-            fn () => [
+            fn (): array => [
                 'enabled' => config('app.debug'),
                 'queries' => DB::getQueryLog(),
                 'total_queries' => count(DB::getQueryLog()),
@@ -48,7 +50,7 @@ class PerformanceService extends BaseService
 
         return $this->remember(
             'cache_stats',
-            fn () => [
+            fn (): array => [
                 'cache_driver' => config('cache.default'),
                 'cache_prefix' => config('cache.prefix'),
                 'suggestions' => [
@@ -68,7 +70,7 @@ class PerformanceService extends BaseService
 
         return $this->remember(
             'db_metrics',
-            fn () => [
+            fn (): array => [
                 'connection' => config('database.default'),
                 'table_sizes' => $this->getTableSizes(),
                 'index_usage' => $this->getIndexUsageStats(),
@@ -76,6 +78,21 @@ class PerformanceService extends BaseService
             ],
             1800 // 30 minutes
         );
+    }
+
+    public function getMemoryUsage(): array
+    {
+        return [
+            'memory_limit' => ini_get('memory_limit'),
+            'memory_usage' => round(memory_get_usage(true) / 1024 / 1024, 2).' MB',
+            'peak_memory' => round(memory_get_peak_usage(true) / 1024 / 1024, 2).' MB',
+            'suggestions' => [
+                'Monitor memory usage in production',
+                'Use generators for large datasets',
+                'Implement proper pagination',
+                'Clear unnecessary variables and objects',
+            ],
+        ];
     }
 
     private function getTableSizes(): array
@@ -144,21 +161,6 @@ class PerformanceService extends BaseService
             'Implement proper backup strategies',
             'Monitor connection pool usage',
             'Use read replicas for heavy read workloads',
-        ];
-    }
-
-    public function getMemoryUsage(): array
-    {
-        return [
-            'memory_limit' => ini_get('memory_limit'),
-            'memory_usage' => round(memory_get_usage(true) / 1024 / 1024, 2).' MB',
-            'peak_memory' => round(memory_get_peak_usage(true) / 1024 / 1024, 2).' MB',
-            'suggestions' => [
-                'Monitor memory usage in production',
-                'Use generators for large datasets',
-                'Implement proper pagination',
-                'Clear unnecessary variables and objects',
-            ],
         ];
     }
 }

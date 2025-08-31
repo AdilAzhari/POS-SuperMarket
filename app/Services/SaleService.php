@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Services;
 
 use App\DTOs\CreateSaleDTO;
@@ -16,25 +18,9 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Throwable;
 
-class SaleService extends BaseService
+final class SaleService extends BaseService
 {
     protected string $cachePrefix = 'sales:';
-
-    protected function logInfo(string $message, array $context = []): void
-    {
-
-        Log::channel('sales')->info("[{$this->getServiceName()}] $message", $context);
-    }
-
-    protected function logError(string $message, array $context = []): void
-    {
-        Log::channel('sales')->error("[{$this->getServiceName()}] $message", $context);
-    }
-
-    protected function logWarning(string $message, array $context = []): void
-    {
-        Log::channel('sales')->warning("[{$this->getServiceName()}] $message", $context);
-    }
 
     public function __construct(
         private readonly StockService $stockService,
@@ -52,7 +38,7 @@ class SaleService extends BaseService
                 'store:id,name',
                 'customer:id,name,email',
                 'cashier:id,name',
-                'items:id,sale_id,product_name,quantity,price,line_total',
+                'items:id,sale_id,product_name,sku,quantity,price,discount,tax,line_total',
             ])
                 ->completed()
                 ->orderByDesc('created_at')
@@ -163,6 +149,86 @@ class SaleService extends BaseService
         }
     }
 
+    public function getSalesAnalytics(int $storeId, int $days = 30): array
+    {
+        $this->logInfo('Fetching sales analytics', ['store_id' => $storeId, 'days' => $days]);
+
+        return $this->remember(
+            "analytics:store:{$storeId}:days:$days",
+            fn (): array => [
+                'total_sales' => Sale::byStore($storeId)
+                    ->completed()
+                    ->where('created_at', '>=', now()->subDays($days))
+                    ->sum('total'),
+                'sales_count' => Sale::byStore($storeId)
+                    ->completed()
+                    ->where('created_at', '>=', now()->subDays($days))
+                    ->count(),
+                'avg_sale_value' => Sale::byStore($storeId)
+                    ->completed()
+                    ->where('created_at', '>=', now()->subDays($days))
+                    ->avg('total'),
+                'daily_sales' => Sale::byStore($storeId)
+                    ->completed()
+                    ->where('created_at', '>=', now()->subDays($days))
+                    ->selectRaw('DATE(created_at) as date, SUM(total) as total, COUNT(*) as count')
+                    ->groupBy('date')
+                    ->orderBy('date')
+                    ->get()
+                    ->keyBy('date'),
+            ],
+            1800 // 30 minutes cache
+        );
+    }
+
+    public function getTodaySales(int $storeId): array
+    {
+        $this->logInfo('Fetching today sales', ['store_id' => $storeId]);
+
+        return $this->remember(
+            "today:store:$storeId:".today()->format('Y-m-d'),
+            fn (): array => [
+                'total' => Sale::byStore($storeId)->today()->completed()->sum('total'),
+                'count' => Sale::byStore($storeId)->today()->completed()->count(),
+                'items_sold' => Sale::byStore($storeId)->today()->completed()->sum('items_count'),
+            ],
+            300 // 5 minutes cache
+        );
+    }
+
+    public function getPaymentMethodBreakdown(int $storeId, int $days = 30): Collection
+    {
+        $this->logInfo('Fetching payment method breakdown', ['store_id' => $storeId, 'days' => $days]);
+
+        return $this->remember(
+            "payment_methods:store:$storeId:days:$days",
+            fn () => Sale::byStore($storeId)
+                ->completed()
+                ->where('created_at', '>=', now()->subDays($days))
+                ->selectRaw('payment_method, SUM(total) as total, COUNT(*) as count')
+                ->groupBy('payment_method')
+                ->orderByDesc('total')
+                ->get(),
+            1800 // 30 minutes cache
+        );
+    }
+
+    protected function logInfo(string $message, array $context = []): void
+    {
+
+        Log::channel('sales')->info("[{$this->getServiceName()}] $message", $context);
+    }
+
+    protected function logError(string $message, array $context = []): void
+    {
+        Log::channel('sales')->error("[{$this->getServiceName()}] $message", $context);
+    }
+
+    protected function logWarning(string $message, array $context = []): void
+    {
+        Log::channel('sales')->warning("[{$this->getServiceName()}] $message", $context);
+    }
+
     private function generateTransactionCode(): string
     {
         $attempts = 0;
@@ -171,8 +237,8 @@ class SaleService extends BaseService
         do {
             // Generate a unique code using timestamp, microseconds and random number
             $timestamp = now()->format('ymdHis');
-            $microseconds = str_pad((string) (microtime(true) * 1000 % 1000), 3, '0', STR_PAD_LEFT);
-            $random = str_pad((string) rand(100, 999), 3, '0', STR_PAD_LEFT);
+            $microseconds = mb_str_pad((string) (microtime(true) * 1000 % 1000), 3, '0', STR_PAD_LEFT);
+            $random = mb_str_pad((string) random_int(100, 999), 3, '0', STR_PAD_LEFT);
             $code = "TXN-{$timestamp}-{$microseconds}-{$random}";
 
             // Check if code already exists
@@ -189,7 +255,7 @@ class SaleService extends BaseService
         } while ($attempts < $maxAttempts);
 
         // Fallback: use UUID if all attempts failed
-        $uuid = str_replace('-', '', substr((string) \Illuminate\Support\Str::uuid(), 0, 12));
+        $uuid = str_replace('-', '', mb_substr((string) \Illuminate\Support\Str::uuid(), 0, 12));
 
         return "TXN-{$uuid}";
     }
@@ -271,70 +337,6 @@ class SaleService extends BaseService
         ]);
 
         return $loyaltyResult;
-    }
-
-    public function getSalesAnalytics(int $storeId, int $days = 30): array
-    {
-        $this->logInfo('Fetching sales analytics', ['store_id' => $storeId, 'days' => $days]);
-
-        return $this->remember(
-            "analytics:store:{$storeId}:days:$days",
-            fn () => [
-                'total_sales' => Sale::byStore($storeId)
-                    ->completed()
-                    ->where('created_at', '>=', now()->subDays($days))
-                    ->sum('total'),
-                'sales_count' => Sale::byStore($storeId)
-                    ->completed()
-                    ->where('created_at', '>=', now()->subDays($days))
-                    ->count(),
-                'avg_sale_value' => Sale::byStore($storeId)
-                    ->completed()
-                    ->where('created_at', '>=', now()->subDays($days))
-                    ->avg('total'),
-                'daily_sales' => Sale::byStore($storeId)
-                    ->completed()
-                    ->where('created_at', '>=', now()->subDays($days))
-                    ->selectRaw('DATE(created_at) as date, SUM(total) as total, COUNT(*) as count')
-                    ->groupBy('date')
-                    ->orderBy('date')
-                    ->get()
-                    ->keyBy('date'),
-            ],
-            1800 // 30 minutes cache
-        );
-    }
-
-    public function getTodaySales(int $storeId): array
-    {
-        $this->logInfo('Fetching today sales', ['store_id' => $storeId]);
-
-        return $this->remember(
-            "today:store:$storeId:".today()->format('Y-m-d'),
-            fn () => [
-                'total' => Sale::byStore($storeId)->today()->completed()->sum('total'),
-                'count' => Sale::byStore($storeId)->today()->completed()->count(),
-                'items_sold' => Sale::byStore($storeId)->today()->completed()->sum('items_count'),
-            ],
-            300 // 5 minutes cache
-        );
-    }
-
-    public function getPaymentMethodBreakdown(int $storeId, int $days = 30): Collection
-    {
-        $this->logInfo('Fetching payment method breakdown', ['store_id' => $storeId, 'days' => $days]);
-
-        return $this->remember(
-            "payment_methods:store:$storeId:days:$days",
-            fn () => Sale::byStore($storeId)
-                ->completed()
-                ->where('created_at', '>=', now()->subDays($days))
-                ->selectRaw('payment_method, SUM(total) as total, COUNT(*) as count')
-                ->groupBy('payment_method')
-                ->orderByDesc('total')
-                ->get(),
-            1800 // 30 minutes cache
-        );
     }
 
     private function clearSalesCaches(): void
