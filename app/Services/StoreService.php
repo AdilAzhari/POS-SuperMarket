@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Services;
 
 use App\Models\Product;
@@ -8,7 +10,7 @@ use Exception;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Facades\DB;
 
-class StoreService extends BaseService
+final class StoreService extends BaseService
 {
     protected string $cachePrefix = 'store:';
 
@@ -34,7 +36,7 @@ class StoreService extends BaseService
 
         if (isset($filters['search'])) {
             $search = $filters['search'];
-            $query->where(function ($q) use ($search) {
+            $query->where(function ($q) use ($search): void {
                 $q->where('name', 'like', "%$search%")
                     ->orWhere('address', 'like', "%$search%")
                     ->orWhere('phone', 'like', "%$search%")
@@ -128,7 +130,7 @@ class StoreService extends BaseService
      */
     public function getStoreDetails(Store $store): array
     {
-        return $this->remember("store:$store->id:details", function () use ($store) {
+        return $this->remember("store:$store->id:details", function () use ($store): array {
             $store->load(['products', 'sales']);
 
             return [
@@ -208,28 +210,26 @@ class StoreService extends BaseService
      */
     public function getStoresAnalytics(): array
     {
-        return $this->remember('analytics', function () {
+        return $this->remember('analytics', function (): array {
             $stores = Store::query()->withCount(['products', 'sales'])
                 ->withSum('sales', 'total')
                 ->get();
 
             return [
                 'total_stores' => $stores->count(),
-                'stores_with_contact' => $stores->filter(fn ($store) => $store->hasContact())->count(),
+                'stores_with_contact' => $stores->filter(fn ($store): bool => $store->hasContact())->count(),
                 'total_products_across_stores' => $stores->sum('products_count'),
                 'total_sales_amount' => $stores->sum('sales_sum_total') ?? 0,
                 'average_products_per_store' => $stores->count() > 0
                     ? round($stores->sum('products_count') / $stores->count(), 2)
                     : 0,
-                'stores_summary' => $stores->map(function ($store) {
-                    return [
-                        'id' => $store->id,
-                        'name' => $store->name,
-                        'products_count' => $store->products_count,
-                        'sales_count' => $store->sales_count,
-                        'total_sales_amount' => $store->sales_sum_total ?? 0,
-                    ];
-                }),
+                'stores_summary' => $stores->map(fn ($store): array => [
+                    'id' => $store->id,
+                    'name' => $store->name,
+                    'products_count' => $store->products_count,
+                    'sales_count' => $store->sales_count,
+                    'total_sales_amount' => $store->sales_sum_total ?? 0,
+                ]),
             ];
         }, 1800); // Cache for 30 minutes
     }

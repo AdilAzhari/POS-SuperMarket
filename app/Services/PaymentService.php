@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Services;
 
 use App\Enums\PaymentMethod;
@@ -10,17 +12,16 @@ use Exception;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use InvalidArgumentException;
-use Stripe\Exception\ApiErrorException;
 use Stripe\StripeClient;
 
-class PaymentService
+final class PaymentService
 {
     private ?StripeClient $stripe = null;
 
     public function __construct()
     {
         // Initialize Stripe only if the package is available
-        if (class_exists('Stripe\StripeClient')) {
+        if (class_exists(StripeClient::class)) {
             $stripeKey = config('services.stripe.secret');
             if ($stripeKey) {
                 $this->stripe = new StripeClient($stripeKey);
@@ -33,7 +34,7 @@ class PaymentService
      */
     public function processPayment(Sale $sale, array $paymentData): Payment
     {
-        return DB::transaction(function () use ($sale, $paymentData) {
+        return DB::transaction(function () use ($sale, $paymentData): Payment {
             $payment = Payment::query()->create([
                 'sale_id' => $sale->id,
                 'store_id' => $sale->store_id,
@@ -51,6 +52,29 @@ class PaymentService
                 default => throw new InvalidArgumentException("Unsupported payment method: {$paymentData['method']}"),
             };
         });
+    }
+
+    /**
+     * Refund a payment
+     */
+    public function refundPayment(Payment $payment, ?float $amount = null): bool
+    {
+        $refundAmount = $amount ?? $payment->amount;
+
+        try {
+            return match ($payment->payment_method) {
+                PaymentMethod::CARD => $this->refundStripePayment($payment, $refundAmount),
+                PaymentMethod::CASH => $this->refundCashPayment($payment),
+                default => $this->refundGenericPayment($payment),
+            };
+        } catch (Exception $e) {
+            Log::error('Payment refund failed', [
+                'payment_id' => $payment->id,
+                'error' => $e->getMessage(),
+            ]);
+
+            return false;
+        }
     }
 
     /**
@@ -77,60 +101,6 @@ class PaymentService
     }
 
     /**
-     * Process Stripe payment
-     *
-     * @throws ApiErrorException
-     */
-    private function processStripePayment(Payment $payment, array $data): Payment
-    {
-        try {
-            $paymentIntent = $this->stripe->paymentIntents->create([
-                'amount' => (int) ($payment->amount * 100), // Convert to cents
-                'currency' => strtolower($payment->currency),
-                'payment_method' => $data['payment_method_id'] ?? null,
-                'confirmation_method' => 'manual',
-                'confirm' => true,
-                'return_url' => url('/payment/return'),
-                'metadata' => [
-                    'sale_id' => $payment->sale_id,
-                    'payment_id' => $payment->id,
-                    'store_id' => $payment->store_id,
-                ],
-            ]);
-
-            $fee = $this->calculateStripeFee($payment->amount);
-
-            $payment->update([
-                'gateway_transaction_id' => $paymentIntent->id,
-                'gateway_response' => $paymentIntent->toArray(),
-                'fee' => $fee,
-                'net_amount' => $payment->amount - $fee,
-                'status' => $paymentIntent->status === 'succeeded' ? PaymentStatus::COMPLETED : PaymentStatus::PROCESSING,
-                'processed_at' => $paymentIntent->status === 'succeeded' ? now() : null,
-            ]);
-
-            if ($paymentIntent->status === 'succeeded') {
-                Log::info('Stripe payment completed', [
-                    'payment_id' => $payment->id,
-                    'intent_id' => $paymentIntent->id,
-                ]);
-            }
-
-            return $payment;
-
-        } catch (Exception $e) {
-            $payment->markAsFailed($e->getMessage());
-
-            Log::error('Stripe payment failed', [
-                'payment_id' => $payment->id,
-                'error' => $e->getMessage(),
-            ]);
-
-            throw $e;
-        }
-    }
-
-    /**
      * Process card payment (via bank gateway or other card processor)
      *
      * @throws Exception
@@ -153,9 +123,9 @@ class PaymentService
                     'processed_at' => now(),
                     'fee' => $fee,
                     'net_amount' => $payment->amount - $fee,
-                    'gateway_reference' => 'CARD-'.strtoupper(uniqid()),
-                    'gateway_transaction_id' => 'TXN_'.time().'_'.rand(1000, 9999),
-                    'card_last_four' => substr(str_replace(' ', '', $cardNumber), -4),
+                    'gateway_reference' => 'CARD-'.mb_strtoupper(uniqid()),
+                    'gateway_transaction_id' => 'TXN_'.time().'_'.random_int(1000, 9999),
+                    'card_last_four' => mb_substr(str_replace(' ', '', $cardNumber), -4),
                     'card_brand' => $cardBrand,
                     'card_exp_month' => $data['exp_month'] ?? null,
                     'card_exp_year' => $data['exp_year'] ?? null,
@@ -164,7 +134,7 @@ class PaymentService
                 Log::info('Card payment completed', [
                     'payment_id' => $payment->id,
                     'card_brand' => $cardBrand,
-                    'last_four' => substr(str_replace(' ', '', $cardNumber), -4),
+                    'last_four' => mb_substr(str_replace(' ', '', $cardNumber), -4),
                 ]);
             } else {
                 $payment->markAsFailed('Card payment declined');
@@ -200,7 +170,7 @@ class PaymentService
             // Simulate TNG payment processing
             // In real implementation, integrate with TNG API
 
-            $tngResponse = $this->simulateTngPayment($data);
+            $tngResponse = $this->simulateTngPayment();
 
             if ($tngResponse['success']) {
                 $fee = $this->calculateTngFee($payment->amount);
@@ -244,14 +214,6 @@ class PaymentService
     }
 
     /**
-     * Calculate Stripe processing fee (2.9% + MYR 0.50)
-     */
-    private function calculateStripeFee(float $amount): float
-    {
-        return round(($amount * 0.029) + 0.50, 2);
-    }
-
-    /**
      * Calculate card processing fee
      */
     private function calculateCardFee(float $amount, PaymentMethod $paymentMethod): float
@@ -280,18 +242,23 @@ class PaymentService
     private function detectCardBrand(string $cardNumber): string
     {
         $cleanNumber = preg_replace('/\D/', '', $cardNumber);
-
-        if (preg_match('/^4/', $cleanNumber)) {
+        if (preg_match('/^4/', (string) $cleanNumber)) {
             return 'visa';
-        } elseif (preg_match('/^5[1-5]|^2[2-7]/', $cleanNumber)) {
+        }
+        if (preg_match('/^5[1-5]|^2[2-7]/', (string) $cleanNumber)) {
             return 'mastercard';
-        } elseif (preg_match('/^3[47]/', $cleanNumber)) {
+        }
+        if (preg_match('/^3[47]/', (string) $cleanNumber)) {
             return 'amex';
-        } elseif (preg_match('/^6(?:011|5)/', $cleanNumber)) {
+        }
+        if (preg_match('/^6(?:011|5)/', (string) $cleanNumber)) {
             return 'discover';
-        } elseif (preg_match('/^3[0689]/', $cleanNumber)) {
+        }
+        if (preg_match('/^3[0689]/', (string) $cleanNumber)) {
             return 'diners';
-        } elseif (preg_match('/^35/', $cleanNumber)) {
+        }
+
+        if (preg_match('/^35/', (string) $cleanNumber)) {
             return 'jcb';
         }
 
@@ -318,45 +285,23 @@ class PaymentService
 
         $successRate = $successRates[$cardBrand] ?? $successRates['default'];
 
-        return rand(1, 100) <= $successRate;
+        return random_int(1, 100) <= $successRate;
     }
 
     /**
      * Simulate TNG payment (replace with real TNG integration)
      */
-    private function simulateTngPayment(array $data): array
+    private function simulateTngPayment(): array
     {
-        $success = rand(1, 100) <= 98; // 98% success rate
+        $success = random_int(1, 100) <= 98;
 
+        // 98% success rate
         return [
             'success' => $success,
-            'reference' => $success ? 'TNG'.time().rand(1000, 9999) : null,
+            'reference' => $success ? 'TNG'.time().random_int(1000, 9999) : null,
             'transaction_id' => $success ? 'TXN'.uniqid() : null,
             'message' => $success ? 'Payment successful' : 'Insufficient balance or payment declined',
         ];
-    }
-
-    /**
-     * Refund a payment
-     */
-    public function refundPayment(Payment $payment, ?float $amount = null): bool
-    {
-        $refundAmount = $amount ?? $payment->amount;
-
-        try {
-            return match ($payment->payment_method) {
-                PaymentMethod::CARD => $this->refundStripePayment($payment, $refundAmount),
-                PaymentMethod::CASH => $this->refundCashPayment($payment, $refundAmount),
-                default => $this->refundGenericPayment($payment, $refundAmount),
-            };
-        } catch (Exception $e) {
-            Log::error('Payment refund failed', [
-                'payment_id' => $payment->id,
-                'error' => $e->getMessage(),
-            ]);
-
-            return false;
-        }
     }
 
     private function refundStripePayment(Payment $payment, float $amount): bool
@@ -385,7 +330,7 @@ class PaymentService
         }
     }
 
-    private function refundCashPayment(Payment $payment, float $amount): bool
+    private function refundCashPayment(Payment $payment): bool
     {
         // Cash refunds are handled manually at POS
         $payment->update([
@@ -396,7 +341,7 @@ class PaymentService
         return true;
     }
 
-    private function refundGenericPayment(Payment $payment, float $amount): bool
+    private function refundGenericPayment(Payment $payment): bool
     {
         // For other payment methods, mark as refunded manually
         $payment->update([

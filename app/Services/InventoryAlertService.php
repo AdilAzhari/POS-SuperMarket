@@ -1,7 +1,10 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Services;
 
+use App\Enums\UserRole;
 use App\Models\Product;
 use App\Models\Store;
 use App\Models\User;
@@ -9,7 +12,7 @@ use Exception;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 
-class InventoryAlertService extends BaseService
+final class InventoryAlertService extends BaseService
 {
     protected string $cachePrefix = 'inventory_alerts:';
 
@@ -25,7 +28,7 @@ class InventoryAlertService extends BaseService
             foreach ($stores as $store) {
                 $lowStockProducts = Product::query()->active()
                     ->lowStock($store->id)
-                    ->with(['category', 'supplier', 'stores' => function ($query) use ($store) {
+                    ->with(['category', 'supplier', 'stores' => function ($query) use ($store): void {
                         $query->where('stores.id', $store->id);
                     }])
                     ->get();
@@ -33,7 +36,7 @@ class InventoryAlertService extends BaseService
                 if ($lowStockProducts->isNotEmpty()) {
                     $alerts[] = [
                         'store' => $store,
-                        'products' => $lowStockProducts->map(function ($product) use ($store) {
+                        'products' => $lowStockProducts->map(function ($product) use ($store): array {
                             $storeData = $product->stores->first();
 
                             return [
@@ -58,28 +61,26 @@ class InventoryAlertService extends BaseService
      */
     public function getLowStockForStore(int $storeId): Collection
     {
-        return $this->remember("store_{$storeId}_low_stock", function () use ($storeId) {
-            return Product::query()->active()
-                ->lowStock($storeId)
-                ->with(['category', 'supplier', 'stores' => function ($query) use ($storeId) {
-                    $query->where('stores.id', $storeId);
-                }])
-                ->get()
-                ->map(function ($product) use ($storeId) {
-                    $storeData = $product->stores->first();
+        return $this->remember("store_{$storeId}_low_stock", fn () => Product::query()->active()
+            ->lowStock($storeId)
+            ->with(['category', 'supplier', 'stores' => function ($query) use ($storeId): void {
+                $query->where('stores.id', $storeId);
+            }])
+            ->get()
+            ->map(function ($product) use ($storeId): array {
+                $storeData = $product->stores->first();
 
-                    return [
-                        'product' => $product,
-                        'current_stock' => $storeData->pivot->stock,
-                        'threshold' => $storeData->pivot->low_stock_threshold,
-                        'deficit' => $storeData->pivot->low_stock_threshold - $storeData->pivot->stock,
-                        'severity' => $this->calculateSeverity($storeData->pivot->stock, $storeData->pivot->low_stock_threshold),
-                        'suggested_order_qty' => $this->calculateSuggestedOrderQuantity($product, Store::query()->find($storeId)),
-                        'last_sold' => $this->getLastSoldDate($product->id, $storeId),
-                        'sales_velocity' => $this->calculateSalesVelocity($product->id, $storeId),
-                    ];
-                });
-        }, 300);
+                return [
+                    'product' => $product,
+                    'current_stock' => $storeData->pivot->stock,
+                    'threshold' => $storeData->pivot->low_stock_threshold,
+                    'deficit' => $storeData->pivot->low_stock_threshold - $storeData->pivot->stock,
+                    'severity' => $this->calculateSeverity($storeData->pivot->stock, $storeData->pivot->low_stock_threshold),
+                    'suggested_order_qty' => $this->calculateSuggestedOrderQuantity($product, Store::query()->find($storeId)),
+                    'last_sold' => $this->getLastSoldDate($product->id, $storeId),
+                    'sales_velocity' => $this->calculateSalesVelocity($product->id, $storeId),
+                ];
+            }), 300);
     }
 
     /**
@@ -93,11 +94,11 @@ class InventoryAlertService extends BaseService
 
             foreach ($stores as $store) {
                 $products = Product::active()
-                    ->whereHas('stores', function ($q) use ($store) {
+                    ->whereHas('stores', function ($q) use ($store): void {
                         $q->where('store_id', $store->id)
                             ->whereRaw('product_store.stock = 0 OR product_store.stock <= (product_store.low_stock_threshold * 0.5)');
                     })
-                    ->with(['category', 'stores' => function ($query) use ($store) {
+                    ->with(['category', 'stores' => function ($query) use ($store): void {
                         $query->where('stores.id', $store->id);
                     }])
                     ->get();
@@ -109,7 +110,7 @@ class InventoryAlertService extends BaseService
                         'product' => $product,
                         'current_stock' => $storeData->pivot->stock,
                         'threshold' => $storeData->pivot->low_stock_threshold,
-                        'is_out_of_stock' => $storeData->pivot->stock == 0,
+                        'is_out_of_stock' => $storeData->pivot->stock === 0,
                         'suggested_order_qty' => $this->calculateSuggestedOrderQuantity($product, $store),
                     ]);
                 }
@@ -128,7 +129,7 @@ class InventoryAlertService extends BaseService
             $lowStockProducts = $this->getLowStockForStore($storeId);
             $store = Store::query()->find($storeId);
 
-            return $lowStockProducts->map(function ($item) {
+            return $lowStockProducts->map(function (array $item): array {
                 $product = $item['product'];
                 $suggestedQty = $item['suggested_order_qty'];
                 $estimatedCost = $suggestedQty * $product->cost;
@@ -155,12 +156,12 @@ class InventoryAlertService extends BaseService
         $lowStockData = $this->getLowStockProducts();
         $criticalStock = $this->getCriticalLowStock();
 
-        if (empty($lowStockData) && $criticalStock->isEmpty()) {
+        if ($lowStockData === [] && $criticalStock->isEmpty()) {
             return 0;
         }
 
         // Get managers and store managers to notify
-        $managers = User::query()->whereIn('role', ['manager', 'admin'])->get();
+        $managers = User::query()->whereIn('role', [UserRole::MANAGER, UserRole::ADMIN])->get();
         $alertsSent = 0;
 
         foreach ($managers as $manager) {
@@ -186,11 +187,76 @@ class InventoryAlertService extends BaseService
     }
 
     /**
+     * Update low stock thresholds based on sales patterns
+     */
+    public function updateOptimalThresholds(int $storeId): int
+    {
+        $products = Product::query()->active()->whereHas('stores', function ($q) use ($storeId): void {
+            $q->where('stores.id', $storeId);
+        })->get();
+
+        $updated = 0;
+
+        foreach ($products as $product) {
+            $currentThreshold = $product->stores()->where('stores.id', $storeId)->first()?->pivot->low_stock_threshold ?? 10;
+            $salesVelocity = $this->calculateSalesVelocity($product->id, $storeId, 60); // 60-day average
+
+            // Calculate optimal threshold: (average daily sales * lead time) + safety stock
+            $leadTime = 7; // days
+            $safetyStockDays = 3;
+            $optimalThreshold = ceil($salesVelocity * ($leadTime + $safetyStockDays));
+
+            // Don't set threshold too low or too high
+            $optimalThreshold = max(5, min($optimalThreshold, 100));
+
+            // Only update if significantly different (more than 20% difference)
+            if (abs($optimalThreshold - $currentThreshold) / $currentThreshold > 0.2) {
+                $product->stores()->updateExistingPivot($storeId, [
+                    'low_stock_threshold' => $optimalThreshold,
+                ]);
+                $updated++;
+
+                $this->logInfo('Updated low stock threshold', [
+                    'product_id' => $product->id,
+                    'store_id' => $storeId,
+                    'old_threshold' => $currentThreshold,
+                    'new_threshold' => $optimalThreshold,
+                    'sales_velocity' => $salesVelocity,
+                ]);
+            }
+        }
+
+        return $updated;
+    }
+
+    /**
+     * Clear inventory alerts cache
+     */
+    public function clearCache(): void
+    {
+        $cacheKeys = [
+            'low_stock_all',
+            'critical_low_stock',
+        ];
+
+        foreach ($cacheKeys as $key) {
+            $this->forget($key);
+        }
+
+        // Clear store-specific caches
+        $stores = Store::all();
+        foreach ($stores as $store) {
+            $this->forget("store_{$store->id}_low_stock");
+            $this->forget("reorder_suggestions_$store->id");
+        }
+    }
+
+    /**
      * Calculate severity level (1-5, where 5 is most critical)
      */
     private function calculateSeverity(int $currentStock, int $threshold): int
     {
-        if ($currentStock == 0) {
+        if ($currentStock === 0) {
             return 5; // Out of stock
         }
 
@@ -235,7 +301,7 @@ class InventoryAlertService extends BaseService
      */
     private function calculateSalesVelocity(int $productId, int $storeId, int $days = 30): float
     {
-        return $this->remember("velocity_{$productId}_{$storeId}_$days", function () use ($productId, $storeId, $days) {
+        return $this->remember("velocity_{$productId}_{$storeId}_$days", function () use ($productId, $storeId, $days): int|float {
             $totalSold = DB::table('sale_items')
                 ->join('sales', 'sale_items.sale_id', '=', 'sales.id')
                 ->where('sale_items.product_id', $productId)
@@ -303,70 +369,5 @@ class InventoryAlertService extends BaseService
             'total_low_stock' => $totalLowStock,
             'critical_items' => $criticalStock->count(),
         ]);
-    }
-
-    /**
-     * Update low stock thresholds based on sales patterns
-     */
-    public function updateOptimalThresholds(int $storeId): int
-    {
-        $products = Product::query()->active()->whereHas('stores', function ($q) use ($storeId) {
-            $q->where('stores.id', $storeId);
-        })->get();
-
-        $updated = 0;
-
-        foreach ($products as $product) {
-            $currentThreshold = $product->stores()->where('stores.id', $storeId)->first()?->pivot->low_stock_threshold ?? 10;
-            $salesVelocity = $this->calculateSalesVelocity($product->id, $storeId, 60); // 60-day average
-
-            // Calculate optimal threshold: (average daily sales * lead time) + safety stock
-            $leadTime = 7; // days
-            $safetyStockDays = 3;
-            $optimalThreshold = ceil($salesVelocity * ($leadTime + $safetyStockDays));
-
-            // Don't set threshold too low or too high
-            $optimalThreshold = max(5, min($optimalThreshold, 100));
-
-            // Only update if significantly different (more than 20% difference)
-            if (abs($optimalThreshold - $currentThreshold) / $currentThreshold > 0.2) {
-                $product->stores()->updateExistingPivot($storeId, [
-                    'low_stock_threshold' => $optimalThreshold,
-                ]);
-                $updated++;
-
-                $this->logInfo('Updated low stock threshold', [
-                    'product_id' => $product->id,
-                    'store_id' => $storeId,
-                    'old_threshold' => $currentThreshold,
-                    'new_threshold' => $optimalThreshold,
-                    'sales_velocity' => $salesVelocity,
-                ]);
-            }
-        }
-
-        return $updated;
-    }
-
-    /**
-     * Clear inventory alerts cache
-     */
-    public function clearCache(): void
-    {
-        $cacheKeys = [
-            'low_stock_all',
-            'critical_low_stock',
-        ];
-
-        foreach ($cacheKeys as $key) {
-            $this->forget($key);
-        }
-
-        // Clear store-specific caches
-        $stores = Store::all();
-        foreach ($stores as $store) {
-            $this->forget("store_{$store->id}_low_stock");
-            $this->forget("reorder_suggestions_$store->id");
-        }
     }
 }

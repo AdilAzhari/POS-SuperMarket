@@ -1,20 +1,25 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Providers;
 
+use App\Services\ProductService;
+use App\Services\SaleService;
+use App\Services\StockService;
 use Illuminate\Support\Facades\Vite;
 use Illuminate\Support\ServiceProvider;
 
-class AppServiceProvider extends ServiceProvider
+final class AppServiceProvider extends ServiceProvider
 {
     /**
      * Register any application services.
      */
     public function register(): void
     {
-        $this->app->singleton(\App\Services\StockService::class);
-        $this->app->singleton(\App\Services\SaleService::class);
-        $this->app->singleton(\App\Services\ProductService::class);
+        $this->app->singleton(StockService::class);
+        $this->app->singleton(SaleService::class);
+        $this->app->singleton(ProductService::class);
     }
 
     /**

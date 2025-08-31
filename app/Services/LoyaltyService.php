@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Services;
 
 use App\Models\Customer;
@@ -8,7 +10,7 @@ use App\Models\Sale;
 use Exception;
 use Illuminate\Support\Facades\DB;
 
-class LoyaltyService extends BaseService
+final class LoyaltyService extends BaseService
 {
     protected string $cachePrefix = 'loyalty:';
 
@@ -23,7 +25,7 @@ class LoyaltyService extends BaseService
             return ['points_earned' => 0, 'tier_upgraded' => false];
         }
 
-        return DB::transaction(function () use ($sale) {
+        return DB::transaction(function () use ($sale): array {
             $customer = $sale->customer;
 
             // Update customer totals
@@ -84,7 +86,7 @@ class LoyaltyService extends BaseService
         $discountAmount = min($discountAmount, $maxDiscount);
         $actualPointsUsed = floor($discountAmount / 0.01);
 
-        return DB::transaction(function () use ($sale, $customer, $actualPointsUsed, $discountAmount) {
+        return DB::transaction(function () use ($sale, $customer, $actualPointsUsed, $discountAmount): array {
             // Apply discount to sale
             $sale->increment('discount', $discountAmount);
             $sale->decrement('total', $discountAmount);
@@ -115,7 +117,7 @@ class LoyaltyService extends BaseService
      */
     public function getCustomerLoyaltySummary(Customer $customer): array
     {
-        return $this->remember("customer:$customer->id:summary", function () use ($customer) {
+        return $this->remember("customer:$customer->id:summary", function () use ($customer): array {
             $recentTransactions = $customer->loyaltyTransactions()
                 ->latest()
                 ->take(10)
@@ -146,7 +148,7 @@ class LoyaltyService extends BaseService
      */
     public function getLoyaltyAnalytics(): array
     {
-        return $this->remember('analytics', function () {
+        return $this->remember('analytics', function (): array {
             $customers = Customer::query()->whereNotNull('loyalty_points')->get();
             $totalCustomers = Customer::query()->count();
             $loyaltyCustomers = $customers->count();
