@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Database\Seeders;
 
 use App\Models\Product;
@@ -7,7 +9,7 @@ use App\Models\Sale;
 use App\Models\SaleItem;
 use Illuminate\Database\Seeder;
 
-class SaleItemSeeder extends Seeder
+final class SaleItemSeeder extends Seeder
 {
     /**
      * Run the database seeds.
@@ -20,6 +22,7 @@ class SaleItemSeeder extends Seeder
 
         if ($sales->isEmpty() || $products->isEmpty()) {
             $this->command->warn('No sales or products found. Please run SaleSeeder and ProductSeeder first.');
+
             return;
         }
 

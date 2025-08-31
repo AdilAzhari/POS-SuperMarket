@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Database\Factories;
 
 use Illuminate\Database\Eloquent\Factories\Factory;
@@ -7,7 +9,7 @@ use Illuminate\Database\Eloquent\Factories\Factory;
 /**
  * @extends \Illuminate\Database\Eloquent\Factories\Factory<\App\Models\Setting>
  */
-class SettingFactory extends Factory
+final class SettingFactory extends Factory
 {
     /**
      * Define the model's default state.
@@ -38,7 +40,7 @@ class SettingFactory extends Factory
      */
     public function appConfig(): static
     {
-        return $this->state(fn (array $attributes) => [
+        return $this->state(fn (array $attributes): array => [
             'key' => 'app_name',
             'value' => 'SuperMarket POS System',
         ]);
@@ -49,7 +51,7 @@ class SettingFactory extends Factory
      */
     public function taxSetting(): static
     {
-        return $this->state(fn (array $attributes) => [
+        return $this->state(fn (array $attributes): array => [
             'key' => 'tax_rate',
             'value' => fake()->randomFloat(2, 5, 25),
         ]);
@@ -60,7 +62,7 @@ class SettingFactory extends Factory
      */
     public function currency(): static
     {
-        return $this->state(fn (array $attributes) => [
+        return $this->state(fn (array $attributes): array => [
             'key' => 'currency',
             'value' => fake()->randomElement(['USD', 'EUR', 'GBP', 'JPY']),
         ]);
@@ -71,7 +73,7 @@ class SettingFactory extends Factory
      */
     public function notification(): static
     {
-        return $this->state(fn (array $attributes) => [
+        return $this->state(fn (array $attributes): array => [
             'key' => 'email_notifications',
             'value' => fake()->boolean(),
         ]);
@@ -82,7 +84,7 @@ class SettingFactory extends Factory
      */
     public function jsonConfig(): static
     {
-        return $this->state(fn (array $attributes) => [
+        return $this->state(fn (array $attributes): array => [
             'key' => 'payment_methods',
             'value' => ['cash', 'card', 'mobile_payment'],
         ]);

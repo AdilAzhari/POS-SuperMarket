@@ -1,5 +1,8 @@
 <?php
 
+declare(strict_types=1);
+
+use App\Enums\UserRole;
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
@@ -11,8 +14,8 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::table('users', function (Blueprint $table) {
-            $table->enum('role', ['admin', 'manager', 'cashier', 'supervisor'])->default('cashier')->after('email');
+        Schema::table('users', function (Blueprint $table): void {
+            $table->enum('role', array_column(UserRole::cases(), 'value'))->default(UserRole::CASHIER->value)->after('email');
             $table->boolean('is_active')->default(true)->after('role');
             $table->string('employee_id')->nullable()->unique()->after('is_active');
             $table->decimal('hourly_rate', 8, 2)->nullable()->after('employee_id');
@@ -29,7 +32,7 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::table('users', function (Blueprint $table) {
+        Schema::table('users', function (Blueprint $table): void {
             $table->dropColumn([
                 'role',
                 'is_active',
