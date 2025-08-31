@@ -1,140 +1,189 @@
 <template>
-  <div class="fixed top-4 right-4 z-50 space-y-2 max-w-sm">
-    <!-- Notification Settings Toggle -->
-    <div v-if="showSettings" class="bg-white rounded-lg shadow-lg p-4 border">
-      <div class="flex items-center justify-between mb-3">
-        <h3 class="text-sm font-medium text-gray-900">Notification Settings</h3>
-        <button
-          @click="showSettings = false"
-          class="text-gray-400 hover:text-gray-600"
-        >
-          <X class="w-4 h-4" />
-        </button>
+  <div class="fixed top-20 right-4 z-50 space-y-3 max-w-md">
+    <!-- Modern Notification Settings Panel -->
+    <div v-if="showSettings" class="bg-white/95 backdrop-blur-sm rounded-2xl shadow-2xl border border-gray-100 overflow-hidden">
+      <div class="px-6 py-4 border-b border-gray-100 bg-gradient-to-r from-gray-50 to-white">
+        <div class="flex items-center justify-between">
+          <div class="flex items-center space-x-2">
+            <Settings class="h-5 w-5 text-gray-600" />
+            <h3 class="text-lg font-semibold text-gray-900">Settings</h3>
+          </div>
+          <button
+            @click="showSettings = false"
+            class="p-2 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100 transition-colors"
+          >
+            <X class="w-4 h-4" />
+          </button>
+        </div>
       </div>
-      <div class="space-y-3">
-        <label class="flex items-center space-x-2">
+      
+      <div class="px-6 py-4 space-y-4">
+        <label class="flex items-center justify-between">
+          <div class="flex items-center space-x-3">
+            <div class="p-2 bg-blue-100 rounded-lg">
+              <svg class="w-4 h-4 text-blue-600" fill="currentColor" viewBox="0 0 20 20">
+                <path d="M18 3a1 1 0 00-1.196-.98L10 2.89A3.001 3.001 0 00.804 2.02a1 1 0 101.196.98L2 3a3 3 0 106 0L10 4.91l5.196-.98L16 4a3.001 3.001 0 102-1z"></path>
+              </svg>
+            </div>
+            <span class="text-sm font-medium text-gray-900">Notification sounds</span>
+          </div>
           <input
             type="checkbox"
             :checked="notificationStore.soundEnabled"
             @change="notificationStore.toggleSound()"
-            class="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+            class="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 focus:ring-2"
           />
-          <span class="text-sm text-gray-700">Enable notification sounds</span>
         </label>
-        <div class="flex items-center justify-between">
-          <span class="text-sm text-gray-700">History:</span>
+        
+        <div class="border-t border-gray-100 pt-4">
+          <div class="flex items-center justify-between mb-3">
+            <span class="text-sm font-medium text-gray-900">History Management</span>
+            <span class="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded-full">{{ notificationStore.historyCount }} items</span>
+          </div>
           <div class="flex space-x-2">
             <button
               @click="showHistory = !showHistory"
-              class="text-xs px-2 py-1 bg-blue-100 text-blue-700 rounded hover:bg-blue-200"
+              class="flex-1 text-xs font-medium px-3 py-2 bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 transition-colors"
             >
-              {{ showHistory ? 'Hide' : 'Show' }} ({{ notificationStore.historyCount }})
+              {{ showHistory ? 'Hide History' : 'Show History' }}
             </button>
             <button
               @click="notificationStore.clearHistory()"
-              class="text-xs px-2 py-1 bg-red-100 text-red-700 rounded hover:bg-red-200"
+              class="flex-1 text-xs font-medium px-3 py-2 bg-red-100 text-red-700 rounded-lg hover:bg-red-200 transition-colors"
             >
-              Clear
+              Clear History
             </button>
           </div>
         </div>
+        
         <button
           @click="notificationStore.markAllAsRead()"
-          class="w-full text-xs py-2 bg-gray-100 text-gray-700 rounded hover:bg-gray-200"
+          class="w-full text-sm font-medium py-3 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors"
         >
           Mark All as Read
         </button>
       </div>
     </div>
 
-    <!-- Control Panel -->
-    <div class="flex items-center justify-end space-x-2 mb-2">
+    <!-- Modern Control Panel -->
+    <div class="flex items-center justify-end space-x-2">
       <button
         v-if="notificationStore.hasNotifications"
         @click="notificationStore.clearAll()"
-        class="text-xs px-2 py-1 bg-red-100 text-red-700 rounded hover:bg-red-200"
+        class="px-3 py-2 text-xs font-medium bg-red-100 text-red-700 rounded-lg hover:bg-red-200 transition-colors shadow-sm"
         title="Clear all notifications"
       >
         Clear All
       </button>
       <button
         @click="showSettings = !showSettings"
-        class="p-1 text-gray-500 hover:text-gray-700 rounded"
+        class="p-2.5 text-gray-500 hover:text-gray-700 rounded-lg hover:bg-white hover:shadow-sm transition-all duration-200"
         title="Notification settings"
       >
         <Settings class="w-4 h-4" />
       </button>
     </div>
 
-    <!-- Notification History -->
+    <!-- Enhanced Notification History -->
     <div
       v-if="showHistory"
-      class="bg-white rounded-lg shadow-lg border max-h-60 overflow-y-auto"
+      class="bg-white/95 backdrop-blur-sm rounded-2xl shadow-2xl border border-gray-100 max-h-80 overflow-hidden"
     >
-      <div class="p-3 border-b">
-        <h3 class="text-sm font-medium text-gray-900">Notification History</h3>
-      </div>
-      <div class="p-2 space-y-1">
-        <div
-          v-for="notification in notificationStore.notificationHistory.slice(0, 10)"
-          :key="'history-' + notification.id"
-          class="text-xs p-2 rounded border-l-2"
-          :class="getHistoryItemClass(notification)"
-        >
-          <div class="flex items-center justify-between">
-            <span class="font-medium">{{ notification.title }}</span>
-            <span class="text-gray-500">{{ formatTime(notification.timestamp) }}</span>
-          </div>
-          <p class="text-gray-600 mt-1">{{ notification.message }}</p>
+      <div class="px-6 py-4 border-b border-gray-100 bg-gradient-to-r from-gray-50 to-white">
+        <div class="flex items-center space-x-2">
+          <svg class="w-5 h-5 text-gray-600" fill="currentColor" viewBox="0 0 20 20">
+            <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z" clip-rule="evenodd"></path>
+          </svg>
+          <h3 class="text-lg font-semibold text-gray-900">History</h3>
         </div>
-        <div v-if="notificationStore.historyCount === 0" class="text-center text-gray-500 py-4">
-          No notifications yet
+      </div>
+      <div class="overflow-y-auto max-h-64">
+        <div class="p-4 space-y-3">
+          <div
+            v-for="notification in notificationStore.notificationHistory.slice(0, 10)"
+            :key="'history-' + notification.id"
+            class="p-3 rounded-xl border border-gray-100 hover:border-gray-200 transition-colors"
+            :class="getHistoryItemClass(notification)"
+          >
+            <div class="flex items-start justify-between">
+              <div class="flex-1">
+                <h4 class="text-sm font-medium text-gray-900">{{ notification.title }}</h4>
+                <p class="text-sm text-gray-600 mt-1">{{ notification.message }}</p>
+              </div>
+              <span class="text-xs text-gray-400 ml-2 whitespace-nowrap">{{ formatTime(notification.timestamp) }}</span>
+            </div>
+          </div>
+          <div v-if="notificationStore.historyCount === 0" class="text-center text-gray-500 py-8">
+            <svg class="w-12 h-12 text-gray-300 mx-auto mb-4" fill="currentColor" viewBox="0 0 20 20">
+              <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z" clip-rule="evenodd"></path>
+            </svg>
+            <p class="text-sm">No notification history</p>
+          </div>
         </div>
       </div>
     </div>
 
-    <!-- Active Notifications -->
-    <TransitionGroup name="notification" tag="div">
+    <!-- Modern Toast Notifications -->
+    <TransitionGroup name="notification" tag="div" class="space-y-3">
       <div
         v-for="notification in notificationStore.notifications"
         :key="notification.id"
         :class="[
-          'rounded-lg p-4 shadow-lg border-l-4 transform transition-all duration-300 cursor-pointer',
+          'rounded-2xl p-5 shadow-2xl border-l-4 transform transition-all duration-300 cursor-pointer backdrop-blur-sm',
           notificationClasses(notification.type),
-          notification.priority === 'urgent' ? 'ring-2 ring-red-400 ring-opacity-50' : '',
-          !notification.read ? 'bg-opacity-100' : 'bg-opacity-75'
+          notification.priority === 'urgent' ? 'ring-2 ring-red-400/50 animate-pulse' : '',
+          !notification.read ? 'bg-opacity-95' : 'bg-opacity-80'
         ]"
         @click="markAsRead(notification)"
+        style="filter: drop-shadow(0 10px 15px rgb(0 0 0 / 0.1))"
       >
-        <div class="flex items-start">
+        <div class="flex items-start space-x-4">
           <div class="flex-shrink-0">
-            <component 
-              :is="getIcon(notification.type)" 
-              :class="['h-5 w-5', getIconColor(notification.type)]"
-            />
+            <div :class="[
+              'p-2.5 rounded-full',
+              getIconBgClass(notification.type)
+            ]">
+              <component 
+                :is="getIcon(notification.type)" 
+                :class="['h-5 w-5', getIconColor(notification.type)]"
+              />
+            </div>
           </div>
-          <div class="ml-3 flex-1">
-            <h4 v-if="notification.title" class="text-sm font-medium mb-1">
-              {{ notification.title }}
-            </h4>
-            <p class="text-sm">
-              {{ notification.message }}
-            </p>
-            <div v-if="notification.actions?.length" class="mt-2 flex space-x-2">
+          <div class="flex-1 min-w-0">
+            <div class="flex items-start justify-between">
+              <div class="flex-1">
+                <h4 v-if="notification.title" class="text-sm font-semibold mb-1 text-gray-900">
+                  {{ notification.title }}
+                </h4>
+                <p class="text-sm text-gray-700 leading-5">
+                  {{ notification.message }}
+                </p>
+              </div>
+              <div v-if="notification.priority === 'urgent'" class="ml-2">
+                <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-red-100 text-red-800 ring-1 ring-red-200">
+                  <svg class="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                    <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd"></path>
+                  </svg>
+                  Urgent
+                </span>
+              </div>
+            </div>
+            
+            <div v-if="notification.actions?.length" class="mt-3 flex flex-wrap gap-2">
               <button
                 v-for="action in notification.actions"
                 :key="action.label"
-                @click="action.handler"
-                class="text-xs px-2 py-1 rounded bg-white bg-opacity-20 hover:bg-opacity-30 transition-colors"
+                @click.stop="action.handler"
+                class="text-xs font-medium px-3 py-1.5 rounded-lg bg-white/60 hover:bg-white/80 backdrop-blur-sm border border-white/20 transition-all duration-200 hover:shadow-sm"
               >
                 {{ action.label }}
               </button>
             </div>
           </div>
-          <div class="ml-4 flex-shrink-0">
+          <div class="flex-shrink-0">
             <button
-              @click="notificationStore.removeNotification(notification.id)"
-              class="text-gray-400 hover:text-gray-600 transition-colors"
+              @click.stop="notificationStore.removeNotification(notification.id)"
+              class="p-1.5 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-white/30 transition-colors"
             >
               <X class="h-4 w-4" />
             </button>
@@ -171,6 +220,16 @@ const getIconColor = (type) => {
     case 'warning': return 'text-yellow-600'
     case 'info': return 'text-blue-600'
     default: return 'text-gray-600'
+  }
+}
+
+const getIconBgClass = (type) => {
+  switch (type) {
+    case 'success': return 'bg-green-100'
+    case 'error': return 'bg-red-100'
+    case 'warning': return 'bg-yellow-100'
+    case 'info': return 'bg-blue-100'
+    default: return 'bg-gray-100'
   }
 }
 

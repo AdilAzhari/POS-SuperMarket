@@ -159,41 +159,117 @@
         </table>
       </div>
 
-      <!-- Pagination -->
-      <div v-if="totalPages > 1" class="mt-4 flex items-center justify-between">
-        <div class="text-sm text-gray-500">
-          Showing {{ (currentPage - 1) * itemsPerPage + 1 }} to {{ Math.min(currentPage * itemsPerPage, filteredCustomers.length) }} of {{ filteredCustomers.length }} customers
-        </div>
-        <div class="flex items-center space-x-2">
-          <button
-            @click="currentPage = Math.max(1, currentPage - 1)"
-            :disabled="currentPage === 1"
-            class="px-3 py-1 border rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            Previous
-          </button>
-          <div class="flex space-x-1">
+      <!-- Enhanced Pagination -->
+      <div v-if="totalPages > 1" class="mt-6 bg-white rounded-lg shadow-sm border border-gray-200 p-4">
+        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between space-y-3 sm:space-y-0">
+          <!-- Items Info and Per Page Selector -->
+          <div class="flex flex-col sm:flex-row sm:items-center space-y-2 sm:space-y-0 sm:space-x-4">
+            <div class="text-sm text-gray-600">
+              Showing <span class="font-medium">{{ (currentPage - 1) * itemsPerPage + 1 }}</span>
+              to <span class="font-medium">{{ Math.min(currentPage * itemsPerPage, filteredCustomers.length) }}</span>
+              of <span class="font-medium">{{ filteredCustomers.length }}</span> customers
+            </div>
+            <div class="flex items-center space-x-2">
+              <label class="text-sm text-gray-600">Show:</label>
+              <select
+                v-model="itemsPerPage"
+                @change="currentPage = 1"
+                class="px-2 py-1 text-sm border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              >
+                <option :value="10">10</option>
+                <option :value="20">20</option>
+                <option :value="50">50</option>
+                <option :value="100">100</option>
+              </select>
+              <span class="text-sm text-gray-600">per page</span>
+            </div>
+          </div>
+
+          <!-- Pagination Controls -->
+          <div class="flex items-center justify-center space-x-1">
+            <!-- First Page -->
             <button
-              v-for="page in visiblePages"
-              :key="page"
-              @click="currentPage = page"
-              :class="[
-                'px-3 py-1 border rounded-lg',
-                page === currentPage
-                  ? 'bg-blue-600 text-white border-blue-600'
-                  : 'hover:bg-gray-50'
-              ]"
+              @click="currentPage = 1"
+              :disabled="currentPage === 1"
+              class="px-2 py-2 text-sm font-medium text-gray-500 bg-white border border-gray-300 rounded-l-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              title="First page"
             >
-              {{ page }}
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 19l-7-7 7-7M21 19l-7-7 7-7"/>
+              </svg>
+            </button>
+
+            <!-- Previous Page -->
+            <button
+              @click="currentPage = Math.max(1, currentPage - 1)"
+              :disabled="currentPage === 1"
+              class="px-3 py-2 text-sm font-medium text-gray-500 bg-white border-t border-b border-gray-300 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            >
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
+              </svg>
+            </button>
+
+            <!-- Page Numbers -->
+            <div class="flex space-x-0">
+              <button
+                v-for="page in visiblePages"
+                :key="page"
+                @click="currentPage = page"
+                :class="[
+                  'px-3 py-2 text-sm font-medium border-t border-b border-gray-300 transition-colors',
+                  page === currentPage
+                    ? 'bg-blue-600 text-white border-blue-600 shadow-sm'
+                    : 'bg-white text-gray-700 hover:bg-gray-50'
+                ]"
+              >
+                {{ page }}
+              </button>
+            </div>
+
+            <!-- Next Page -->
+            <button
+              @click="currentPage = Math.min(totalPages, currentPage + 1)"
+              :disabled="currentPage === totalPages"
+              class="px-3 py-2 text-sm font-medium text-gray-500 bg-white border-t border-b border-gray-300 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            >
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+              </svg>
+            </button>
+
+            <!-- Last Page -->
+            <button
+              @click="currentPage = totalPages"
+              :disabled="currentPage === totalPages"
+              class="px-2 py-2 text-sm font-medium text-gray-500 bg-white border border-gray-300 rounded-r-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              title="Last page"
+            >
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 5l7 7-7 7M3 5l7 7-7 7"/>
+              </svg>
             </button>
           </div>
-          <button
-            @click="currentPage = Math.min(totalPages, currentPage + 1)"
-            :disabled="currentPage === totalPages"
-            class="px-3 py-1 border rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            Next
-          </button>
+
+          <!-- Jump to Page -->
+          <div class="flex items-center space-x-2">
+            <span class="text-sm text-gray-600">Go to:</span>
+            <input
+              v-model.number="jumpToPage"
+              @keyup.enter="goToPage"
+              type="number"
+              :min="1"
+              :max="totalPages"
+              class="w-16 px-2 py-1 text-sm border border-gray-300 rounded bg-white text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              placeholder="Page"
+            />
+            <button
+              @click="goToPage"
+              class="px-3 py-1 text-sm font-medium text-white bg-blue-600 rounded hover:bg-blue-700 transition-colors"
+            >
+              Go
+            </button>
+          </div>
         </div>
       </div>
     </div>
@@ -291,6 +367,7 @@ const sortDirection = ref('asc')
 // Pagination
 const currentPage = ref(1)
 const itemsPerPage = ref(20)
+const jumpToPage = ref(null)
 
 // Computed properties
 const hasActiveFilters = computed(() => {
@@ -471,6 +548,13 @@ const clearFilters = () => {
 
 const toggleSortDirection = () => {
   sortDirection.value = sortDirection.value === 'asc' ? 'desc' : 'asc'
+}
+
+const goToPage = () => {
+  if (jumpToPage.value && jumpToPage.value >= 1 && jumpToPage.value <= totalPages.value) {
+    currentPage.value = jumpToPage.value
+    jumpToPage.value = null
+  }
 }
 
 const remove = async id => {

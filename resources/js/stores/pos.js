@@ -97,6 +97,8 @@ export const usePOSStore = defineStore('pos', () => {
       })),
       discount: totalDiscount.value,
       tax: tax.value,
+      loyalty_reward_id: options?.loyaltyReward?.id || null,
+      loyalty_discount: options?.loyaltyReward?.discount || 0,
     }
     
     try {

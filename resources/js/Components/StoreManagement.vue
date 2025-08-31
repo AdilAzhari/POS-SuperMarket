@@ -5,7 +5,7 @@
         <h2 class="text-2xl font-bold text-gray-900">Store Management</h2>
         <p class="text-gray-600 mt-1">Manage your store locations and information</p>
       </div>
-      
+
       <div class="flex flex-col sm:flex-row gap-3">
         <!-- Search Bar -->
         <div class="relative">
@@ -19,9 +19,9 @@
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
           </svg>
         </div>
-        
+
         <!-- Filter Dropdown -->
-        <select 
+        <select
           v-model="selectedFilter"
           class="border border-gray-300 rounded-lg px-3 py-2 focus:ring-blue-500 focus:border-blue-500"
         >
@@ -29,7 +29,7 @@
           <option value="with_contact">With Contact Info</option>
           <option value="without_contact">Without Contact Info</option>
         </select>
-        
+
         <!-- Add Store Button -->
         <button
           @click="openCreateForm"
@@ -58,7 +58,7 @@
           <p class="text-sm text-gray-500">Total Stores</p>
         </div>
       </div>
-      
+
       <div class="bg-white p-6 rounded-lg shadow border border-gray-200">
         <div class="flex items-center">
           <div class="p-2 bg-green-100 rounded-lg">
@@ -72,7 +72,7 @@
           <p class="text-sm text-gray-500">With Contact Info</p>
         </div>
       </div>
-      
+
       <div class="bg-white p-6 rounded-lg shadow border border-gray-200">
         <div class="flex items-center">
           <div class="p-2 bg-purple-100 rounded-lg">
@@ -86,7 +86,7 @@
           <p class="text-sm text-gray-500">Total Products</p>
         </div>
       </div>
-      
+
       <div class="bg-white p-6 rounded-lg shadow border border-gray-200">
         <div class="flex items-center">
           <div class="p-2 bg-yellow-100 rounded-lg">
@@ -124,7 +124,7 @@
             </tr>
           </thead>
           <tbody class="bg-white divide-y divide-gray-200">
-            <tr v-for="store in filteredStores" :key="store.id" class="hover:bg-gray-50">
+            <tr v-for="store in paginatedStores" :key="store.id" class="hover:bg-gray-50">
               <td class="px-6 py-4 whitespace-nowrap">
                 <div class="text-sm font-medium text-gray-900">{{ store.name }}</div>
               </td>
@@ -178,6 +178,139 @@
         </table>
       </div>
 
+      <!-- Pagination -->
+      <div v-if="filteredStores.length > 0" class="bg-white px-4 py-3 border-t border-gray-200 sm:px-6">
+        <div class="flex items-center justify-between">
+          <div class="flex-1 flex justify-between sm:hidden">
+            <button
+              @click="currentPage > 1 && currentPage--"
+              :disabled="currentPage <= 1"
+              class="relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              Previous
+            </button>
+            <button
+              @click="currentPage < totalPages && currentPage++"
+              :disabled="currentPage >= totalPages"
+              class="ml-3 relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              Next
+            </button>
+          </div>
+          <div class="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
+            <div class="flex items-center space-x-4">
+              <p class="text-sm text-gray-700">
+                Showing
+                <span class="font-medium">{{ ((currentPage - 1) * itemsPerPage) + 1 }}</span>
+                to
+                <span class="font-medium">{{ Math.min(currentPage * itemsPerPage, filteredStores.length) }}</span>
+                of
+                <span class="font-medium">{{ filteredStores.length }}</span>
+                results
+              </p>
+              <div class="flex items-center space-x-2">
+                <label for="itemsPerPage" class="text-sm text-gray-700">Items per page:</label>
+                <select
+                  id="itemsPerPage"
+                  v-model="itemsPerPage"
+                  @change="currentPage = 1"
+                  class="border border-gray-300 rounded px-2 py-1 text-sm"
+                >
+                  <option :value="10">10</option>
+                  <option :value="20">20</option>
+                  <option :value="50">50</option>
+                  <option :value="100">100</option>
+                </select>
+              </div>
+            </div>
+            <div class="flex items-center space-x-2">
+              <!-- First Page -->
+              <button
+                @click="currentPage = 1"
+                :disabled="currentPage <= 1"
+                class="relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                title="First page"
+              >
+                <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 19l-7-7 7-7m8 14l-7-7 7-7"/>
+                </svg>
+              </button>
+              
+              <!-- Previous Page -->
+              <button
+                @click="currentPage > 1 && currentPage--"
+                :disabled="currentPage <= 1"
+                class="relative inline-flex items-center px-2 py-2 border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                title="Previous page"
+              >
+                <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
+                </svg>
+              </button>
+              
+              <!-- Page Numbers -->
+              <template v-for="page in visiblePages" :key="page">
+                <button
+                  @click="currentPage = page"
+                  :class="[
+                    'relative inline-flex items-center px-4 py-2 border text-sm font-medium',
+                    page === currentPage
+                      ? 'z-10 bg-blue-50 border-blue-500 text-blue-600'
+                      : 'bg-white border-gray-300 text-gray-500 hover:bg-gray-50'
+                  ]"
+                >
+                  {{ page }}
+                </button>
+              </template>
+              
+              <!-- Next Page -->
+              <button
+                @click="currentPage < totalPages && currentPage++"
+                :disabled="currentPage >= totalPages"
+                class="relative inline-flex items-center px-2 py-2 border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                title="Next page"
+              >
+                <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+                </svg>
+              </button>
+              
+              <!-- Last Page -->
+              <button
+                @click="currentPage = totalPages"
+                :disabled="currentPage >= totalPages"
+                class="relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                title="Last page"
+              >
+                <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 5l7 7-7 7M5 5l7 7-7 7"/>
+                </svg>
+              </button>
+              
+              <!-- Jump to page -->
+              <div class="flex items-center space-x-2 ml-4">
+                <span class="text-sm text-gray-700">Go to:</span>
+                <input
+                  v-model.number="jumpToPage"
+                  @keyup.enter="goToPage"
+                  type="number"
+                  :min="1"
+                  :max="totalPages"
+                  placeholder="Page"
+                  class="border border-gray-300 rounded px-2 py-1 w-16 text-sm text-center"
+                />
+                <button
+                  @click="goToPage"
+                  class="px-3 py-1 bg-blue-600 text-white rounded text-sm hover:bg-blue-700"
+                >
+                  Go
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
       <!-- Empty State -->
       <div v-if="filteredStores.length === 0" class="text-center py-12">
         <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -189,7 +322,7 @@
         <p class="mt-1 text-sm text-gray-500">
           {{ stores.length === 0 ? 'Get started by creating a new store.' : 'Try adjusting your search criteria.' }}
         </p>
-        
+
         <!-- Retry button if no stores loaded -->
         <div v-if="stores.length === 0" class="mt-4">
           <button
@@ -209,7 +342,7 @@
           <h3 class="text-lg font-medium text-gray-900 mb-4">
             {{ isEditing ? 'Edit Store' : 'Add New Store' }}
           </h3>
-          
+
           <form @submit.prevent="submitForm" class="space-y-4">
             <div>
               <label for="name" class="block text-sm font-medium text-gray-700">Store Name *</label>
@@ -300,6 +433,11 @@ const searchQuery = ref('')
 const selectedFilter = ref('all')
 const isLoadingStores = ref(false)
 
+// Pagination
+const currentPage = ref(1)
+const itemsPerPage = ref(20)
+const jumpToPage = ref(null)
+
 const form = ref({
   name: '',
   address: '',
@@ -341,14 +479,50 @@ const totalProducts = computed(() => {
 })
 
 const totalSalesAmount = computed(() => {
-  const total = stores.value.reduce((sum, store) => sum + (store.total_sales_amount || 0), 0)
-  return total.toFixed(2)
+  const total = stores.value.reduce((sum, store) => sum + Number(store.total_sales_amount ?? 0), 0)
+  return Number.isFinite(total) ? total.toFixed(2) : '0.00'
+})
+
+const totalPages = computed(() => Math.ceil(filteredStores.value.length / itemsPerPage.value))
+
+const paginatedStores = computed(() => {
+  const start = (currentPage.value - 1) * itemsPerPage.value
+  const end = start + itemsPerPage.value
+  return filteredStores.value.slice(start, end)
+})
+
+const visiblePages = computed(() => {
+  const total = totalPages.value
+  const current = currentPage.value
+  const delta = 2
+  
+  let start = Math.max(1, current - delta)
+  let end = Math.min(total, current + delta)
+  
+  if (end - start < 2 * delta) {
+    start = Math.max(1, end - 2 * delta)
+    end = Math.min(total, start + 2 * delta)
+  }
+  
+  const pages = []
+  for (let i = start; i <= end; i++) {
+    pages.push(i)
+  }
+  return pages
 })
 
 // Watch for search changes to provide real-time filtering
 watch([searchQuery, selectedFilter], () => {
   // Real-time filtering handled by computed property
+  currentPage.value = 1  // Reset to first page when filtering
 })
+
+const goToPage = () => {
+  if (jumpToPage.value && jumpToPage.value >= 1 && jumpToPage.value <= totalPages.value) {
+    currentPage.value = jumpToPage.value
+    jumpToPage.value = null
+  }
+}
 
 const openCreateForm = () => {
   resetForm()
@@ -390,7 +564,7 @@ const submitForm = async () => {
       await storesStore.createStore(form.value)
       console.log('Store created successfully!')
     }
-    
+
     closeForm()
     await fetchStores()
   } catch (error) {
@@ -399,7 +573,7 @@ const submitForm = async () => {
       console.error('Please fix the validation errors.')
     } else {
       console.error(
-        isEditing.value 
+        isEditing.value
           ? 'Failed to update store. Please try again.'
           : 'Failed to create store. Please try again.'
       )
@@ -461,13 +635,13 @@ const viewStoreDetails = async (store) => {
     if (response.ok) {
       const data = await response.json()
       const details = data.data
-      
+
       let detailsText = `Store: ${store.name}\n\n`
       detailsText += `Products: ${details.store?.total_products || 0}\n`
       detailsText += `Total Stock: ${details.store?.total_stock || 0}\n`
       detailsText += `Sales Amount: $${details.store?.total_sales_amount || 0}\n`
       detailsText += `Low Stock Products: ${details.low_stock_products?.length || 0}\n`
-      
+
       alert(detailsText)
     }
   } catch (error) {
