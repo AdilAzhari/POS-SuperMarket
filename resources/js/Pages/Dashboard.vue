@@ -19,6 +19,7 @@ const componentMap = {
   sales: defineAsyncComponent(() => import('@/Components/SalesHistory.vue')),
   stock: defineAsyncComponent(() => import('@/Components/StockManagement.vue')),
   inventory: defineAsyncComponent(() => import('@/Components/InventoryOverview.vue')),
+  reorder: defineAsyncComponent(() => import('@/Components/ReorderManagement.vue')),
   customers: defineAsyncComponent(() => import('@/Components/CustomerManagement.vue')),
   employees: defineAsyncComponent(() => import('@/Components/EmployeeManagement.vue')),
   categories: defineAsyncComponent(() => import('@/Components/CategoryManagement.vue')),

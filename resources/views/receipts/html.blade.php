@@ -10,83 +10,127 @@
             margin: 0;
             padding: 20px;
             background-color: #f5f5f5;
+            line-height: 1.3;
         }
         .receipt {
             background: white;
-            width: 300px;
+            width: 280px;
             margin: 0 auto;
-            padding: 20px;
+            padding: 16px;
             border: 1px solid #ddd;
             box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            font-size: 12px;
         }
         .header {
             text-align: center;
-            border-bottom: 1px dashed #000;
-            padding-bottom: 10px;
-            margin-bottom: 10px;
+            border-bottom: 1px dashed #666;
+            padding-bottom: 8px;
+            margin-bottom: 8px;
         }
         .store-name {
-            font-size: 18px;
+            font-size: 16px;
             font-weight: bold;
-            margin-bottom: 5px;
+            margin-bottom: 4px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
         }
         .store-info {
-            font-size: 12px;
-            color: #666;
+            font-size: 10px;
+            color: #374151;
+            line-height: 1.1;
         }
         .receipt-info {
-            margin: 10px 0;
-            font-size: 12px;
+            margin: 8px 0;
+            font-size: 10px;
+            text-align: center;
+        }
+        .receipt-title {
+            font-weight: bold;
+            font-size: 14px;
+            margin-bottom: 4px;
         }
         .items {
-            border-top: 1px dashed #000;
-            border-bottom: 1px dashed #000;
-            padding: 10px 0;
-            margin: 10px 0;
+            border-bottom: 1px dashed #666;
+            padding: 8px 0;
+            margin: 8px 0;
         }
         .item {
+            margin-bottom: 4px;
+            font-size: 10px;
+        }
+        .item-row {
             display: flex;
             justify-content: space-between;
-            margin-bottom: 5px;
-            font-size: 12px;
+            align-items: flex-start;
+            margin-bottom: 1px;
         }
         .item-name {
             flex: 1;
-        }
-        .item-qty-price {
-            text-align: center;
-            min-width: 80px;
+            padding-right: 8px;
+            font-weight: 500;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
         }
         .item-total {
             text-align: right;
-            min-width: 60px;
+            font-weight: 500;
+        }
+        .item-details {
+            display: flex;
+            justify-content: space-between;
+            margin-left: 8px;
+            color: #4b5563;
+            font-size: 9px;
+        }
+        .item-discount {
+            display: flex;
+            justify-content: space-between;
+            margin-left: 8px;
+            color: #dc2626;
+            font-size: 9px;
         }
         .totals {
-            margin: 10px 0;
+            margin: 8px 0;
+            font-size: 10px;
         }
         .total-line {
             display: flex;
             justify-content: space-between;
-            margin-bottom: 3px;
-            font-size: 12px;
+            margin-bottom: 2px;
         }
         .grand-total {
-            border-top: 2px solid #000;
-            border-bottom: 2px solid #000;
-            padding: 5px 0;
+            border-top: 3px double #4b5563;
+            border-bottom: 1px dashed #666;
+            padding: 4px 0;
+            margin: 4px 0 8px 0;
             font-weight: bold;
             font-size: 14px;
         }
         .payment-info {
-            margin: 10px 0;
-            font-size: 12px;
+            margin: 8px 0;
+            font-size: 10px;
+            border-bottom: 1px dashed #666;
+            padding-bottom: 8px;
+        }
+        .payment-line {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 2px;
         }
         .footer {
             text-align: center;
-            margin-top: 15px;
-            padding-top: 10px;
-            border-top: 1px dashed #000;
-            font-size: 11px;
+            margin-top: 8px;
+            font-size: 10px;
+        }
+        .thank-you {
+            font-weight: bold;
+            margin-bottom: 4px;
+        }
+        .footer-info {
+            color: #6b7280;
+            font-size: 9px;
+            margin: 2px 0;
         }
         .loyalty-info {
             background-color: #f0f8ff;
@@ -104,8 +148,14 @@
             .receipt {
                 box-shadow: none;
                 border: none;
-                width: 100%;
+                width: 58mm;
+                font-size: 10px;
+                margin: 0;
+                padding: 8px;
             }
+            .store-name { font-size: 12px; }
+            .receipt-title { font-size: 11px; }
+            .grand-total { font-size: 11px; }
         }
     </style>
 </head>
@@ -127,59 +177,103 @@
 
         <!-- Receipt Info -->
         <div class="receipt-info">
-            <div><strong>Receipt:</strong> {{ $receipt_number }}</div>
-            <div><strong>Date:</strong> {{ $sale->created_at->format('Y-m-d H:i:s') }}</div>
-            <div><strong>Cashier:</strong> {{ $sale->cashier->name }}</div>
+            <div class="receipt-title">SALES RECEIPT</div>
+            <div>Receipt #: {{ $receipt_number ?? 'R-000000' }}</div>
+            <div>{{ $sale->created_at ? $sale->created_at->format('m/d/Y, H:i A') : now()->format('m/d/Y, H:i A') }}</div>
+            <div>Cashier: {{ $sale->cashier?->name ?? 'Staff' }}</div>
             @if($sale->customer)
-                <div><strong>Customer:</strong> {{ $sale->customer->name }}</div>
+                <div style="font-weight: 500;">Customer: {{ $sale->customer->name }}</div>
+                @if($sale->customer->phone)
+                    <div style="font-size: 9px;">Phone: {{ $sale->customer->phone }}</div>
+                @endif
             @endif
         </div>
+        <div style="border-bottom: 1px dashed #666; margin: 8px 0;"></div>
 
         <!-- Items -->
         <div class="items">
-            @foreach($sale->items as $item)
-                <div class="item">
-                    <div class="item-name">{{ $item->product_name }}</div>
-                    <div class="item-qty-price">{{ $item->quantity }} × ${{ number_format($item->price, 2) }}</div>
-                    <div class="item-total">${{ number_format($item->line_total, 2) }}</div>
-                </div>
-                @if($item->discount > 0)
-                    <div class="item" style="color: #d33; font-size: 10px;">
-                        <div class="item-name">Item Discount</div>
-                        <div class="item-qty-price"></div>
-                        <div class="item-total">-${{ number_format($item->discount, 2) }}</div>
+            @if($sale->items && $sale->items->count() > 0)
+                @foreach($sale->items as $item)
+                    <div class="item">
+                        <div class="item-row">
+                            <div class="item-name">{{ $item->product_name ?? 'Unknown Item' }}</div>
+                            <div class="item-total">RM {{ number_format($item->line_total ?? ($item->price * $item->quantity), 2) }}</div>
+                        </div>
+                        <div class="item-details">
+                            <div>{{ $item->quantity ?? 1 }} x RM {{ number_format($item->price ?? 0, 2) }}</div>
+                            <div style="font-size: 8px;">SKU: {{ $item->sku ?? $item->product?->sku ?? 'N/A' }}</div>
+                        </div>
+                        @if(($item->discount ?? 0) > 0)
+                            <div class="item-discount">
+                                <div>Item Discount</div>
+                                <div>-RM {{ number_format($item->discount, 2) }}</div>
+                            </div>
+                        @endif
                     </div>
-                @endif
-            @endforeach
+                @endforeach
+            @else
+                <div class="item">
+                    <div class="item-row">
+                        <div class="item-name">No items found</div>
+                        <div class="item-total">RM 0.00</div>
+                    </div>
+                </div>
+            @endif
         </div>
 
         <!-- Totals -->
         <div class="totals">
             <div class="total-line">
                 <span>Subtotal:</span>
-                <span>${{ number_format($sale->subtotal, 2) }}</span>
+                <span>RM {{ number_format($sale->subtotal ?? 0, 2) }}</span>
             </div>
-            @if($sale->discount > 0)
-                <div class="total-line" style="color: #d33;">
+            @if(($sale->discount ?? 0) > 0)
+                <div class="total-line" style="color: #dc2626;">
                     <span>Discount:</span>
-                    <span>-${{ number_format($sale->discount, 2) }}</span>
+                    <span>-RM {{ number_format($sale->discount, 2) }}</span>
                 </div>
             @endif
-            @if($sale->tax > 0)
+            @if(($sale->tax ?? 0) > 0)
                 <div class="total-line">
-                    <span>Tax:</span>
-                    <span>${{ number_format($sale->tax, 2) }}</span>
+                    <span>Tax ({{ $sale->subtotal > 0 ? number_format(($sale->tax / $sale->subtotal) * 100, 1) : '0' }}%):</span>
+                    <span>RM {{ number_format($sale->tax, 2) }}</span>
                 </div>
             @endif
             <div class="total-line grand-total">
                 <span>TOTAL:</span>
-                <span>${{ number_format($sale->total, 2) }}</span>
+                <span>RM {{ number_format($sale->total ?? 0, 2) }}</span>
             </div>
         </div>
 
         <!-- Payment Info -->
         <div class="payment-info">
-            <strong>Payment Method:</strong> {{ ucfirst(str_replace('_', ' ', is_string($sale->payment_method) ? $sale->payment_method : $sale->payment_method->value)) }}
+            <div class="payment-line">
+                <span>Payment:</span>
+                <span style="font-weight: 500;">
+                    {{ strtoupper(ucfirst(str_replace('_', ' ', 
+                        is_string($sale->payment_method ?? 'CASH') ? 
+                        ($sale->payment_method ?? 'CASH') : 
+                        ($sale->payment_method->value ?? 'CASH')
+                    ))) }}
+                </span>
+            </div>
+            @php
+                $paymentDetails = $sale->payment_details ?? [];
+                $cashReceived = $paymentDetails['cash_received'] ?? $sale->total ?? 0;
+                $changeAmount = $paymentDetails['change_amount'] ?? 0;
+            @endphp
+            @if(($sale->payment_method === 'cash' || !$sale->payment_method) && $cashReceived > 0)
+                <div class="payment-line">
+                    <span>Amount Tendered:</span>
+                    <span>RM {{ number_format($cashReceived, 2) }}</span>
+                </div>
+                @if($changeAmount > 0)
+                    <div class="payment-line" style="font-weight: 500;">
+                        <span>Change:</span>
+                        <span>RM {{ number_format($changeAmount, 2) }}</span>
+                    </div>
+                @endif
+            @endif
         </div>
 
         <!-- Loyalty Info -->
@@ -194,17 +288,45 @@
 
         <!-- Footer -->
         <div class="footer">
-            @if($settings['receipt_footer'] ?? null)
-                <div>{{ $settings['receipt_footer'] }}</div>
+            @if(isset($settings['header']) && $settings['header'])
+                @foreach(explode('\n', $settings['header']) as $index => $line)
+                    @if($index === 0)
+                        <div class="thank-you">{{ strtoupper($line) }}</div>
+                    @else
+                        <div style="color: #4b5563; margin-bottom: 8px;">{{ $line }}</div>
+                    @endif
+                @endforeach
+            @else
+                <div class="thank-you">THANK YOU!</div>
+                <div style="color: #4b5563; margin-bottom: 8px;">Please come again</div>
             @endif
-            <div style="margin-top: 10px;">
-                <strong>Thank you for your purchase!</strong>
+            
+            <div class="footer-info">
+                @if($store->email)
+                    <div>{{ $store->email }}</div>
+                @endif
+                @if(isset($settings['footer']) && $settings['footer'])
+                    @foreach(explode('\n', $settings['footer']) as $line)
+                        <div>{{ $line }}</div>
+                    @endforeach
+                @else
+                    <div>Exchange within 7 days with receipt</div>
+                    <div>No refund on sale items</div>
+                @endif
             </div>
-            @if($settings['website'] ?? null)
-                <div style="margin-top: 5px;">{{ $settings['website'] }}</div>
-            @endif
-            <div style="margin-top: 10px; font-size: 10px; color: #999;">
-                Generated: {{ $generated_at->format('Y-m-d H:i:s') }}
+
+            <!-- Simple Barcode -->
+            <div style="margin: 8px 0; font-family: monospace;">
+                <div style="font-size: 9px; margin-bottom: 4px;">{{ $receipt_number }}</div>
+                <div style="display: flex; justify-content: center; gap: 1px;">
+                    @for($i = 0; $i < 24; $i++)
+                        <div style="background: black; width: {{ $i % 4 === 0 || $i % 7 === 0 ? '2px' : '1px' }}; height: 24px;"></div>
+                    @endfor
+                </div>
+            </div>
+            
+            <div class="footer-info">
+                {{ $sale->created_at->format('m/d/y H:i') }} | {{ $sale->cashier->name }}
             </div>
         </div>
     </div>

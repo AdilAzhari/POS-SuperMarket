@@ -5,11 +5,11 @@ import axios from 'axios'
 export const useAppStore = defineStore('app', () => {
   const currentView = ref('pos')
   const selectedStore = ref(1)
-  const darkMode = ref(false)
+  const darkMode = ref(true)
   const userRole = ref('admin')
   const currentUser = ref({
     id: '1',
-    name: 'Admin User',
+    name: 'Admin Users',
     email: 'admin@pos.com',
     role: 'admin',
   })
@@ -39,7 +39,7 @@ export const useAppStore = defineStore('app', () => {
         phone: store.phone,
         email: store.email,
       }))
-      
+
       // Set default selected store if none selected
       if (stores.value.length > 0 && !selectedStore.value) {
         selectedStore.value = stores.value[0].id

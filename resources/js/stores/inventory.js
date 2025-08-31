@@ -1,7 +1,6 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import axios from 'axios'
-// import type { InventoryItem, StockAdjustment } from '@/types'
 
 export const useInventoryStore = defineStore('inventory', () => {
   const inventoryItems = ref([])
@@ -47,13 +46,13 @@ export const useInventoryStore = defineStore('inventory', () => {
     try {
       const { data } = await axios.get('/api/products')
       const products = Array.isArray(data?.data) ? data.data : data
-      
+
       inventoryItems.value = products.map(product => {
         // Find stock for the specific store
         const storeData = product.stores?.find(store => store.id === storeId || store.id === String(storeId))
         const stock = storeData?.pivot?.stock ?? 0
         const lowStockThreshold = storeData?.pivot?.low_stock_threshold ?? product.low_stock_threshold ?? 10
-        
+
         return {
           id: String(product.id),
           name: product.name,
@@ -64,9 +63,12 @@ export const useInventoryStore = defineStore('inventory', () => {
           averageDailySales: 5, // TODO: Calculate from actual sales data
           daysOfStock: Math.round((Number(stock) / 5) * 10) / 10,
           lastRestocked: product.updated_at?.split('T')[0] || new Date().toISOString().split('T')[0],
+          cost: Number(product.cost || 0),
+          price: Number(product.price || 0),
           costValue: Number(product.cost || 0) * Number(stock),
           retailValue: Number(product.price || 0) * Number(stock),
           supplier: product.supplier?.name || 'Unknown Supplier',
+          unit: product.unit || 'pcs',
         }
       })
     } catch (error) {

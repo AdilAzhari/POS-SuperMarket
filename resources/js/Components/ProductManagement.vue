@@ -5,13 +5,23 @@
         <h2 class="text-2xl font-bold text-gray-900">Products</h2>
         <p class="text-gray-600">Add, edit, and manage your catalog</p>
       </div>
-      <button
-        class="inline-flex items-center bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700"
-        @click="openAdd"
-      >
-        <Plus class="w-4 h-4 mr-2" />
-        Add Product
-      </button>
+      <div class="flex items-center gap-3">
+        <button
+          class="inline-flex items-center bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700 disabled:opacity-50"
+          @click="clearProductCache"
+          :disabled="loading.clearCache"
+        >
+          <RefreshCw class="w-4 h-4 mr-2" :class="{ 'animate-spin': loading.clearCache }" />
+          Clear Cache
+        </button>
+        <button
+          class="inline-flex items-center bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700"
+          @click="openAdd"
+        >
+          <Plus class="w-4 h-4 mr-2" />
+          Add Product
+        </button>
+      </div>
     </div>
 
     <div v-if="flashMessage" class="rounded-md p-3" :class="flashClass">
@@ -168,7 +178,7 @@
             </tr>
           </thead>
           <tbody>
-            <tr v-for="p in filtered" :key="p.id" class="border-t">
+            <tr v-for="p in paginatedProducts" :key="p.id" class="border-t">
               <td class="px-4 py-2">
                 <div class="flex items-center gap-3">
                   <img :src="p.image" :alt="p.name" class="w-10 h-10 rounded object-cover" />
@@ -211,42 +221,135 @@
       </div>
 
       <!-- Pagination -->
-      <div v-if="store.pagination.total > 0" class="mt-6 flex items-center justify-between">
-        <div class="text-sm text-gray-700">
-          Showing {{ store.pagination.from }} to {{ store.pagination.to }} of {{ store.pagination.total }} results
-        </div>
-        <div class="flex items-center space-x-2">
-          <button
-            :disabled="store.pagination.current_page === 1"
-            @click="changePage(store.pagination.current_page - 1)"
-            class="px-3 py-2 text-sm border rounded-md disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
-          >
-            Previous
-          </button>
-          
-          <template v-for="page in visiblePages" :key="page">
+      <div v-if="filtered.length > 0" class="bg-white px-4 py-3 border-t border-gray-200 sm:px-6">
+        <div class="flex items-center justify-between">
+          <div class="flex-1 flex justify-between sm:hidden">
             <button
-              v-if="page !== '...'"
-              :class="[
-                'px-3 py-2 text-sm border rounded-md',
-                page === store.pagination.current_page
-                  ? 'bg-blue-600 text-white border-blue-600'
-                  : 'hover:bg-gray-50'
-              ]"
-              @click="changePage(page)"
+              @click="currentPage > 1 && currentPage--"
+              :disabled="currentPage <= 1"
+              class="relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {{ page }}
+              Previous
             </button>
-            <span v-else class="px-3 py-2 text-sm text-gray-500">...</span>
-          </template>
-          
-          <button
-            :disabled="store.pagination.current_page === store.pagination.last_page"
-            @click="changePage(store.pagination.current_page + 1)"
-            class="px-3 py-2 text-sm border rounded-md disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
-          >
-            Next
-          </button>
+            <button
+              @click="currentPage < totalPages && currentPage++"
+              :disabled="currentPage >= totalPages"
+              class="ml-3 relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              Next
+            </button>
+          </div>
+          <div class="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
+            <div class="flex items-center space-x-4">
+              <p class="text-sm text-gray-700">
+                Showing
+                <span class="font-medium">{{ ((currentPage - 1) * itemsPerPage) + 1 }}</span>
+                to
+                <span class="font-medium">{{ Math.min(currentPage * itemsPerPage, filtered.length) }}</span>
+                of
+                <span class="font-medium">{{ filtered.length }}</span>
+                results
+              </p>
+              <div class="flex items-center space-x-2">
+                <label for="itemsPerPage" class="text-sm text-gray-700">Items per page:</label>
+                <select
+                  id="itemsPerPage"
+                  v-model="itemsPerPage"
+                  @change="currentPage = 1"
+                  class="border border-gray-300 rounded px-2 py-1 text-sm"
+                >
+                  <option :value="10">10</option>
+                  <option :value="20">20</option>
+                  <option :value="50">50</option>
+                  <option :value="100">100</option>
+                </select>
+              </div>
+            </div>
+            <div class="flex items-center space-x-2">
+              <!-- First Page -->
+              <button
+                @click="currentPage = 1"
+                :disabled="currentPage <= 1"
+                class="relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                title="First page"
+              >
+                <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 19l-7-7 7-7m8 14l-7-7 7-7"/>
+                </svg>
+              </button>
+              
+              <!-- Previous Page -->
+              <button
+                @click="currentPage > 1 && currentPage--"
+                :disabled="currentPage <= 1"
+                class="relative inline-flex items-center px-2 py-2 border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                title="Previous page"
+              >
+                <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
+                </svg>
+              </button>
+              
+              <!-- Page Numbers -->
+              <template v-for="page in visiblePageNumbers" :key="page">
+                <button
+                  @click="currentPage = page"
+                  :class="[
+                    'relative inline-flex items-center px-4 py-2 border text-sm font-medium',
+                    page === currentPage
+                      ? 'z-10 bg-blue-50 border-blue-500 text-blue-600'
+                      : 'bg-white border-gray-300 text-gray-500 hover:bg-gray-50'
+                  ]"
+                >
+                  {{ page }}
+                </button>
+              </template>
+              
+              <!-- Next Page -->
+              <button
+                @click="currentPage < totalPages && currentPage++"
+                :disabled="currentPage >= totalPages"
+                class="relative inline-flex items-center px-2 py-2 border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                title="Next page"
+              >
+                <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+                </svg>
+              </button>
+              
+              <!-- Last Page -->
+              <button
+                @click="currentPage = totalPages"
+                :disabled="currentPage >= totalPages"
+                class="relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                title="Last page"
+              >
+                <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 5l7 7-7 7M5 5l7 7-7 7"/>
+                </svg>
+              </button>
+              
+              <!-- Jump to page -->
+              <div class="flex items-center space-x-2 ml-4">
+                <span class="text-sm text-gray-700">Go to:</span>
+                <input
+                  v-model.number="jumpToPage"
+                  @keyup.enter="goToPage"
+                  type="number"
+                  :min="1"
+                  :max="totalPages"
+                  placeholder="Page"
+                  class="border border-gray-300 rounded px-2 py-1 w-16 text-sm text-center"
+                />
+                <button
+                  @click="goToPage"
+                  class="px-3 py-1 bg-blue-600 text-white rounded text-sm hover:bg-blue-700"
+                >
+                  Go
+                </button>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     </div>
@@ -392,12 +495,18 @@ import { useCategoriesStore } from '@/stores/categories.js'
 import { useSuppliersStore } from '@/stores/suppliers.js'
 import { useMessageModal } from '@/composables/useModal.js'
 import Modal from '@/Components/Modal.vue'
-import { Edit, Trash2, Plus, Search, X, ChevronUp, ChevronDown } from 'lucide-vue-next'
+import { Edit, Trash2, Plus, Search, X, ChevronUp, ChevronDown, RefreshCw } from 'lucide-vue-next'
+import axios from 'axios'
 
 const store = useProductsStore()
 const categoriesStore = useCategoriesStore()
 const suppliersStore = useSuppliersStore()
 const modal = useMessageModal()
+
+// Loading state
+const loading = reactive({
+  clearCache: false
+})
 
 // Search and Filter state
 const query = ref('')
@@ -413,6 +522,11 @@ const filters = reactive({
 // Sorting state
 const sortBy = ref('name')
 const sortOrder = ref('asc')
+
+// Pagination state
+const currentPage = ref(1)
+const itemsPerPage = ref(20)
+const jumpToPage = ref(null)
 
 // Advanced filtering and sorting logic
 const filtered = computed(() => {
@@ -486,6 +600,34 @@ const filtered = computed(() => {
   return results
 })
 
+const totalPages = computed(() => Math.ceil(filtered.value.length / itemsPerPage.value))
+
+const paginatedProducts = computed(() => {
+  const start = (currentPage.value - 1) * itemsPerPage.value
+  const end = start + itemsPerPage.value
+  return filtered.value.slice(start, end)
+})
+
+const visiblePageNumbers = computed(() => {
+  const total = totalPages.value
+  const current = currentPage.value
+  const delta = 2
+  
+  let start = Math.max(1, current - delta)
+  let end = Math.min(total, current + delta)
+  
+  if (end - start < 2 * delta) {
+    start = Math.max(1, end - 2 * delta)
+    end = Math.min(total, start + 2 * delta)
+  }
+  
+  const pages = []
+  for (let i = start; i <= end; i++) {
+    pages.push(i)
+  }
+  return pages
+})
+
 // Filter and Sort Actions
 const clearFilters = () => {
   filters.category = ''
@@ -498,6 +640,13 @@ const clearFilters = () => {
 
 const toggleSortOrder = () => {
   sortOrder.value = sortOrder.value === 'asc' ? 'desc' : 'asc'
+}
+
+const goToPage = () => {
+  if (jumpToPage.value && jumpToPage.value >= 1 && jumpToPage.value <= totalPages.value) {
+    currentPage.value = jumpToPage.value
+    jumpToPage.value = null
+  }
 }
 
 const showModal = ref(false)
@@ -653,53 +802,24 @@ const remove = async id => {
   }
 }
 
-// Pagination functions
-const changePage = async (page) => {
-  if (page >= 1 && page <= store.pagination.last_page) {
-    await store.fetchProducts(page)
+const clearProductCache = async () => {
+  loading.clearCache = true
+  try {
+    const response = await axios.post('/api/cache/clear-products')
+    
+    if (response.data.success) {
+      notify('Product cache cleared successfully', 'success')
+      // Refresh products after clearing cache
+      await store.fetchProducts()
+    } else {
+      notify(response.data.message || 'Failed to clear cache', 'error')
+    }
+  } catch (error) {
+    notify('Failed to clear product cache', 'error')
+  } finally {
+    loading.clearCache = false
   }
 }
-
-const visiblePages = computed(() => {
-  const current = store.pagination.current_page
-  const last = store.pagination.last_page
-  const pages = []
-  
-  if (last <= 7) {
-    // Show all pages if 7 or fewer
-    for (let i = 1; i <= last; i++) {
-      pages.push(i)
-    }
-  } else {
-    // Always show first page
-    pages.push(1)
-    
-    if (current <= 4) {
-      // Show first 5 pages + ellipsis + last
-      for (let i = 2; i <= 5; i++) {
-        pages.push(i)
-      }
-      pages.push('...')
-      pages.push(last)
-    } else if (current >= last - 3) {
-      // Show first + ellipsis + last 5 pages
-      pages.push('...')
-      for (let i = last - 4; i <= last; i++) {
-        pages.push(i)
-      }
-    } else {
-      // Show first + ellipsis + current-1, current, current+1 + ellipsis + last
-      pages.push('...')
-      for (let i = current - 1; i <= current + 1; i++) {
-        pages.push(i)
-      }
-      pages.push('...')
-      pages.push(last)
-    }
-  }
-  
-  return pages
-})
 
 // initial load
 store.fetchProducts().catch(() => {})
