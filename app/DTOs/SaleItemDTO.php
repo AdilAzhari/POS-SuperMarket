@@ -1,8 +1,10 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\DTOs;
 
-class SaleItemDTO extends BaseDTO
+final class SaleItemDTO extends BaseDTO
 {
     public function __construct(
         public readonly int $product_id,
@@ -13,8 +15,7 @@ class SaleItemDTO extends BaseDTO
         public readonly float $discount = 0.0,
         public readonly float $tax = 0.0,
         public readonly float $line_total = 0.0
-    ) {
-    }
+    ) {}
 
     public function calculateLineTotal(): float
     {

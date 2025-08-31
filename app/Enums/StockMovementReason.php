@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Enums;
 
 enum StockMovementReason: string
@@ -17,6 +19,32 @@ enum StockMovementReason: string
     case SAMPLE = 'sample';
     case WASTE = 'waste';
 
+    case TRANSFER_OUT = 'transfer_out';
+
+    public static function options(): array
+    {
+        return collect(self::cases())
+            ->map(fn ($case): array => [
+                'value' => $case->value,
+                'label' => $case->label(),
+                'color' => $case->color(),
+                'category' => $case->category(),
+            ])
+            ->toArray();
+    }
+
+    public static function byCategory(string $category): array
+    {
+        return collect(self::cases())
+            ->filter(fn ($case): bool => $case->category() === $category)
+            ->map(fn ($case): array => [
+                'value' => $case->value,
+                'label' => $case->label(),
+                'color' => $case->color(),
+            ])
+            ->toArray();
+    }
+
     public function label(): string
     {
         return match ($this) {
@@ -32,6 +60,7 @@ enum StockMovementReason: string
             self::PROMOTIONAL => 'Promotional Giveaway',
             self::SAMPLE => 'Free Sample',
             self::WASTE => 'Waste/Disposal',
+            self::TRANSFER_OUT => 'Transfer Out',
         };
     }
 
@@ -43,7 +72,7 @@ enum StockMovementReason: string
             self::RETURN => 'yellow',
             self::DAMAGED, self::THEFT => 'red',
             self::EXPIRED => 'orange',
-            self::TRANSFER => 'purple',
+            self::TRANSFER, self::TRANSFER_OUT => 'purple',
             self::RECOUNT => 'indigo',
             self::LOST => 'gray',
             self::PROMOTIONAL => 'pink',
@@ -56,7 +85,7 @@ enum StockMovementReason: string
     {
         return match ($this) {
             self::PURCHASE, self::RETURN => 'inbound',
-            self::SALE, self::TRANSFER => 'outbound',
+            self::SALE, self::TRANSFER, self::TRANSFER_OUT => 'outbound',
             self::DAMAGED, self::EXPIRED, self::THEFT, self::LOST, self::WASTE => 'loss',
             self::RECOUNT => 'adjustment',
             self::PROMOTIONAL, self::SAMPLE => 'marketing',
@@ -70,29 +99,5 @@ enum StockMovementReason: string
             self::LOST,
             self::RECOUNT,
         ]);
-    }
-
-    public static function options(): array
-    {
-        return collect(self::cases())
-            ->map(fn ($case) => [
-                'value' => $case->value,
-                'label' => $case->label(),
-                'color' => $case->color(),
-                'category' => $case->category(),
-            ])
-            ->toArray();
-    }
-
-    public static function byCategory(string $category): array
-    {
-        return collect(self::cases())
-            ->filter(fn ($case) => $case->category() === $category)
-            ->map(fn ($case) => [
-                'value' => $case->value,
-                'label' => $case->label(),
-                'color' => $case->color(),
-            ])
-            ->toArray();
     }
 }

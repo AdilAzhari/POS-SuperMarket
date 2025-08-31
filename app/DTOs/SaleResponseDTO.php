@@ -1,10 +1,12 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\DTOs;
 
 use App\Models\Sale;
 
-class SaleResponseDTO extends BaseDTO
+final class SaleResponseDTO extends BaseDTO
 {
     public function __construct(
         public readonly int $id,

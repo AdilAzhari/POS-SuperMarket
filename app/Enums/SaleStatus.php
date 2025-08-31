@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Enums;
 
 enum SaleStatus: string
@@ -11,6 +13,17 @@ enum SaleStatus: string
     case PARTIALLY_REFUNDED = 'partially_refunded';
     case VOIDED = 'voided';
     case CANCELLED = 'cancelled';
+
+    public static function options(): array
+    {
+        return collect(self::cases())
+            ->map(fn ($case): array => [
+                'value' => $case->value,
+                'label' => $case->label(),
+                'color' => $case->color(),
+            ])
+            ->toArray();
+    }
 
     public function label(): string
     {
@@ -65,16 +78,5 @@ enum SaleStatus: string
             self::COMPLETED,
             self::PARTIALLY_REFUNDED,
         ]);
-    }
-
-    public static function options(): array
-    {
-        return collect(self::cases())
-            ->map(fn ($case) => [
-                'value' => $case->value,
-                'label' => $case->label(),
-                'color' => $case->color(),
-            ])
-            ->toArray();
     }
 }
