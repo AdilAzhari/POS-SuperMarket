@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Database\Factories;
 
 use App\Enums\PaymentMethod;
@@ -10,7 +12,7 @@ use App\Models\Store;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
-class PaymentFactory extends Factory
+final class PaymentFactory extends Factory
 {
     /**
      * The name of the factory's corresponding model.
@@ -22,7 +24,6 @@ class PaymentFactory extends Factory
      */
     public function definition(): array
     {
-        $cardBrands = ['visa', 'mastercard', 'amex'];
         $currencies = ['MYR', 'USD', 'SGD'];
 
         $amount = $this->faker->randomFloat(2, 5, 1000);
@@ -39,7 +40,7 @@ class PaymentFactory extends Factory
             'net_amount' => $amount - $fee,
             'currency' => $this->faker->randomElement($currencies),
             'gateway_transaction_id' => $this->faker->uuid(),
-            'gateway_reference' => 'REF-' . $this->faker->numerify('##########'),
+            'gateway_reference' => 'REF-'.$this->faker->numerify('##########'),
             'gateway_response' => [
                 'response_code' => '00',
                 'response_message' => 'Success',
@@ -54,7 +55,7 @@ class PaymentFactory extends Factory
      */
     public function completed(): static
     {
-        return $this->state(fn (array $attributes) => [
+        return $this->state(fn (array $attributes): array => [
             'status' => PaymentStatus::COMPLETED,
             'processed_at' => $this->faker->dateTimeBetween('-30 days', 'now'),
         ]);
@@ -65,7 +66,7 @@ class PaymentFactory extends Factory
      */
     public function pending(): static
     {
-        return $this->state(fn (array $attributes) => [
+        return $this->state(fn (array $attributes): array => [
             'status' => PaymentStatus::PENDING,
             'processed_at' => null,
         ]);
@@ -76,10 +77,10 @@ class PaymentFactory extends Factory
      */
     public function failed(): static
     {
-        return $this->state(fn (array $attributes) => [
+        return $this->state(fn (array $attributes): array => [
             'status' => PaymentStatus::FAILED,
             'processed_at' => null,
-            'notes' => 'Payment failed: ' . $this->faker->sentence(),
+            'notes' => 'Payment failed: '.$this->faker->sentence(),
         ]);
     }
 
@@ -88,7 +89,7 @@ class PaymentFactory extends Factory
      */
     public function cash(): static
     {
-        return $this->state(fn (array $attributes) => [
+        return $this->state(fn (array $attributes): array => [
             'payment_method' => PaymentMethod::CASH,
             'fee' => 0,
             'net_amount' => $attributes['amount'],
@@ -110,8 +111,8 @@ class PaymentFactory extends Factory
     public function card(): static
     {
         $cardBrands = ['visa', 'mastercard', 'amex'];
-        
-        return $this->state(fn (array $attributes) => [
+
+        return $this->state(fn (array $attributes): array => [
             'payment_method' => PaymentMethod::CARD,
             'card_last_four' => $this->faker->numerify('####'),
             'card_brand' => $this->faker->randomElement($cardBrands),
@@ -127,10 +128,10 @@ class PaymentFactory extends Factory
      */
     public function tng(): static
     {
-        return $this->state(fn (array $attributes) => [
+        return $this->state(fn (array $attributes): array => [
             'payment_method' => PaymentMethod::TOUCHNGO,
-            'tng_phone' => '+60' . $this->faker->numerify('#########'),
-            'tng_reference' => 'TNG-' . $this->faker->numerify('##########'),
+            'tng_phone' => '+60'.$this->faker->numerify('#########'),
+            'tng_reference' => 'TNG-'.$this->faker->numerify('##########'),
             'card_last_four' => null,
             'card_brand' => null,
             'card_exp_month' => null,
@@ -143,7 +144,7 @@ class PaymentFactory extends Factory
      */
     public function digital(): static
     {
-        return $this->state(fn (array $attributes) => [
+        return $this->state(fn (array $attributes): array => [
             'payment_method' => PaymentMethod::DIGITAL,
             'card_last_four' => null,
             'card_brand' => null,
@@ -161,8 +162,8 @@ class PaymentFactory extends Factory
     {
         $amount = $this->faker->randomFloat(2, 500, 5000);
         $fee = $this->faker->randomFloat(2, 5, 50);
-        
-        return $this->state(fn (array $attributes) => [
+
+        return $this->state(fn (array $attributes): array => [
             'amount' => $amount,
             'fee' => $fee,
             'net_amount' => $amount - $fee,
@@ -175,8 +176,8 @@ class PaymentFactory extends Factory
     public function smallAmount(): static
     {
         $amount = $this->faker->randomFloat(2, 1, 50);
-        
-        return $this->state(fn (array $attributes) => [
+
+        return $this->state(fn (array $attributes): array => [
             'amount' => $amount,
             'fee' => 0,
             'net_amount' => $amount,
@@ -188,7 +189,7 @@ class PaymentFactory extends Factory
      */
     public function today(): static
     {
-        return $this->state(fn (array $attributes) => [
+        return $this->state(fn (array $attributes): array => [
             'processed_at' => now(),
             'created_at' => now(),
             'updated_at' => now(),

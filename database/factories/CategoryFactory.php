@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Database\Factories;
 
 use Illuminate\Database\Eloquent\Factories\Factory;
@@ -7,7 +9,7 @@ use Illuminate\Database\Eloquent\Factories\Factory;
 /**
  * @extends \Illuminate\Database\Eloquent\Factories\Factory<\App\Models\Category>
  */
-class CategoryFactory extends Factory
+final class CategoryFactory extends Factory
 {
     /**
      * Define the model's default state.
@@ -17,11 +19,11 @@ class CategoryFactory extends Factory
     public function definition(): array
     {
         $categories = [
-            'Electronics', 'Clothing', 'Food & Beverages', 'Home & Garden', 
-            'Health & Beauty', 'Sports & Outdoors', 'Books & Media', 'Toys & Games'
+            'Electronics', 'Clothing', 'Food & Beverages', 'Home & Garden',
+            'Health & Beauty', 'Sports & Outdoors', 'Books & Media', 'Toys & Games',
         ];
-        
-        $name = fake()->randomElement($categories) . ' ' . fake()->unique()->word();
+
+        $name = fake()->randomElement($categories).' '.fake()->unique()->word();
 
         return [
             'name' => $name,
@@ -34,7 +36,7 @@ class CategoryFactory extends Factory
      */
     public function electronics(): static
     {
-        return $this->state(fn (array $attributes) => [
+        return $this->state(fn (array $attributes): array => [
             'name' => 'Electronics',
             'slug' => 'electronics',
         ]);
@@ -45,7 +47,7 @@ class CategoryFactory extends Factory
      */
     public function food(): static
     {
-        return $this->state(fn (array $attributes) => [
+        return $this->state(fn (array $attributes): array => [
             'name' => 'Food & Beverages',
             'slug' => 'food-beverages',
         ]);
@@ -56,7 +58,7 @@ class CategoryFactory extends Factory
      */
     public function clothing(): static
     {
-        return $this->state(fn (array $attributes) => [
+        return $this->state(fn (array $attributes): array => [
             'name' => 'Clothing',
             'slug' => 'clothing',
         ]);

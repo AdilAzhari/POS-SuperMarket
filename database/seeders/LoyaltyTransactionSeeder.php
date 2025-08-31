@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Database\Seeders;
 
 use App\Models\Customer;
@@ -7,7 +9,7 @@ use App\Models\LoyaltyTransaction;
 use App\Models\Sale;
 use Illuminate\Database\Seeder;
 
-class LoyaltyTransactionSeeder extends Seeder
+final class LoyaltyTransactionSeeder extends Seeder
 {
     public function run(): void
     {
@@ -28,10 +30,10 @@ class LoyaltyTransactionSeeder extends Seeder
             $totalRedeemed = 0;
 
             // Create earned points transactions (from purchases)
-            $earnedTransactions = rand(3, 15);
+            $earnedTransactions = random_int(3, 15);
 
             for ($i = 0; $i < $earnedTransactions; $i++) {
-                $points = rand(10, 200);
+                $points = random_int(10, 200);
                 $totalEarned += $points;
 
                 LoyaltyTransaction::create([
@@ -47,10 +49,10 @@ class LoyaltyTransactionSeeder extends Seeder
 
             // Create some redeemed points transactions
             if ($totalEarned > 100) {
-                $redemptionCount = rand(1, min(3, floor($totalEarned / 100)));
+                $redemptionCount = random_int(1, min(3, floor($totalEarned / 100)));
 
                 for ($i = 0; $i < $redemptionCount; $i++) {
-                    $points = -rand(50, min(200, $totalEarned - $totalRedeemed));
+                    $points = -random_int(50, min(200, $totalEarned - $totalRedeemed));
                     $totalRedeemed += abs($points);
 
                     LoyaltyTransaction::create([
@@ -64,8 +66,8 @@ class LoyaltyTransactionSeeder extends Seeder
             }
 
             // Create some expired points (random chance)
-            if (rand(1, 100) <= 30) { // 30% chance
-                $expiredPoints = -rand(10, min(50, $totalEarned));
+            if (random_int(1, 100) <= 30) { // 30% chance
+                $expiredPoints = -random_int(10, min(50, $totalEarned));
                 $totalRedeemed += abs($expiredPoints);
 
                 LoyaltyTransaction::create([
@@ -78,8 +80,8 @@ class LoyaltyTransactionSeeder extends Seeder
             }
 
             // Create some manual adjustments (rare)
-            if (rand(1, 100) <= 15) { // 15% chance
-                $adjustmentPoints = rand(1, 2) === 1 ? rand(10, 50) : -rand(5, 25);
+            if (random_int(1, 100) <= 15) { // 15% chance
+                $adjustmentPoints = random_int(1, 2) === 1 ? random_int(10, 50) : -random_int(5, 25);
 
                 LoyaltyTransaction::create([
                     'customer_id' => $customer->id,
@@ -135,7 +137,7 @@ class LoyaltyTransactionSeeder extends Seeder
         ];
 
         // Most transactions should be from purchases
-        return rand(1, 100) <= 70
+        return random_int(1, 100) <= 70
             ? 'Points earned from purchase ($'.number_format($points / 10, 2).')'
             : fake()->randomElement(array_slice($descriptions, 1));
     }
@@ -162,13 +164,13 @@ class LoyaltyTransactionSeeder extends Seeder
                 'Manual adjustment - positive',
                 'Customer satisfaction bonus',
             ]);
-        } else {
-            return fake()->randomElement([
-                'Points correction - customer service',
-                'System adjustment',
-                'Manual correction',
-                'Point balance fix',
-            ]);
         }
+
+        return fake()->randomElement([
+            'Points correction - customer service',
+            'System adjustment',
+            'Manual correction',
+            'Point balance fix',
+        ]);
     }
 }

@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Database\Seeders;
 
 use App\Models\Customer;
@@ -8,7 +10,7 @@ use App\Models\Store;
 use App\Models\User;
 use Illuminate\Database\Seeder;
 
-class SaleSeeder extends Seeder
+final class SaleSeeder extends Seeder
 {
     /**
      * Run the database seeds.
@@ -23,11 +25,13 @@ class SaleSeeder extends Seeder
 
         if ($stores->isEmpty()) {
             $this->command->warn('No stores found. Please run StoreSeeder first.');
+
             return;
         }
 
         if ($users->isEmpty()) {
             $this->command->warn('No users found. Please create users first.');
+
             return;
         }
 

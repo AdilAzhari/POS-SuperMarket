@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Database\Factories;
 
 use App\Enums\StockMovementReason;
@@ -13,7 +15,7 @@ use Illuminate\Database\Eloquent\Factories\Factory;
 /**
  * @extends Factory<StockMovement>
  */
-class StockMovementFactory extends Factory
+final class StockMovementFactory extends Factory
 {
     /**
      * Define the model's default state.
@@ -23,7 +25,7 @@ class StockMovementFactory extends Factory
     public function definition(): array
     {
         return [
-            'code' => strtoupper(fake()->bothify('STK-######')),
+            'code' => mb_strtoupper(fake()->bothify('STK-######')),
             'product_id' => Product::factory(),
             'store_id' => Store::factory(),
             'quantity' => fake()->numberBetween(1, 100),
@@ -42,7 +44,7 @@ class StockMovementFactory extends Factory
      */
     public function stockIn(): static
     {
-        return $this->state(fn (array $attributes) => [
+        return $this->state(fn (array $attributes): array => [
             'type' => StockMovementType::ADDITION,
             'reason' => fake()->randomElement([StockMovementReason::PURCHASE, StockMovementReason::RETURN]),
             'quantity' => fake()->numberBetween(10, 200),
@@ -54,7 +56,7 @@ class StockMovementFactory extends Factory
      */
     public function stockOut(): static
     {
-        return $this->state(fn (array $attributes) => [
+        return $this->state(fn (array $attributes): array => [
             'type' => StockMovementType::REDUCTION,
             'reason' => fake()->randomElement([StockMovementReason::SALE, StockMovementReason::DAMAGED, StockMovementReason::EXPIRED]),
             'quantity' => fake()->numberBetween(1, 50),
@@ -66,9 +68,10 @@ class StockMovementFactory extends Factory
      */
     public function transfer(): static
     {
-        return $this->state(function (array $attributes) {
+        return $this->state(function (array $attributes): array {
             // Ensure store_id is treated as the source store for transfer_out
             $fromStoreId = $attributes['store_id'] ?? Store::factory();
+
             return [
                 'type' => StockMovementType::TRANSFER_OUT,
                 'reason' => StockMovementReason::TRANSFER,
@@ -84,7 +87,7 @@ class StockMovementFactory extends Factory
      */
     public function adjustment(): static
     {
-        return $this->state(fn (array $attributes) => [
+        return $this->state(fn (array $attributes): array => [
             // Use a valid enum and non-negative quantity for unsigned column
             'type' => fake()->randomElement([StockMovementType::ADDITION, StockMovementType::REDUCTION]),
             'reason' => StockMovementReason::RECOUNT,
@@ -98,7 +101,7 @@ class StockMovementFactory extends Factory
      */
     public function bulk(): static
     {
-        return $this->state(fn (array $attributes) => [
+        return $this->state(fn (array $attributes): array => [
             'quantity' => fake()->numberBetween(500, 2000),
             'reason' => StockMovementReason::PURCHASE,
             'type' => StockMovementType::ADDITION,

@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Database\Seeders;
 
 use App\Models\Customer;
@@ -8,7 +10,7 @@ use App\Models\RewardRedemption;
 use App\Models\Sale;
 use Illuminate\Database\Seeder;
 
-class RewardRedemptionSeeder extends Seeder
+final class RewardRedemptionSeeder extends Seeder
 {
     public function run(): void
     {
@@ -32,19 +34,17 @@ class RewardRedemptionSeeder extends Seeder
         // Create redemptions for customers with enough points
         foreach ($customers as $customer) {
             // Each customer has a 60% chance of having redemptions
-            if (rand(1, 100) > 60) {
+            if (random_int(1, 100) > 60) {
                 continue;
             }
 
             // Create 1-3 redemptions per eligible customer
-            $redemptionCount = rand(1, 3);
+            $redemptionCount = random_int(1, 3);
             $customerPoints = $customer->loyalty_points;
 
             for ($i = 0; $i < $redemptionCount; $i++) {
                 // Find rewards the customer can afford
-                $affordableRewards = $rewards->filter(function ($reward) use ($customerPoints) {
-                    return $reward->points_required <= $customerPoints;
-                });
+                $affordableRewards = $rewards->filter(fn ($reward): bool => $reward->points_required <= $customerPoints);
 
                 if ($affordableRewards->isEmpty()) {
                     break; // Customer can't afford any more rewards
@@ -56,7 +56,7 @@ class RewardRedemptionSeeder extends Seeder
                 $discountAmount = $this->calculateDiscountAmount($reward);
 
                 // 70% chance of having an associated sale
-                $sale = rand(1, 100) <= 70
+                $sale = random_int(1, 100) <= 70
                     ? Sale::where('customer_id', $customer->id)->inRandomOrder()->first()
                     : null;
 
@@ -88,9 +88,7 @@ class RewardRedemptionSeeder extends Seeder
         // Create some recent redemptions for testing
         $recentCustomers = Customer::where('loyalty_points', '>', 100)->limit(5)->get();
         foreach ($recentCustomers as $customer) {
-            $affordableReward = $rewards->filter(function ($reward) use ($customer) {
-                return $reward->points_required <= $customer->loyalty_points;
-            })->first();
+            $affordableReward = $rewards->filter(fn ($reward): bool => $reward->points_required <= $customer->loyalty_points)->first();
 
             if ($affordableReward) {
                 RewardRedemption::create([

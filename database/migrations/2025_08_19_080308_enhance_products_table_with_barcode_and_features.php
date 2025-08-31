@@ -1,5 +1,8 @@
 <?php
 
+declare(strict_types=1);
+
+use App\Enums\ProductSerialStatus;
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
@@ -11,7 +14,7 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::table('products', function (Blueprint $table) {
+        Schema::table('products', function (Blueprint $table): void {
             // Barcode and identification (check if not exists)
             if (! Schema::hasColumn('products', 'internal_code')) {
                 $table->string('internal_code')->nullable()->unique()->after('barcode');
@@ -95,7 +98,7 @@ return new class extends Migration
         });
 
         // Create product batches table for batch tracking
-        Schema::create('product_batches', function (Blueprint $table) {
+        Schema::create('product_batches', function (Blueprint $table): void {
             $table->id();
             $table->foreignId('product_id')->constrained()->onDelete('cascade');
             $table->string('batch_number');
@@ -111,11 +114,11 @@ return new class extends Migration
         });
 
         // Create product serial numbers table
-        Schema::create('product_serial_numbers', function (Blueprint $table) {
+        Schema::create('product_serial_numbers', function (Blueprint $table): void {
             $table->id();
             $table->foreignId('product_id')->constrained()->onDelete('cascade');
             $table->string('serial_number')->unique();
-            $table->enum('status', ['available', 'sold', 'reserved', 'defective'])->default('available');
+            $table->enum('status', array_column(ProductSerialStatus::cases(), 'value'))->default(ProductSerialStatus::AVAILABLE->value);
             $table->foreignId('sale_item_id')->nullable()->constrained()->onDelete('set null');
             $table->text('notes')->nullable();
             $table->timestamps();
@@ -132,7 +135,7 @@ return new class extends Migration
         Schema::dropIfExists('product_serial_numbers');
         Schema::dropIfExists('product_batches');
 
-        Schema::table('products', function (Blueprint $table) {
+        Schema::table('products', function (Blueprint $table): void {
             $table->dropColumn([
                 'barcode',
                 'internal_code',

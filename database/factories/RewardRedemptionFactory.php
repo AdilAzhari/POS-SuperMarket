@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Database\Factories;
 
 use App\Models\Customer;
@@ -8,7 +10,7 @@ use App\Models\RewardRedemption;
 use App\Models\Sale;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
-class RewardRedemptionFactory extends Factory
+final class RewardRedemptionFactory extends Factory
 {
     protected $model = RewardRedemption::class;
 
@@ -26,28 +28,28 @@ class RewardRedemptionFactory extends Factory
 
     public function withSale(): static
     {
-        return $this->state(fn (array $attributes) => [
+        return $this->state(fn (array $attributes): array => [
             'sale_id' => Sale::factory(),
         ]);
     }
 
     public function withoutSale(): static
     {
-        return $this->state(fn (array $attributes) => [
+        return $this->state(fn (array $attributes): array => [
             'sale_id' => null,
         ]);
     }
 
     public function forCustomer(Customer $customer): static
     {
-        return $this->state(fn (array $attributes) => [
+        return $this->state(fn (array $attributes): array => [
             'customer_id' => $customer->id,
         ]);
     }
 
     public function forReward(LoyaltyReward $reward): static
     {
-        return $this->state(fn (array $attributes) => [
+        return $this->state(fn (array $attributes): array => [
             'loyalty_reward_id' => $reward->id,
             'points_used' => $reward->points_required,
             'discount_amount' => $this->calculateDiscountAmount($reward),
@@ -56,7 +58,7 @@ class RewardRedemptionFactory extends Factory
 
     public function recent(): static
     {
-        return $this->state(fn (array $attributes) => [
+        return $this->state(fn (array $attributes): array => [
             'created_at' => $this->faker->dateTimeBetween('-30 days', 'now'),
         ]);
     }
@@ -66,7 +68,7 @@ class RewardRedemptionFactory extends Factory
         $percentage = $this->faker->randomElement([5, 10, 15, 20, 25]);
         $orderTotal = $this->faker->randomFloat(2, 20, 200);
 
-        return $this->state(fn (array $attributes) => [
+        return $this->state(fn (array $attributes): array => [
             'points_used' => $percentage * 10,
             'discount_amount' => $orderTotal * ($percentage / 100),
         ]);
@@ -76,7 +78,7 @@ class RewardRedemptionFactory extends Factory
     {
         $discountAmount = $this->faker->randomElement([5, 10, 15, 20, 25]);
 
-        return $this->state(fn (array $attributes) => [
+        return $this->state(fn (array $attributes): array => [
             'points_used' => $discountAmount * 10,
             'discount_amount' => $discountAmount,
         ]);
@@ -84,7 +86,7 @@ class RewardRedemptionFactory extends Factory
 
     public function freeShipping(): static
     {
-        return $this->state(fn (array $attributes) => [
+        return $this->state(fn (array $attributes): array => [
             'points_used' => $this->faker->randomElement([75, 100, 125]),
             'discount_amount' => $this->faker->randomFloat(2, 5, 15), // Typical shipping cost
         ]);
