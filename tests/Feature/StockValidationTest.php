@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 use App\Models\Product;
 use App\Models\Store;
 use App\Models\User;
@@ -8,14 +10,14 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 
 uses(RefreshDatabase::class);
 
-beforeEach(function () {
-    $this->stockService = new StockService();
+beforeEach(function (): void {
+    $this->stockService = new StockService;
     $this->user = User::factory()->create();
     $this->product = Product::factory()->create();
     $this->store = Store::factory()->create();
 });
 
-it('validates stock sufficiency when stock is available', function () {
+it('validates stock sufficiency when stock is available', function (): void {
     // Attach product to store with stock
     $this->product->stores()->attach($this->store->id, [
         'stock' => 10,
@@ -32,7 +34,7 @@ it('validates stock sufficiency when stock is available', function () {
         ->and($result['product_name'])->toBe($this->product->name);
 });
 
-it('validates stock sufficiency when stock is insufficient', function () {
+it('validates stock sufficiency when stock is insufficient', function (): void {
     // Attach product to store with limited stock
     $this->product->stores()->attach($this->store->id, [
         'stock' => 3,
@@ -49,7 +51,7 @@ it('validates stock sufficiency when stock is insufficient', function () {
         ->and($result)->toHaveKey('message');
 });
 
-it('validates stock sufficiency when product not attached to store', function () {
+it('validates stock sufficiency when product not attached to store', function (): void {
     $result = $this->stockService->validateStockSufficiency($this->product->id, $this->store->id, 1);
 
     expect($result)
@@ -59,7 +61,7 @@ it('validates stock sufficiency when product not attached to store', function ()
         ->and($result['requested_quantity'])->toBe(1);
 });
 
-it('checks low stock status when stock is below threshold', function () {
+it('checks low stock status when stock is below threshold', function (): void {
     $this->product->stores()->attach($this->store->id, [
         'stock' => 3,
         'low_stock_threshold' => 5,
@@ -74,7 +76,7 @@ it('checks low stock status when stock is below threshold', function () {
         ->and($result['low_stock_threshold'])->toBe(5);
 });
 
-it('checks low stock status when stock is above threshold', function () {
+it('checks low stock status when stock is above threshold', function (): void {
     $this->product->stores()->attach($this->store->id, [
         'stock' => 10,
         'low_stock_threshold' => 5,
@@ -89,15 +91,15 @@ it('checks low stock status when stock is above threshold', function () {
         ->and($result['low_stock_threshold'])->toBe(5);
 });
 
-it('gets product stock summary across multiple stores', function () {
+it('gets product stock summary across multiple stores', function (): void {
     $store2 = Store::factory()->create();
-    
+
     // Attach to multiple stores with different stock levels
     $this->product->stores()->attach($this->store->id, [
         'stock' => 10,
         'low_stock_threshold' => 5,
     ]);
-    
+
     $this->product->stores()->attach($store2->id, [
         'stock' => 2,
         'low_stock_threshold' => 5,
@@ -115,14 +117,14 @@ it('gets product stock summary across multiple stores', function () {
         ->and($result['stores'])->toHaveCount(2);
 });
 
-it('validates multiple products successfully', function () {
+it('validates multiple products successfully', function (): void {
     $product2 = Product::factory()->create();
-    
+
     $this->product->stores()->attach($this->store->id, [
         'stock' => 10,
         'low_stock_threshold' => 5,
     ]);
-    
+
     $product2->stores()->attach($this->store->id, [
         'stock' => 5,
         'low_stock_threshold' => 5,
@@ -132,13 +134,13 @@ it('validates multiple products successfully', function () {
         [
             'product_id' => $this->product->id,
             'store_id' => $this->store->id,
-            'quantity' => 5
+            'quantity' => 5,
         ],
         [
             'product_id' => $product2->id,
             'store_id' => $this->store->id,
-            'quantity' => 3
-        ]
+            'quantity' => 3,
+        ],
     ];
 
     $result = $this->stockService->validateMultipleProducts($items);
@@ -151,14 +153,14 @@ it('validates multiple products successfully', function () {
         ->and($result['invalid_items'])->toBeEmpty();
 });
 
-it('validates multiple products with some invalid items', function () {
+it('validates multiple products with some invalid items', function (): void {
     $product2 = Product::factory()->create();
-    
+
     $this->product->stores()->attach($this->store->id, [
         'stock' => 10,
         'low_stock_threshold' => 5,
     ]);
-    
+
     $product2->stores()->attach($this->store->id, [
         'stock' => 2,
         'low_stock_threshold' => 5,
@@ -168,13 +170,13 @@ it('validates multiple products with some invalid items', function () {
         [
             'product_id' => $this->product->id,
             'store_id' => $this->store->id,
-            'quantity' => 5
+            'quantity' => 5,
         ],
         [
             'product_id' => $product2->id,
             'store_id' => $this->store->id,
-            'quantity' => 5  // Insufficient stock
-        ]
+            'quantity' => 5,  // Insufficient stock
+        ],
     ];
 
     $result = $this->stockService->validateMultipleProducts($items);
@@ -187,7 +189,7 @@ it('validates multiple products with some invalid items', function () {
         ->and($result['invalid_items'])->toHaveCount(1);
 });
 
-it('can validate stock via API endpoint', function () {
+it('can validate stock via API endpoint', function (): void {
     $this->product->stores()->attach($this->store->id, [
         'stock' => 10,
         'low_stock_threshold' => 5,
@@ -196,18 +198,18 @@ it('can validate stock via API endpoint', function () {
     $response = $this->actingAs($this->user)->postJson('/api/stock-movements/validate', [
         'product_id' => $this->product->id,
         'store_id' => $this->store->id,
-        'quantity' => 5
+        'quantity' => 5,
     ]);
 
     $response->assertOk()
         ->assertJson([
             'valid' => true,
             'available_stock' => 10,
-            'requested_quantity' => 5
+            'requested_quantity' => 5,
         ]);
 });
 
-it('can check low stock via API endpoint', function () {
+it('can check low stock via API endpoint', function (): void {
     $this->product->stores()->attach($this->store->id, [
         'stock' => 3,
         'low_stock_threshold' => 5,
@@ -215,24 +217,24 @@ it('can check low stock via API endpoint', function () {
 
     $response = $this->actingAs($this->user)->postJson('/api/stock-movements/check-low-stock', [
         'product_id' => $this->product->id,
-        'store_id' => $this->store->id
+        'store_id' => $this->store->id,
     ]);
 
     $response->assertOk()
         ->assertJson([
             'is_low_stock' => true,
             'current_stock' => 3,
-            'low_stock_threshold' => 5
+            'low_stock_threshold' => 5,
         ]);
 });
 
-it('can get product stock summary via API endpoint', function () {
+it('can get product stock summary via API endpoint', function (): void {
     $this->product->stores()->attach($this->store->id, [
         'stock' => 10,
         'low_stock_threshold' => 5,
     ]);
 
-    $response = $this->actingAs($this->user)->getJson('/api/products/' . $this->product->id . '/stock-summary');
+    $response = $this->actingAs($this->user)->getJson('/api/products/'.$this->product->id.'/stock-summary');
 
     $response->assertOk()
         ->assertJson([
@@ -240,18 +242,18 @@ it('can get product stock summary via API endpoint', function () {
             'product_name' => $this->product->name,
             'total_stock' => 10,
             'total_stores' => 1,
-            'low_stock_stores' => 0
+            'low_stock_stores' => 0,
         ]);
 });
 
-it('can validate multiple products via API endpoint', function () {
+it('can validate multiple products via API endpoint', function (): void {
     $product2 = Product::factory()->create();
-    
+
     $this->product->stores()->attach($this->store->id, [
         'stock' => 10,
         'low_stock_threshold' => 5,
     ]);
-    
+
     $product2->stores()->attach($this->store->id, [
         'stock' => 5,
         'low_stock_threshold' => 5,
@@ -262,19 +264,19 @@ it('can validate multiple products via API endpoint', function () {
             [
                 'product_id' => $this->product->id,
                 'store_id' => $this->store->id,
-                'quantity' => 5
+                'quantity' => 5,
             ],
             [
                 'product_id' => $product2->id,
                 'store_id' => $this->store->id,
-                'quantity' => 3
-            ]
-        ]
+                'quantity' => 3,
+            ],
+        ],
     ]);
 
     $response->assertOk()
         ->assertJson([
             'valid' => true,
-            'total_items' => 2
+            'total_items' => 2,
         ]);
 });

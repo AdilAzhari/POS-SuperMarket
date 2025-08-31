@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 use App\DTOs\CreateSaleDTO;
 use App\DTOs\SaleResponseDTO;
 use App\Enums\SaleStatus;
@@ -19,7 +21,7 @@ use function Pest\Laravel\mock;
 
 uses(RefreshDatabase::class);
 
-beforeEach(function () {
+beforeEach(function (): void {
     $this->stockService = mock(StockService::class);
     $this->loyaltyService = mock(LoyaltyService::class);
     $this->receiptService = mock(ReceiptService::class);
@@ -48,17 +50,17 @@ beforeEach(function () {
     $this->product = Product::factory()->create();
 });
 
-it('can get paginated sales', function () {
+it('can get paginated sales', function (): void {
     Sale::factory()->count(25)->create(['status' => SaleStatus::COMPLETED]);
 
     $result = $this->saleService->getPaginatedSales(20);
 
-    expect($result)->toBeInstanceOf(\Illuminate\Pagination\LengthAwarePaginator::class)
+    expect($result)->toBeInstanceOf(Illuminate\Pagination\LengthAwarePaginator::class)
         ->and($result->count())->toBe(20)
         ->and($result->total())->toBe(25);
 });
 
-it('can get sale by id', function () {
+it('can get sale by id', function (): void {
     $sale = Sale::factory()->create();
 
     $result = $this->saleService->getSaleById($sale->id);
@@ -68,7 +70,7 @@ it('can get sale by id', function () {
         ->and($result->code)->toBe($sale->code);
 });
 
-it('can create a sale successfully', function () {
+it('can create a sale successfully', function (): void {
     $this->stockService->shouldReceive('getStockForStore')
         ->once()
         ->with($this->product->id, $this->store->id)
@@ -119,7 +121,7 @@ it('can create a sale successfully', function () {
     ]);
 });
 
-it('throws exception when insufficient stock', function () {
+it('throws exception when insufficient stock', function (): void {
     $this->stockService->shouldReceive('getStockForStore')
         ->once()
         ->with($this->product->id, $this->store->id)
@@ -147,7 +149,7 @@ it('throws exception when insufficient stock', function () {
         ->toThrow(InsufficientStockException::class);
 });
 
-it('updates customer statistics after sale', function () {
+it('updates customer statistics after sale', function (): void {
     $this->stockService->shouldReceive('getStockForStore')
         ->once()
         ->andReturn(10);
@@ -185,7 +187,7 @@ it('updates customer statistics after sale', function () {
         ->and($this->customer->last_purchase_at)->not->toBeNull();
 });
 
-it('generates transaction code correctly', function () {
+it('generates transaction code correctly', function (): void {
     $this->stockService->shouldReceive('getStockForStore')
         ->once()
         ->andReturn(10);
@@ -218,6 +220,6 @@ it('generates transaction code correctly', function () {
     expect($result->code)->toMatch('/^TXN-/');
 });
 
-afterEach(function () {
-    \Mockery::close();
+afterEach(function (): void {
+    Mockery::close();
 });
