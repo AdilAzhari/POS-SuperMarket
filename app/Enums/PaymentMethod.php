@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Enums;
 
 enum PaymentMethod: string
@@ -12,9 +14,20 @@ enum PaymentMethod: string
     case GRAB_PAY = 'grab_pay';
     case MOBILE_PAYMENT = 'mobile_payment';
 
+    public static function options(): array
+    {
+        return collect(self::cases())
+            ->map(fn ($case): array => [
+                'value' => $case->value,
+                'label' => $case->label(),
+                'color' => $case->color(),
+            ])
+            ->toArray();
+    }
+
     public function label(): string
     {
-        return match($this) {
+        return match ($this) {
             self::CASH => 'Cash',
             self::CARD => 'Credit/Debit Card',
             self::DIGITAL => 'Digital Payment',
@@ -27,7 +40,7 @@ enum PaymentMethod: string
 
     public function color(): string
     {
-        return match($this) {
+        return match ($this) {
             self::CASH => 'green',
             self::CARD => 'blue',
             self::DIGITAL => 'purple',
@@ -40,7 +53,7 @@ enum PaymentMethod: string
 
     public function requiresGateway(): bool
     {
-        return match($this) {
+        return match ($this) {
             self::CASH => false,
             default => true,
         };
@@ -48,20 +61,9 @@ enum PaymentMethod: string
 
     public function hasProcessingFee(): bool
     {
-        return match($this) {
+        return match ($this) {
             self::CASH => false,
             default => true,
         };
-    }
-
-    public static function options(): array
-    {
-        return collect(self::cases())
-            ->map(fn($case) => [
-                'value' => $case->value,
-                'label' => $case->label(),
-                'color' => $case->color(),
-            ])
-            ->toArray();
     }
 }

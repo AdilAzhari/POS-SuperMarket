@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Enums;
 
 enum StockMovementType: string
@@ -10,9 +12,21 @@ enum StockMovementType: string
     case TRANSFER_IN = 'transfer_in';
     case ADJUSTMENT = 'adjustment';
 
+    public static function options(): array
+    {
+        return collect(self::cases())
+            ->map(fn ($case): array => [
+                'value' => $case->value,
+                'label' => $case->label(),
+                'color' => $case->color(),
+                'icon' => $case->icon(),
+            ])
+            ->toArray();
+    }
+
     public function label(): string
     {
-        return match($this) {
+        return match ($this) {
             self::ADDITION => 'Stock Addition',
             self::REDUCTION => 'Stock Reduction',
             self::TRANSFER_OUT => 'Transfer Out',
@@ -23,7 +37,7 @@ enum StockMovementType: string
 
     public function color(): string
     {
-        return match($this) {
+        return match ($this) {
             self::ADDITION => 'green',
             self::REDUCTION => 'red',
             self::TRANSFER_OUT => 'orange',
@@ -34,7 +48,7 @@ enum StockMovementType: string
 
     public function icon(): string
     {
-        return match($this) {
+        return match ($this) {
             self::ADDITION => 'plus-circle',
             self::REDUCTION => 'minus-circle',
             self::TRANSFER_OUT => 'arrow-up-right',
@@ -67,17 +81,5 @@ enum StockMovementType: string
     public function requiresDestinationStore(): bool
     {
         return $this === self::TRANSFER_IN;
-    }
-
-    public static function options(): array
-    {
-        return collect(self::cases())
-            ->map(fn($case) => [
-                'value' => $case->value,
-                'label' => $case->label(),
-                'color' => $case->color(),
-                'icon' => $case->icon(),
-            ])
-            ->toArray();
     }
 }

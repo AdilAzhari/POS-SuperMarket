@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Enums;
 
 enum PaymentStatus: string
@@ -11,6 +13,17 @@ enum PaymentStatus: string
     case CANCELLED = 'cancelled';
     case REFUNDED = 'refunded';
     case EXPIRED = 'expired';
+
+    public static function options(): array
+    {
+        return collect(self::cases())
+            ->map(fn ($case): array => [
+                'value' => $case->value,
+                'label' => $case->label(),
+                'color' => $case->color(),
+            ])
+            ->toArray();
+    }
 
     public function label(): string
     {
@@ -59,16 +72,5 @@ enum PaymentStatus: string
             self::FAILED,
             self::EXPIRED,
         ]);
-    }
-
-    public static function options(): array
-    {
-        return collect(self::cases())
-            ->map(fn ($case) => [
-                'value' => $case->value,
-                'label' => $case->label(),
-                'color' => $case->color(),
-            ])
-            ->toArray();
     }
 }
