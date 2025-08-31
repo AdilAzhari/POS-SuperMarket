@@ -1,15 +1,17 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Console\Commands;
 
 use App\Models\Customer;
 use App\Models\LoyaltyTransaction;
-use App\Services\LoyaltyService;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Throwable;
 
-class ProcessLoyaltyPoints extends Command
+final class ProcessLoyaltyPoints extends Command
 {
     /**
      * The name and signature of the console command.
@@ -25,9 +27,8 @@ class ProcessLoyaltyPoints extends Command
      */
     protected $description = 'Process loyalty points: expire old points, calculate tier upgrades, and send birthday rewards';
 
-    public function __construct(
-        private readonly LoyaltyService $loyaltyService
-    ) {
+    public function __construct()
+    {
         parent::__construct();
     }
 
@@ -68,7 +69,7 @@ class ProcessLoyaltyPoints extends Command
 
             return self::SUCCESS;
 
-        } catch (\Throwable $e) {
+        } catch (Throwable $e) {
             $this->error("❌ Failed to process loyalty points: {$e->getMessage()}");
             Log::error('Loyalty points processing failed', [
                 'error' => $e->getMessage(),
@@ -142,9 +143,9 @@ class ProcessLoyaltyPoints extends Command
         ];
 
         if ($stats['count'] > 0 && ! $dryRun) {
-            DB::transaction(function () use ($customer, $expiredTransactions) {
+            DB::transaction(function () use ($customer, $expiredTransactions): void {
                 // Mark transactions as expired
-                $expiredTransactions->each(function ($transaction) {
+                $expiredTransactions->each(function ($transaction): void {
                     $transaction->update(['expired_at' => now()]);
                 });
 
