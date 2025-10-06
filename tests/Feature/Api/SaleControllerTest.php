@@ -47,9 +47,11 @@ it('can list sales', function (): void {
                     'status',
                 ],
             ],
-            'current_page',
-            'per_page',
-            'total',
+            'pagination' => [
+                'current_page',
+                'per_page',
+                'total',
+            ],
         ]);
 });
 
@@ -60,8 +62,10 @@ it('can show a specific sale', function (): void {
 
     $response->assertOk()
         ->assertJson([
-            'id' => $sale->id,
-            'code' => $sale->code,
+            'data' => [
+                'id' => $sale->id,
+                'code' => $sale->code,
+            ],
         ]);
 });
 
@@ -88,15 +92,18 @@ it('can create a sale', function (): void {
 
     $response->assertCreated()
         ->assertJsonStructure([
-            'id',
-            'code',
-            'store_id',
-            'cashier_id',
-            'customer_id',
-            'items_count',
-            'subtotal',
-            'total',
-            'payment_method',
+            'message',
+            'data' => [
+                'id',
+                'code',
+                'store_id',
+                'cashier_id',
+                'customer_id',
+                'items_count',
+                'subtotal',
+                'total',
+                'payment_method',
+            ],
         ]);
 
     $this->assertDatabaseHas('sales', [

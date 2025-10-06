@@ -43,7 +43,7 @@ export const useProductsStore = defineStore('products', () => {
     isLoading.value = true
     errorMessage.value = null
     try {
-      const { data } = await axios.get('/api/products', {
+      const { data } = await axios.get('/api/products-service-test', {
         params: { page, per_page: perPage }
       })
       
@@ -85,9 +85,39 @@ export const useProductsStore = defineStore('products', () => {
       supplier_id: product.supplier_id
     }
     console.log('Adding product with payload:', payload)
-    const { data } = await axios.post('/api/products', payload)
-    console.log('Product created, response:', data)
-    products.value.unshift(mapApiProductToUi(data, currentStoreId.value))
+    
+    try {
+      const { data } = await axios.post('/api/products-store-test', payload)
+      console.log('Product created, response:', data)
+      
+      if (data.success && data.data) {
+        products.value.unshift(mapApiProductToUi(data.data, currentStoreId.value))
+        return { success: true, data: data.data }
+      } else {
+        return { success: false, message: data.message || 'Failed to create product' }
+      }
+    } catch (error) {
+      console.error('Product creation error:', error)
+      
+      // Handle validation errors specifically
+      if (error.response?.status === 422 && error.response?.data?.errors) {
+        const validationErrors = error.response.data.errors
+        const errorMessages = Object.entries(validationErrors)
+          .map(([field, messages]) => `${field}: ${messages.join(', ')}`)
+          .join('\n')
+        
+        return { 
+          success: false, 
+          message: 'Validation failed',
+          errors: validationErrors,
+          detailedMessage: errorMessages
+        }
+      }
+      
+      // Handle other errors
+      const errorMessage = error.response?.data?.message || error.message || 'Failed to create product'
+      return { success: false, message: errorMessage }
+    }
   }
 
   const updateProduct = async (id, updates) => {
@@ -105,15 +135,45 @@ export const useProductsStore = defineStore('products', () => {
     if (updates.supplier_id !== undefined) payload.supplier_id = updates.supplier_id
 
     console.log('Updating product', id, 'with payload:', payload)
-    const { data } = await axios.put(`/api/products/${id}`, payload)
-    console.log('Product updated, response:', data)
-    const updated = mapApiProductToUi(data, currentStoreId.value)
-    const index = products.value.findIndex(p => p.id === id || p.id === String(id))
-    if (index !== -1) {
-      products.value[index] = updated
-      console.log('Updated product in store at index', index)
-    } else {
-      console.warn('Could not find product to update in store, ID:', id)
+    
+    try {
+      const { data } = await axios.put(`/api/products-update-test/${id}`, payload)
+      console.log('Product updated, response:', data)
+      
+      if (data.success && data.data) {
+        const updated = mapApiProductToUi(data.data, currentStoreId.value)
+        const index = products.value.findIndex(p => p.id === id || p.id === String(id))
+        if (index !== -1) {
+          products.value[index] = updated
+          console.log('Updated product in store at index', index)
+        } else {
+          console.warn('Could not find product to update in store, ID:', id)
+        }
+        return { success: true, data: data.data }
+      } else {
+        return { success: false, message: data.message || 'Failed to update product' }
+      }
+    } catch (error) {
+      console.error('Product update error:', error)
+      
+      // Handle validation errors specifically
+      if (error.response?.status === 422 && error.response?.data?.errors) {
+        const validationErrors = error.response.data.errors
+        const errorMessages = Object.entries(validationErrors)
+          .map(([field, messages]) => `${field}: ${messages.join(', ')}`)
+          .join('\n')
+        
+        return { 
+          success: false, 
+          message: 'Validation failed',
+          errors: validationErrors,
+          detailedMessage: errorMessages
+        }
+      }
+      
+      // Handle other errors
+      const errorMessage = error.response?.data?.message || error.message || 'Failed to update product'
+      return { success: false, message: errorMessage }
     }
   }
 

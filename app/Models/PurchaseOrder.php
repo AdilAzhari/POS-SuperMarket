@@ -201,6 +201,6 @@ final class PurchaseOrder extends Model
         $lastPo = self::query()->latest('id')->first();
         $nextId = $lastPo ? $lastPo->id + 1 : 1;
 
-        return 'PO-'.date('Y').'-'.mb_str_pad($nextId, 6, '0', STR_PAD_LEFT);
+        return 'PO-'.date('Y').'-'.mb_str_pad((string) $nextId, 6, '0', STR_PAD_LEFT);
     }
 }

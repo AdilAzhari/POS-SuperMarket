@@ -17,31 +17,12 @@ use App\Services\SaleService;
 use App\Services\StockService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 
-use function Pest\Laravel\mock;
-
 uses(RefreshDatabase::class);
 
 beforeEach(function (): void {
-    $this->stockService = mock(StockService::class);
-    $this->loyaltyService = mock(LoyaltyService::class);
-    $this->receiptService = mock(ReceiptService::class);
-
-    // Set up default mock expectations
-    $this->loyaltyService->shouldReceive('processSaleLoyalty')
-        ->andReturnUsing(function ($sale) {
-            // Simulate updating customer stats like the real LoyaltyService would
-            if ($sale->customer) {
-                $sale->customer->increment('total_purchases');
-                $sale->customer->increment('total_spent', $sale->total);
-                $sale->customer->update(['last_purchase_at' => now()]);
-            }
-
-            return ['points_earned' => 10, 'tier_upgraded' => false];
-        });
-
-    $this->receiptService->shouldReceive('saveReceipt')
-        ->andReturn(true);
-
+    $this->stockService = new StockService;
+    $this->loyaltyService = app(LoyaltyService::class);
+    $this->receiptService = app(ReceiptService::class);
     $this->saleService = new SaleService($this->stockService, $this->loyaltyService, $this->receiptService);
 
     $this->store = Store::factory()->create();
@@ -71,14 +52,11 @@ it('can get sale by id', function (): void {
 });
 
 it('can create a sale successfully', function (): void {
-    $this->stockService->shouldReceive('getStockForStore')
-        ->once()
-        ->with($this->product->id, $this->store->id)
-        ->andReturn(10);
-
-    $this->stockService->shouldReceive('decrementStock')
-        ->once()
-        ->with($this->product->id, $this->store->id, 2);
+    // Set up stock in database
+    $this->product->stores()->attach($this->store->id, [
+        'stock' => 10,
+        'low_stock_threshold' => 5,
+    ]);
 
     $saleData = new CreateSaleDTO(
         store_id: $this->store->id,
@@ -122,10 +100,11 @@ it('can create a sale successfully', function (): void {
 });
 
 it('throws exception when insufficient stock', function (): void {
-    $this->stockService->shouldReceive('getStockForStore')
-        ->once()
-        ->with($this->product->id, $this->store->id)
-        ->andReturn(1);
+    // Set up insufficient stock in database
+    $this->product->stores()->attach($this->store->id, [
+        'stock' => 1,
+        'low_stock_threshold' => 5,
+    ]);
 
     $saleData = new CreateSaleDTO(
         store_id: $this->store->id,
@@ -150,12 +129,11 @@ it('throws exception when insufficient stock', function (): void {
 });
 
 it('updates customer statistics after sale', function (): void {
-    $this->stockService->shouldReceive('getStockForStore')
-        ->once()
-        ->andReturn(10);
-
-    $this->stockService->shouldReceive('decrementStock')
-        ->once();
+    // Set up stock in database
+    $this->product->stores()->attach($this->store->id, [
+        'stock' => 10,
+        'low_stock_threshold' => 5,
+    ]);
 
     $initialPurchases = $this->customer->total_purchases;
     $initialSpent = $this->customer->total_spent;
@@ -188,12 +166,11 @@ it('updates customer statistics after sale', function (): void {
 });
 
 it('generates transaction code correctly', function (): void {
-    $this->stockService->shouldReceive('getStockForStore')
-        ->once()
-        ->andReturn(10);
-
-    $this->stockService->shouldReceive('decrementStock')
-        ->once();
+    // Set up stock in database
+    $this->product->stores()->attach($this->store->id, [
+        'stock' => 10,
+        'low_stock_threshold' => 5,
+    ]);
 
     Sale::factory()->count(5)->create(); // Existing sales
 

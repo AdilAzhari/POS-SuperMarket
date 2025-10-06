@@ -18,6 +18,10 @@ export default defineConfig({
             },
         }),
     ],
+    server: {
+        host: 'pos-supermarket.test',
+        port: 5173,
+    },
     resolve: {
         alias: {
             '@': fileURLToPath(new URL('./resources/js', import.meta.url)),

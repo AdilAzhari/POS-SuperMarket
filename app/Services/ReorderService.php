@@ -231,6 +231,56 @@ final class ReorderService extends BaseService
     }
 
     /**
+     * Get reorder statistics for a store
+     */
+    public function getReorderStats(int $storeId): array
+    {
+        return $this->remember("reorder_stats_$storeId", function () use ($storeId): array {
+            $reorderList = $this->getReorderList($storeId);
+            $criticalItems = $this->getCriticalReorderItems($storeId);
+
+            $stats = [
+                'total_items_to_reorder' => $reorderList->count(),
+                'critical_items' => $criticalItems->count(),
+                'total_estimated_cost' => $reorderList->sum('estimated_cost'),
+                'unique_suppliers' => $reorderList->pluck('supplier_id')->unique()->count(),
+                'out_of_stock_items' => $reorderList->where('current_stock', 0)->count(),
+                'low_stock_items' => $reorderList->where('current_stock', '>', 0)->count(),
+            ];
+
+            return $stats;
+        }, 300, ['reorder', 'inventory']);
+    }
+
+    /**
+     * Get critical reorder items for a store
+     */
+    public function getCriticalReorderItems(int $storeId): Collection
+    {
+        return $this->remember("critical_reorder_items_$storeId", function () use ($storeId): Collection {
+            // Get low stock items from the inventory alert service
+            $lowStockItems = $this->inventoryAlertService->getLowStockForStore($storeId);
+
+            // Filter for critical items (out of stock or very low stock)
+            return $lowStockItems->filter(function ($item): bool {
+                return $item['current_stock'] <= 0 ||
+                       ($item['current_stock'] <= ($item['threshold'] * 0.25));
+            });
+        }, 300, ['reorder', 'inventory']);
+    }
+
+    /**
+     * Get reorder suggestions for a store
+     */
+    public function getReorderSuggestions(int $storeId): Collection
+    {
+        return $this->remember("reorder_suggestions_$storeId", function () use ($storeId): Collection {
+            // Get automatic reorder suggestions
+            return $this->getAutomaticReorderSuggestions($storeId);
+        }, 300, ['reorder', 'inventory']);
+    }
+
+    /**
      * Get pending order quantity for a product
      */
     private function getPendingOrderQuantity(int $productId, int $storeId): int
