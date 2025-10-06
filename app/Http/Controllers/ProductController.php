@@ -92,7 +92,7 @@ final class ProductController extends Controller
             $barcode = (string) $request->string('barcode', '');
 
             // If barcode is provided, search by barcode specifically
-            if ($barcode) {
+            if ($barcode !== '' && $barcode !== '0') {
                 $product = $this->productService->findByBarcode($barcode);
                 if ($product instanceof \App\Models\Product) {
                     return $this->responseFormatter->resource($product, 'Product found by barcode');
