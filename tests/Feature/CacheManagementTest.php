@@ -132,9 +132,8 @@ it('validates tags parameter for cache clearing', function () {
         app(App\Services\ProductService::class)
     );
 
-    $response = $controller->clearByTags($request);
-
-    expect($response->getStatusCode())->toBe(422); // Validation error
+    expect(fn () => $controller->clearByTags($request))
+        ->toThrow(Illuminate\Validation\ValidationException::class);
 });
 
 it('can access cache stats endpoint with authentication', function () {
@@ -172,12 +171,14 @@ it('tests product service caching', function () {
     // Second call should hit cache
     $products2 = $productService->getPaginatedProducts();
 
-    expect($products1)->toEqual($products2);
+    // Compare the items, not the paginator instances
+    expect($products1->items())->toEqual($products2->items())
+        ->and($products1->total())->toBe($products2->total());
 
     // Clear cache and verify it's working
     $productService->clearServiceCache();
 
     // Should work after cache clear
     $products3 = $productService->getPaginatedProducts();
-    expect($products3)->toBeArray();
+    expect($products3)->toBeInstanceOf(Illuminate\Pagination\LengthAwarePaginator::class);
 });
