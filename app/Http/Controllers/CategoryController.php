@@ -7,6 +7,7 @@ namespace App\Http\Controllers;
 use App\Actions\Common\FormatApiResponseAction;
 use App\Actions\Common\HandleControllerErrorsAction;
 use App\Actions\Common\HandleValidatedRequestAction;
+use App\Actions\Models\GenerateCategorySlugAction;
 use App\Http\Requests\StoreCategoryRequest;
 use App\Models\Category;
 use Exception;
@@ -41,7 +42,7 @@ final class CategoryController extends Controller
     /**
      * Store a newly created resource in storage.
      */
-    public function store(StoreCategoryRequest $request): JsonResponse
+    public function store(StoreCategoryRequest $request, GenerateCategorySlugAction $generateCategorySlugAction): JsonResponse
     {
         try {
             $validated = $this->validationHandler->execute($request);

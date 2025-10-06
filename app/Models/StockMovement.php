@@ -4,19 +4,17 @@ declare(strict_types=1);
 
 namespace App\Models;
 
+use App\Actions\Models\GenerateStockMovementCodeAction;
 use App\Enums\StockMovementReason;
 use App\Enums\StockMovementType;
-use App\Observers\StockMovementObserver;
 use Carbon\CarbonImmutable;
 use Database\Factories\StockMovementFactory;
 use Eloquent;
-use Illuminate\Database\Eloquent\Attributes\ObservedBy;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
-#[ObservedBy([StockMovementObserver::class])]
 /**
  * @property int $id
  * @property string $code
@@ -108,5 +106,14 @@ final class StockMovement extends Model
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
+    }
+
+    protected static function booted(): void
+    {
+        self::creating(function (StockMovement $stockMovement): void {
+            if (empty($stockMovement->code)) {
+                $stockMovement->code = app(GenerateStockMovementCodeAction::class)->execute();
+            }
+        });
     }
 }

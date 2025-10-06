@@ -150,8 +150,6 @@ final class PaymentController extends Controller
                 PaymentMethod::DIGITAL => 2.5,
                 PaymentMethod::BANK_TRANSFER => 1.0,
                 PaymentMethod::TOUCHNGO => 1.5,
-                PaymentMethod::GRAB_PAY => 2.0,
-                PaymentMethod::MOBILE_PAYMENT => 2.2,
             };
 
             $feeFixed = match ($method) {
@@ -165,8 +163,6 @@ final class PaymentController extends Controller
                 PaymentMethod::DIGITAL => '🔗',
                 PaymentMethod::BANK_TRANSFER => '🏦',
                 PaymentMethod::TOUCHNGO => '📱',
-                PaymentMethod::GRAB_PAY => '🚗',
-                PaymentMethod::MOBILE_PAYMENT => '📱',
             };
 
             return [
