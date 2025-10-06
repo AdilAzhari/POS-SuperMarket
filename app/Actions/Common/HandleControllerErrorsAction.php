@@ -23,7 +23,7 @@ final class HandleControllerErrorsAction
             'message' => $e->getMessage(),
             'file' => $e->getFile(),
             'line' => $e->getLine(),
-            'user_id' => auth()->id(),
+            'user_id' => auth()->check() ? auth()->id() : null,
         ]);
 
         // Handle specific exception types

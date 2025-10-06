@@ -188,7 +188,7 @@ CREATE TABLE `payments` (
   `sale_id` bigint unsigned NOT NULL,
   `store_id` bigint unsigned NOT NULL,
   `user_id` bigint unsigned NOT NULL,
-  `payment_method` enum('cash','card','digital','bank_transfer','tng','grab_pay','mobile_payment') COLLATE utf8mb4_unicode_ci NOT NULL,
+  `payment_method` enum('cash','card','digital','bank_transfer','tng') COLLATE utf8mb4_unicode_ci NOT NULL,
   `status` enum('pending','processing','completed','failed','refunded') COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'pending',
   `amount` decimal(10,2) NOT NULL,
   `fee` decimal(10,2) NOT NULL DEFAULT '0.00',

@@ -11,8 +11,6 @@ enum PaymentMethod: string
     case DIGITAL = 'digital';
     case BANK_TRANSFER = 'bank_transfer';
     case TOUCHNGO = 'tng';
-    case GRAB_PAY = 'grab_pay';
-    case MOBILE_PAYMENT = 'mobile_payment';
 
     public static function options(): array
     {
@@ -33,8 +31,6 @@ enum PaymentMethod: string
             self::DIGITAL => 'Digital Payment',
             self::BANK_TRANSFER => 'Bank Transfer',
             self::TOUCHNGO => 'Touch \'n Go',
-            self::GRAB_PAY => 'GrabPay',
-            self::MOBILE_PAYMENT => 'Mobile Payment',
         };
     }
 
@@ -46,8 +42,6 @@ enum PaymentMethod: string
             self::DIGITAL => 'purple',
             self::BANK_TRANSFER => 'orange',
             self::TOUCHNGO => 'red',
-            self::GRAB_PAY => 'emerald',
-            self::MOBILE_PAYMENT => 'indigo',
         };
     }
 

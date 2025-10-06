@@ -101,7 +101,7 @@ final class ReorderController extends Controller
     {
         try {
             $storeId = $request->get('store_id', 1);
-            $days = $request->get('days', 30);
+            $days = (int) $request->get('days', 30);
 
             $history = $this->reorderService->getReorderHistory($storeId, $days);
 
@@ -215,5 +215,79 @@ final class ReorderController extends Controller
                 'error' => config('app.debug') ? $e->getMessage() : 'An error occurred while processing your request.',
             ], 500);
         }
+    }
+
+    /**
+     * Get reorder statistics
+     */
+    public function stats(Request $request): JsonResponse
+    {
+        try {
+            $storeId = $request->get('store_id', 1);
+            $stats = $this->reorderService->getReorderStats($storeId);
+
+            return response()->json([
+                'success' => true,
+                'data' => $stats,
+            ]);
+        } catch (Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to fetch reorder stats',
+                'error' => config('app.debug') ? $e->getMessage() : 'An error occurred while processing your request.',
+            ], 500);
+        }
+    }
+
+    /**
+     * Get critical reorder items
+     */
+    public function critical(Request $request): JsonResponse
+    {
+        try {
+            $storeId = $request->get('store_id', 1);
+            $critical = $this->reorderService->getCriticalReorderItems($storeId);
+
+            return response()->json([
+                'success' => true,
+                'data' => $critical,
+            ]);
+        } catch (Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to fetch critical items',
+                'error' => config('app.debug') ? $e->getMessage() : 'An error occurred while processing your request.',
+            ], 500);
+        }
+    }
+
+    /**
+     * Get reorder suggestions
+     */
+    public function suggestions(Request $request): JsonResponse
+    {
+        try {
+            $storeId = $request->get('store_id', 1);
+            $suggestions = $this->reorderService->getReorderSuggestions($storeId);
+
+            return response()->json([
+                'success' => true,
+                'data' => $suggestions,
+            ]);
+        } catch (Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to fetch suggestions',
+                'error' => config('app.debug') ? $e->getMessage() : 'An error occurred while processing your request.',
+            ], 500);
+        }
+    }
+
+    /**
+     * Get supplier analysis (alias for supplier comparison)
+     */
+    public function supplierAnalysis(Request $request): JsonResponse
+    {
+        return $this->supplierComparison($request);
     }
 }

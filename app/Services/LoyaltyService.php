@@ -34,7 +34,7 @@ final class LoyaltyService extends BaseService
             $customer->update(['last_purchase_at' => now()]);
 
             // Earn points
-            $pointsEarned = $customer->earnLoyaltyPoints($sale->total, $sale->id);
+            $pointsEarned = $customer->earnLoyaltyPoints((float) $sale->total, $sale->id);
 
             // Check for tier upgrade
             $originalTier = $customer->loyalty_tier;

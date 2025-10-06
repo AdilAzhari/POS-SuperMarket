@@ -106,7 +106,7 @@ final class PurchaseOrderController extends Controller
         try {
             $purchaseOrder = $this->createPurchaseOrderAction->execute(
                 $request->validated(),
-                Auth::id()
+                Auth::check() ? Auth::id() : 1 // Default to user ID 1 if not authenticated
             );
 
             return response()->json([
