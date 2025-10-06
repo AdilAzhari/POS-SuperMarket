@@ -23,7 +23,7 @@ final readonly class BulkStockAdjustmentAction
      */
     public function execute(array $movements, int $userId): Collection
     {
-        return DB::transaction(function () use ($movements, $userId) {
+        return DB::transaction(function () use ($movements, $userId): Collection {
             $processedMovements = collect();
 
             foreach ($movements as $movementData) {

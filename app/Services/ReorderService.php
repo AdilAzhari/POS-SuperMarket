@@ -239,7 +239,7 @@ final class ReorderService extends BaseService
             $reorderList = $this->getReorderList($storeId);
             $criticalItems = $this->getCriticalReorderItems($storeId);
 
-            $stats = [
+            return [
                 'total_items_to_reorder' => $reorderList->count(),
                 'critical_items' => $criticalItems->count(),
                 'total_estimated_cost' => $reorderList->sum('estimated_cost'),
@@ -247,8 +247,6 @@ final class ReorderService extends BaseService
                 'out_of_stock_items' => $reorderList->where('current_stock', 0)->count(),
                 'low_stock_items' => $reorderList->where('current_stock', '>', 0)->count(),
             ];
-
-            return $stats;
         }, 300, ['reorder', 'inventory']);
     }
 
@@ -262,10 +260,8 @@ final class ReorderService extends BaseService
             $lowStockItems = $this->inventoryAlertService->getLowStockForStore($storeId);
 
             // Filter for critical items (out of stock or very low stock)
-            return $lowStockItems->filter(function ($item): bool {
-                return $item['current_stock'] <= 0 ||
-                       ($item['current_stock'] <= ($item['threshold'] * 0.25));
-            });
+            return $lowStockItems->filter(fn (array $item): bool => $item['current_stock'] <= 0 ||
+                   ($item['current_stock'] <= ($item['threshold'] * 0.25)));
         }, 300, ['reorder', 'inventory']);
     }
 
@@ -274,10 +270,9 @@ final class ReorderService extends BaseService
      */
     public function getReorderSuggestions(int $storeId): Collection
     {
-        return $this->remember("reorder_suggestions_$storeId", function () use ($storeId): Collection {
+        return $this->remember("reorder_suggestions_$storeId", fn (): Collection =>
             // Get automatic reorder suggestions
-            return $this->getAutomaticReorderSuggestions($storeId);
-        }, 300, ['reorder', 'inventory']);
+            $this->getAutomaticReorderSuggestions($storeId), 300, ['reorder', 'inventory']);
     }
 
     /**
