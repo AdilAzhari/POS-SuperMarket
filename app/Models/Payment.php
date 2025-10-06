@@ -4,19 +4,17 @@ declare(strict_types=1);
 
 namespace App\Models;
 
+use App\Actions\Models\GeneratePaymentCodeAction;
 use App\Enums\PaymentMethod;
 use App\Enums\PaymentStatus;
-use App\Observers\PaymentObserver;
 use Carbon\CarbonImmutable;
 use Database\Factories\PaymentFactory;
 use Eloquent;
-use Illuminate\Database\Eloquent\Attributes\ObservedBy;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
-#[ObservedBy([PaymentObserver::class])]
 /**
  * @property int $id
  * @property string $payment_code
@@ -168,5 +166,17 @@ final class Payment extends Model
     public function isPending(): bool
     {
         return $this->status === PaymentStatus::PENDING;
+    }
+
+    protected static function booted(): void
+    {
+        self::creating(function (Payment $payment): void {
+            if (empty($payment->payment_code)) {
+                $payment->payment_code = app(GeneratePaymentCodeAction::class)->execute();
+            }
+
+            // Calculate net amount after fees
+            $payment->net_amount = $payment->amount - $payment->fee;
+        });
     }
 }

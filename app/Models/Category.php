@@ -4,18 +4,16 @@ declare(strict_types=1);
 
 namespace App\Models;
 
-use App\Observers\CategoryObserver;
+use App\Actions\Models\GenerateCategorySlugAction;
 use Carbon\CarbonImmutable;
 use Database\Factories\CategoryFactory;
 use Eloquent;
-use Illuminate\Database\Eloquent\Attributes\ObservedBy;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
-#[ObservedBy([CategoryObserver::class])]
 /**
  * @property int $id
  * @property string $name
@@ -50,5 +48,20 @@ final class Category extends Model
     public function products(): HasMany
     {
         return $this->hasMany(Product::class);
+    }
+
+    protected static function booted(): void
+    {
+        self::creating(function (Category $category): void {
+            if (empty($category->slug)) {
+                $category->slug = app(GenerateCategorySlugAction::class)->execute($category->name);
+            }
+        });
+
+        self::updating(function (Category $category): void {
+            if ($category->isDirty('name') && ! $category->isDirty('slug')) {
+                $category->slug = app(GenerateCategorySlugAction::class)->execute($category->name, $category->id);
+            }
+        });
     }
 }
