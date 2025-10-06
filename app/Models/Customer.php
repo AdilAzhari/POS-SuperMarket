@@ -159,7 +159,7 @@ final class Customer extends Model
             default => 1.0
         };
 
-        $pointsEarned = floor($basePoints * $multiplier);
+        $pointsEarned = (int) floor($basePoints * $multiplier);
 
         // Record the transaction
         $this->loyaltyTransactions()->create([

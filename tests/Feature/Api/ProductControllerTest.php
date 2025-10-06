@@ -39,9 +39,15 @@ it('can list products', function (): void {
                     'supplier',
                 ],
             ],
-            'current_page',
-            'per_page',
-            'total',
+            'pagination' => [
+                'current_page',
+                'per_page',
+                'total',
+                'last_page',
+                'from',
+                'to',
+                'has_more',
+            ],
         ]);
 });
 
@@ -52,9 +58,11 @@ it('can show a specific product', function (): void {
 
     $response->assertOk()
         ->assertJson([
-            'id' => $product->id,
-            'name' => $product->name,
-            'sku' => $product->sku,
+            'data' => [
+                'id' => $product->id,
+                'name' => $product->name,
+                'sku' => $product->sku,
+            ],
         ]);
 });
 
@@ -76,9 +84,12 @@ it('can create a product', function (): void {
 
     $response->assertCreated()
         ->assertJson([
-            'name' => 'Test Product',
-            'sku' => 'TEST-001',
-            'price' => 19.99,
+            'message' => 'Product created successfully',
+            'data' => [
+                'name' => 'Test Product',
+                'sku' => 'TEST-001',
+                'price' => 19.99,
+            ],
         ]);
 
     $this->assertDatabaseHas('products', [
@@ -109,8 +120,11 @@ it('can update a product', function (): void {
 
     $response->assertOk()
         ->assertJson([
-            'name' => 'Updated Name',
-            'price' => 25.00,
+            'message' => 'Product updated successfully',
+            'data' => [
+                'name' => 'Updated Name',
+                'price' => 25.00,
+            ],
         ]);
 
     $this->assertDatabaseHas('products', [
@@ -140,7 +154,7 @@ it('can search products', function (): void {
     $response = $this->getJson('/api/products/search?q=Apple');
 
     $response->assertOk()
-        ->assertJsonCount(2);
+        ->assertJsonCount(2, 'data');
 });
 
 it('returns 404 for non-existent product', function (): void {

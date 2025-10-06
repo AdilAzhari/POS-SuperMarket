@@ -285,10 +285,10 @@ final class InventoryAlertService extends BaseService
     {
         $salesVelocity = $this->calculateSalesVelocity($product->id, $store->id);
         $leadTimeDays = 7; // Default 1 week lead time
-        $safetyStock = max(10, $salesVelocity * 3); // 3 days safety stock
+        $safetyStock = max(10, (int) ($salesVelocity * 3)); // 3 days safety stock
 
         // Calculate quantity needed for lead time + safety stock
-        $suggestedQty = ($salesVelocity * $leadTimeDays) + $safetyStock;
+        $suggestedQty = (int) (($salesVelocity * $leadTimeDays) + $safetyStock);
 
         // Ensure minimum order quantity
         $minOrderQty = $product->stores()->where('stores.id', $store->id)->first()?->pivot->low_stock_threshold ?? 10;

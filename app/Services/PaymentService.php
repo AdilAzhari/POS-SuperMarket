@@ -12,7 +12,9 @@ use Exception;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use InvalidArgumentException;
+use Random\RandomException;
 use Stripe\StripeClient;
+use Throwable;
 
 final class PaymentService
 {
@@ -31,6 +33,7 @@ final class PaymentService
 
     /**
      * Process payment for a sale
+     * @throws Throwable
      */
     public function processPayment(Sale $sale, array $paymentData): Payment
     {
@@ -220,7 +223,7 @@ final class PaymentService
     {
         $rate = match ($paymentMethod) {
             PaymentMethod::CARD => 0.029,      // 2.9%
-            PaymentMethod::DIGITAL => 0.025,   // 2.5%
+            // 2.5%
             PaymentMethod::BANK_TRANSFER => 0.010, // 1.0%
             default => 0.025,
         };
@@ -242,7 +245,7 @@ final class PaymentService
     private function detectCardBrand(string $cardNumber): string
     {
         $cleanNumber = preg_replace('/\D/', '', $cardNumber);
-        if (preg_match('/^4/', (string) $cleanNumber)) {
+        if (str_starts_with((string)$cleanNumber, '4')) {
             return 'visa';
         }
         if (preg_match('/^5[1-5]|^2[2-7]/', (string) $cleanNumber)) {
@@ -258,7 +261,7 @@ final class PaymentService
             return 'diners';
         }
 
-        if (preg_match('/^35/', (string) $cleanNumber)) {
+        if (str_starts_with((string)$cleanNumber, '35')) {
             return 'jcb';
         }
 
@@ -267,6 +270,7 @@ final class PaymentService
 
     /**
      * Simulate card payment (replace with real bank integration)
+     * @throws RandomException
      */
     private function simulateCardPayment(array $data): bool
     {
@@ -290,6 +294,7 @@ final class PaymentService
 
     /**
      * Simulate TNG payment (replace with real TNG integration)
+     * @throws RandomException
      */
     private function simulateTngPayment(): array
     {

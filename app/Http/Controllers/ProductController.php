@@ -39,6 +39,7 @@ final class ProductController extends Controller
     public function store(StoreProductRequest $request): JsonResponse
     {
         try {
+            \Illuminate\Log\log()->info('here', $request->all());
             $validated = $this->validationHandler->execute($request);
             $product = $this->productService->createProduct($validated);
 

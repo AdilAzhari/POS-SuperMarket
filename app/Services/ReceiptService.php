@@ -180,8 +180,8 @@ final class ReceiptService extends BaseService
         foreach ($sale->items as $item) {
             $receipt .= $this->formatReceiptLine(
                 $item->product_name,
-                "{$item->quantity} x ".number_format($item->price, 2),
-                number_format($item->line_total, 2),
+                "{$item->quantity} x ".number_format((float) $item->price, 2),
+                number_format((float) $item->line_total, 2),
                 $width
             );
         }
@@ -189,15 +189,15 @@ final class ReceiptService extends BaseService
         $receipt .= str_repeat('-', $width)."\n";
 
         // Totals
-        $receipt .= $this->formatReceiptLine('Subtotal:', '', number_format($sale->subtotal, 2), $width);
+        $receipt .= $this->formatReceiptLine('Subtotal:', '', number_format((float) $sale->subtotal, 2), $width);
         if ($sale->discount > 0) {
-            $receipt .= $this->formatReceiptLine('Discount:', '', '-'.number_format($sale->discount, 2), $width);
+            $receipt .= $this->formatReceiptLine('Discount:', '', '-'.number_format((float) $sale->discount, 2), $width);
         }
         if ($sale->tax > 0) {
-            $receipt .= $this->formatReceiptLine('Tax:', '', number_format($sale->tax, 2), $width);
+            $receipt .= $this->formatReceiptLine('Tax:', '', number_format((float) $sale->tax, 2), $width);
         }
         $receipt .= str_repeat('=', $width)."\n";
-        $receipt .= $this->formatReceiptLine('TOTAL:', '', number_format($sale->total, 2), $width, true);
+        $receipt .= $this->formatReceiptLine('TOTAL:', '', number_format((float) $sale->total, 2), $width, true);
         $receipt .= str_repeat('=', $width)."\n";
 
         // Payment info
@@ -264,7 +264,7 @@ final class ReceiptService extends BaseService
     {
         $padding = ($width - mb_strlen($text)) / 2;
 
-        return str_repeat(' ', max(0, floor($padding))).$text;
+        return str_repeat(' ', (int) max(0, floor($padding))).$text;
     }
 
     /**
