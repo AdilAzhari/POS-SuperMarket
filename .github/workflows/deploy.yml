@@ -45,16 +45,3 @@ jobs:
       with:
         name: app-build
         path: ${{ github.sha }}.tar.gz
-
-    # Add your deployment steps here (SSH, FTP, etc.)
-    # Example for server deployment:
-    # - name: Deploy to server
-    #   uses: appleboy/ssh-action@v1.0.0
-    #   with:
-    #     host: ${{ secrets.HOST }}
-    #     username: ${{ secrets.USERNAME }}
-    #     key: ${{ secrets.KEY }}
-    #     port: ${{ secrets.PORT }}
-    #     script: |
-    #       cd /var/www/html
-    #       # Add your deployment commands here
