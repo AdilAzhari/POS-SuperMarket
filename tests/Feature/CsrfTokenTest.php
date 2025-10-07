@@ -2,6 +2,8 @@
 
 declare(strict_types=1);
 
+uses();
+
 test('csrf token is generated on web pages', function (): void {
     $response = $this->get('/login');
 

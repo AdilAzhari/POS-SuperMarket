@@ -139,7 +139,10 @@ it('can delete a product', function (): void {
 
     $response = $this->deleteJson("/api/products/{$product->id}");
 
-    $response->assertNoContent();
+    $response->assertOk()
+        ->assertJson([
+            'message' => 'Product deleted successfully',
+        ]);
 
     $this->assertDatabaseMissing('products', [
         'id' => $product->id,

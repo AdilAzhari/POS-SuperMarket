@@ -24,7 +24,7 @@ final class CreatePurchaseOrderFromReorderAction
             foreach ($itemsBySupplier as $supplierId => $supplierItems) {
                 $purchaseOrder = $this->createPurchaseOrderForSupplier(
                     $supplierItems->toArray(),
-                    $supplierId,
+                    (int) $supplierId,
                     $storeId,
                     $userId,
                     $notes
@@ -73,13 +73,18 @@ final class CreatePurchaseOrderFromReorderAction
 
         // Create purchase order items
         foreach ($items as $item) {
+            $notes = $item['notes'] ?? null;
+            if (! $notes && isset($item['priority'])) {
+                $notes = "Reorder - Priority: {$item['priority']}";
+            }
+
             PurchaseOrderItem::create([
                 'purchase_order_id' => $purchaseOrder->id,
                 'product_id' => $item['product_id'],
                 'quantity_ordered' => $item['quantity'],
                 'unit_cost' => $item['unit_cost'],
                 'total_cost' => $item['quantity'] * $item['unit_cost'],
-                'notes' => $item['notes'] ?? "Reorder - Priority: {$item['priority']}",
+                'notes' => $notes,
             ]);
         }
 
@@ -98,18 +103,21 @@ final class CreatePurchaseOrderFromReorderAction
     private function generateOrderSummary(array $purchaseOrders): array
     {
         $totalOrders = count($purchaseOrders);
-        $totalAmount = array_sum(array_column($purchaseOrders, 'total_amount'));
+        $totalAmount = 0;
         $totalItems = 0;
+        $supplierIds = [];
 
         foreach ($purchaseOrders as $po) {
+            $totalAmount += (float) $po->total_amount;
             $totalItems += $po->items->count();
+            $supplierIds[] = $po->supplier_id;
         }
 
         return [
             'total_purchase_orders' => $totalOrders,
             'total_amount' => $totalAmount,
             'total_items' => $totalItems,
-            'suppliers_involved' => array_unique(array_column($purchaseOrders, 'supplier_id')),
+            'suppliers_involved' => array_unique($supplierIds),
             'estimated_delivery_window' => [
                 'earliest' => now()->addDays(3)->format('Y-m-d'),
                 'latest' => now()->addDays(14)->format('Y-m-d'),

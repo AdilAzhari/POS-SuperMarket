@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Actions\Common;
 
 use Exception;
+use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\ValidationException;
@@ -30,6 +31,7 @@ final class HandleControllerErrorsAction
         return match (true) {
             $e instanceof ValidationException => $this->handleValidationError($e),
             $e instanceof HttpException => $this->handleHttpError($e),
+            $e instanceof ModelNotFoundException => $this->handleNotFoundError(),
             default => $this->handleGenericError($context),
         };
     }
@@ -77,6 +79,17 @@ final class HandleControllerErrorsAction
             'error' => $this->getErrorTitle($e->getStatusCode()),
             'message' => in_array($e->getMessage(), ['', '0'], true) ? $this->getDefaultMessage($e->getStatusCode()) : $e->getMessage(),
         ], $e->getStatusCode());
+    }
+
+    /**
+     * Handle model not found errors
+     */
+    private function handleNotFoundError(): JsonResponse
+    {
+        return response()->json([
+            'error' => 'Not Found',
+            'message' => 'The requested resource was not found.',
+        ], 404);
     }
 
     /**

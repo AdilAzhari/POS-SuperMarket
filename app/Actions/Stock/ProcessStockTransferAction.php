@@ -27,7 +27,7 @@ final readonly class ProcessStockTransferAction
         $items = $transferData['items'];
         $notes = $transferData['notes'] ?? 'Stock transfer';
 
-        return DB::transaction(function () use ($fromStoreId, $toStoreId, $items, $notes, $userId) {
+        return DB::transaction(function () use ($fromStoreId, $toStoreId, $items, $notes, $userId): Collection {
             $movements = collect();
 
             foreach ($items as $item) {

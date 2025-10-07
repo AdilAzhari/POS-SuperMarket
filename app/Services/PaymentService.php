@@ -33,6 +33,7 @@ final class PaymentService
 
     /**
      * Process payment for a sale
+     *
      * @throws Throwable
      */
     public function processPayment(Sale $sale, array $paymentData): Payment
@@ -245,7 +246,7 @@ final class PaymentService
     private function detectCardBrand(string $cardNumber): string
     {
         $cleanNumber = preg_replace('/\D/', '', $cardNumber);
-        if (str_starts_with((string)$cleanNumber, '4')) {
+        if (str_starts_with((string) $cleanNumber, '4')) {
             return 'visa';
         }
         if (preg_match('/^5[1-5]|^2[2-7]/', (string) $cleanNumber)) {
@@ -261,7 +262,7 @@ final class PaymentService
             return 'diners';
         }
 
-        if (str_starts_with((string)$cleanNumber, '35')) {
+        if (str_starts_with((string) $cleanNumber, '35')) {
             return 'jcb';
         }
 
@@ -270,6 +271,7 @@ final class PaymentService
 
     /**
      * Simulate card payment (replace with real bank integration)
+     *
      * @throws RandomException
      */
     private function simulateCardPayment(array $data): bool
@@ -294,6 +296,7 @@ final class PaymentService
 
     /**
      * Simulate TNG payment (replace with real TNG integration)
+     *
      * @throws RandomException
      */
     private function simulateTngPayment(): array

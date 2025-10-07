@@ -25,8 +25,8 @@ final class ReorderController extends Controller
     public function index(Request $request): JsonResponse
     {
         try {
-            $storeId = $request->get('store_id', 1);
-            $groupBy = $request->get('group_by', 'product');
+            $storeId = (int) $request->get('store_id', 1);
+            $groupBy = (string) $request->get('group_by', 'product');
 
             $data = $this->generateReorderListAction->execute($storeId, $groupBy);
 
@@ -52,7 +52,7 @@ final class ReorderController extends Controller
     public function automatic(Request $request): JsonResponse
     {
         try {
-            $storeId = $request->get('store_id', 1);
+            $storeId = (int) $request->get('store_id', 1);
             $suggestions = $this->reorderService->getAutomaticReorderSuggestions($storeId);
 
             return response()->json([
@@ -78,7 +78,7 @@ final class ReorderController extends Controller
     public function supplierComparison(Request $request): JsonResponse
     {
         try {
-            $storeId = $request->get('store_id', 1);
+            $storeId = (int) $request->get('store_id', 1);
             $comparison = $this->reorderService->getSupplierComparison($storeId);
 
             return response()->json([
@@ -100,7 +100,7 @@ final class ReorderController extends Controller
     public function history(Request $request): JsonResponse
     {
         try {
-            $storeId = $request->get('store_id', 1);
+            $storeId = (int) $request->get('store_id', 1);
             $days = (int) $request->get('days', 30);
 
             $history = $this->reorderService->getReorderHistory($storeId, $days);
@@ -143,8 +143,8 @@ final class ReorderController extends Controller
         try {
             $result = $this->createPurchaseOrderAction->execute(
                 $request->items,
-                $request->store_id,
-                auth()->id(),
+                (int) $request->store_id,
+                (int) auth()->id(),
                 $request->notes
             );
 

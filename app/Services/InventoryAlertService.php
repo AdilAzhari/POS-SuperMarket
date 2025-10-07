@@ -88,7 +88,7 @@ final class InventoryAlertService extends BaseService
      */
     public function getCriticalLowStock(): Collection
     {
-        return $this->remember('critical_low_stock', function () {
+        return $this->remember('critical_low_stock', function (): Collection {
             $stores = Store::all();
             $critical = collect();
 
