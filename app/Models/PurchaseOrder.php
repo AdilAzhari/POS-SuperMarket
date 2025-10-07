@@ -69,6 +69,8 @@ final class PurchaseOrder extends Model
         'store_id',
         'created_by',
         'status',
+        'subtotal',
+        'tax_amount',
         'total_amount',
         'notes',
         'ordered_at',

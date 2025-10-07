@@ -143,8 +143,8 @@ final class ReorderController extends Controller
         try {
             $result = $this->createPurchaseOrderAction->execute(
                 $request->items,
-                $request->store_id,
-                auth()->id(),
+                (int) $request->store_id,
+                (int) auth()->id(),
                 $request->notes
             );
 
