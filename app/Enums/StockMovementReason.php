@@ -20,6 +20,7 @@ enum StockMovementReason: string
     case WASTE = 'waste';
 
     case TRANSFER_OUT = 'transfer_out';
+    case TRANSFER_IN = 'transfer_in';
 
     public static function options(): array
     {
@@ -61,6 +62,7 @@ enum StockMovementReason: string
             self::SAMPLE => 'Free Sample',
             self::WASTE => 'Waste/Disposal',
             self::TRANSFER_OUT => 'Transfer Out',
+            self::TRANSFER_IN => 'Transfer In',
         };
     }
 
@@ -72,7 +74,7 @@ enum StockMovementReason: string
             self::RETURN => 'yellow',
             self::DAMAGED, self::THEFT => 'red',
             self::EXPIRED => 'orange',
-            self::TRANSFER, self::TRANSFER_OUT => 'purple',
+            self::TRANSFER, self::TRANSFER_OUT, self::TRANSFER_IN => 'purple',
             self::RECOUNT => 'indigo',
             self::LOST => 'gray',
             self::PROMOTIONAL => 'pink',
@@ -84,7 +86,7 @@ enum StockMovementReason: string
     public function category(): string
     {
         return match ($this) {
-            self::PURCHASE, self::RETURN => 'inbound',
+            self::PURCHASE, self::RETURN, self::TRANSFER_IN => 'inbound',
             self::SALE, self::TRANSFER, self::TRANSFER_OUT => 'outbound',
             self::DAMAGED, self::EXPIRED, self::THEFT, self::LOST, self::WASTE => 'loss',
             self::RECOUNT => 'adjustment',
