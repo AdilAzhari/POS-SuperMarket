@@ -103,11 +103,11 @@ export const usePOSStore = defineStore('pos', () => {
     
     try {
       const response = await axios.post('/api/sales', payload)
-      
+
       if (!response.data) {
         throw new Error('Invalid response from server')
       }
-      
+
       // Don't clear cart here - let the payment processing handle it
       return response.data
     } catch (error) {

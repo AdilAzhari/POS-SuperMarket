@@ -97,6 +97,7 @@ final class EmployeeController extends Controller
     public function update(StoreEmployeeRequest $request, User $employee): JsonResponse
     {
         try {
+            //            $this->logInfo('update employee');
             $updatedEmployee = $this->employeeService->updateEmployee($employee, $request->validated());
 
             return response()->json([

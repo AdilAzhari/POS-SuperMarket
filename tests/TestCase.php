@@ -2,6 +2,7 @@
 
 namespace Tests;
 
+use App\Http\Middleware\VerifyCsrfToken;
 use Illuminate\Foundation\Testing\TestCase as BaseTestCase;
 
 abstract class TestCase extends BaseTestCase
@@ -14,7 +15,7 @@ abstract class TestCase extends BaseTestCase
 
         // Disable CSRF middleware for all tests
         $this->withoutMiddleware([
-            \App\Http\Middleware\VerifyCsrfToken::class,
+            VerifyCsrfToken::class,
         ]);
     }
 }

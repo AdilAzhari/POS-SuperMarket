@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 return [
     App\Providers\AppServiceProvider::class,
-    Maatwebsite\Excel\ExcelServiceProvider::class,
+    App\Providers\TelescopeServiceProvider::class,
     Barryvdh\DomPDF\ServiceProvider::class,
+    Maatwebsite\Excel\ExcelServiceProvider::class,
 ];

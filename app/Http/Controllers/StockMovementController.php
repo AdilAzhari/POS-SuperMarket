@@ -476,6 +476,9 @@ final class StockMovementController extends Controller
         $product = Product::findOrFail($data['product_id']);
         $store = Store::findOrFail($data['store_id']);
 
+        Log::info('[StockAdjustment] stock movement Adjument', [
+            'product_id' => $data['product_id'],
+        ]);
         // Ensure pivot record exists
         $pivot = $product->stores()->where('stores.id', $store->id)->first();
         if (! $pivot) {

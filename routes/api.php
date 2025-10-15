@@ -9,6 +9,7 @@ use App\Http\Controllers\LoyaltyController;
 use App\Http\Controllers\ManagerDashboardController;
 use App\Http\Controllers\PaymentController;
 use App\Http\Controllers\ProductController;
+use App\Http\Controllers\ProductReturnController;
 use App\Http\Controllers\PurchaseOrderController;
 use App\Http\Controllers\ReorderController;
 use App\Http\Controllers\SaleController;
@@ -75,6 +76,10 @@ Route::apiResource('customers', CustomerController::class)
 
 // Sales
 Route::apiResource('sales', SaleController::class)
+    ->middleware('auth');
+
+// Product Returns
+Route::apiResource('returns', ProductReturnController::class)
     ->middleware('auth');
 
 // Receipts

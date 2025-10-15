@@ -13,6 +13,8 @@ export const useCategoriesStore = defineStore('categories', () => {
   const mapApiCategoryToUi = (c) => ({
     id: c.id,
     name: c.name,
+    slug: c.slug,
+    created_at: c.created_at,
     productsCount: Number(
       c.products_count ?? c.productsCount ?? (Array.isArray(c.products) ? c.products.length : 0)
     ),
@@ -41,7 +43,8 @@ export const useCategoriesStore = defineStore('categories', () => {
 
   const fetchCategoryDetails = async (id) => {
     const { data } = await axios.get(`/api/categories/${id}`)
-    const details = mapApiCategoryToUi(data)
+    const categoryData = data.data || data
+    const details = mapApiCategoryToUi(categoryData)
     selectedCategory.value = details
     // also merge productsCount into list row
     const idx = categories.value.findIndex(c => String(c.id) === String(id))
@@ -88,12 +91,15 @@ export const useCategoriesStore = defineStore('categories', () => {
 
   const deleteCategory = async (id) => {
     try {
-      await axios.delete(`/api/categories/${id}`)
+      const response = await axios.delete(`/api/categories/${id}`)
       const index = categories.value.findIndex(c => String(c.id) === String(id))
-      if (index !== -1) categories.value.splice(index, 1)
-      return { success: true }
+      if (index !== -1) {
+        categories.value.splice(index, 1)
+      }
+      return { success: true, data: response.data }
     } catch (err) {
-      const errorMessage = err?.response?.data?.message || 'Failed to delete category'
+      console.error('Delete category API error:', err.response || err)
+      const errorMessage = err?.response?.data?.message || err?.message || 'Failed to delete category'
       throw new Error(errorMessage)
     }
   }

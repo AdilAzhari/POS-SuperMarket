@@ -25,15 +25,15 @@
         <form class="space-y-3" @submit.prevent="submit">
           <div>
             <label class="text-xs text-gray-500 dark:text-gray-400">Product *</label>
-            <select 
-              v-model="selectedProductId" 
-              required 
+            <select
+              v-model="selectedProductId"
+              required
               class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
             >
               <option value="">Select product</option>
-              <option 
-                v-for="product in productsStore.products" 
-                :key="product.id" 
+              <option
+                v-for="product in filteredProducts"
+                :key="product.id"
                 :value="product.id"
               >
                 {{ product.name }} (SKU: {{ product.sku }}) - Stock: {{ getProductStock(product.id) }}
@@ -287,12 +287,12 @@
                 <td class="px-4 py-2">{{ a.product?.name }}</td>
                 <td class="px-4 py-2">{{ a.product?.sku }}</td>
                 <td class="px-4 py-2">
-                  <span :class="typePill(a.type)">{{ typeText(a.type) }}</span>
+                  <span :class="typePill(getEnumValue(a.type))">{{ typeText(getEnumValue(a.type)) }}</span>
                 </td>
                 <td class="px-4 py-2 text-right">
                   {{ a.quantity }}
                 </td>
-                <td class="px-4 py-2">{{ a.reason }}</td>
+                <td class="px-4 py-2">{{ getReasonLabel(a.reason) }}</td>
                 <td class="px-4 py-2 truncate max-w-[200px]">
                   {{ a.notes }}
                 </td>
@@ -528,6 +528,19 @@ const loading = reactive({
   clearCache: false
 })
 
+// Computed property for filtered products based on selected store
+const filteredProducts = computed(() => {
+  if (!appStore.selectedStore) {
+    return productsStore.products
+  }
+
+  // Filter products that have stock data for the selected store
+  return productsStore.products.filter(product => {
+    // Since products are already mapped with the current store's stock, just return them
+    return true
+  })
+})
+
 // Computed properties for search, filter, sort, and pagination
 const uniqueReasons = computed(() => {
   const reasons = new Set()
@@ -592,6 +605,25 @@ watch(searchQuery, (newValue) => {
 watch([() => filters.type, () => filters.reason, () => sortBy.value, () => sortDirection.value], () => {
   currentPage.value = 1
   fetchStockMovementsWithPagination()
+})
+
+// Watch for store changes and refresh all data
+watch(() => appStore.selectedStore, async (newStoreId, oldStoreId) => {
+  if (newStoreId !== oldStoreId && newStoreId) {
+    // Update products store's current store ID
+    productsStore.setStoreId(newStoreId)
+
+    // Reset pagination and filters
+    currentPage.value = 1
+    selectedProductId.value = ''
+
+    // Refresh all data for the new store
+    await Promise.all([
+      productsStore.fetchProducts(),
+      inventory.fetchInventoryData(newStoreId),
+      fetchStockMovementsWithPagination()
+    ])
+  }
 })
 
 // Page navigation function
@@ -667,7 +699,7 @@ const fetchStockMovementsWithPagination = async () => {
       max_quantity: filters.maxQuantity,
       date_from: filters.dateFrom,
       date_to: filters.dateTo,
-      store_id: filters.storeId,
+      store_id: filters.storeId || appStore.selectedStore,
       product_id: filters.productId,
       sort_by: sortBy.value,
       sort_order: sortDirection.value
@@ -682,7 +714,7 @@ const fetchStockMovementsWithPagination = async () => {
 
     const response = await axios.get('/api/stock-movements', { params })
     movementsData.value = response.data
-    
+
     // Update stats from response
     if (response.data.stats) {
       stats.value = response.data.stats
@@ -701,7 +733,7 @@ const refreshData = async () => {
   try {
     await Promise.all([
       fetchStockMovementsWithPagination(),
-      inventory.fetchInventoryData(),
+      inventory.fetchInventoryData(appStore.selectedStore),
       fetchStatistics()
     ])
   } catch (error) {
@@ -773,7 +805,7 @@ const getFilteredReasons = () => {
   if (!reasonsByCategory.value || Object.keys(reasonsByCategory.value).length === 0) {
     return { all: adjustmentReasons.value }
   }
-  
+
   // Filter reasons based on movement type
   switch (type.value) {
     case 'addition':
@@ -788,9 +820,12 @@ const getFilteredReasons = () => {
         marketing: reasonsByCategory.value.marketing || []
       }
     case 'transfer_out':
+      return {
+        transfer: reasonsByCategory.value.outbound || []
+      }
     case 'transfer_in':
       return {
-        transfer: reasonsByCategory.value.outbound?.filter(r => r.value === 'transfer') || []
+        transfer: reasonsByCategory.value.inbound || []
       }
     case 'adjustment':
       return {
@@ -870,7 +905,10 @@ const submit = async () => {
     // Optimistic local update for overview
     const item = inventory.inventoryItems.find(i => i.id === selectedProductId.value || i.id === parseInt(selectedProductId.value))
     if (item) {
-      if (type.value === 'addition' || type.value === 'transfer_in') {
+      if (type.value === 'adjustment') {
+        // For adjustment, set to absolute value
+        item.currentStock = quantity.value
+      } else if (type.value === 'addition' || type.value === 'transfer_in') {
         item.currentStock += quantity.value
       } else {
         item.currentStock = Math.max(0, item.currentStock - quantity.value)
@@ -916,11 +954,11 @@ const clearInventoryCache = async () => {
   loading.clearCache = true
   try {
     const response = await axios.post('/api/cache/clear-inventory')
-    
+
     if (response.data.success) {
       notify('Inventory cache cleared successfully', 'success')
       // Refresh inventory data after clearing cache
-      await inventory.fetchInventoryData()
+      await inventory.fetchInventoryData(appStore.selectedStore)
     } else {
       notify(response.data.message || 'Failed to clear cache', 'error')
     }
@@ -929,6 +967,39 @@ const clearInventoryCache = async () => {
   } finally {
     loading.clearCache = false
   }
+}
+
+// Helper to extract enum value (handles both string and object formats)
+const getEnumValue = (enumValue) => {
+  if (!enumValue) {
+    return ''
+  }
+  // If it's already a string, return it
+  if (typeof enumValue === 'string') {
+    return enumValue
+  }
+  // If it's an object with a value property, return the value
+  if (typeof enumValue === 'object' && enumValue.value) {
+    return enumValue.value
+  }
+  return String(enumValue)
+}
+
+// Helper to get reason label from enum
+const getReasonLabel = (reason) => {
+  const value = getEnumValue(reason)
+  if (!value) {
+    return ''
+  }
+
+  // If reason is an object with a label, use it
+  if (typeof reason === 'object' && reason.label) {
+    return reason.label
+  }
+
+  // Otherwise, find from adjustmentReasons
+  const reasonOption = adjustmentReasons.value.find(r => r.value === value)
+  return reasonOption ? reasonOption.label : value
 }
 
 const typeText = (t) => {
@@ -941,6 +1012,10 @@ const typeText = (t) => {
       return 'Transfer In'
     case 'transfer_out':
       return 'Transfer Out'
+    case 'adjustment':
+      return 'Adjustment'
+    default:
+      return t
   }
 }
 
@@ -953,8 +1028,15 @@ const typePill = (t) => {
 }
 
 // Initialize data after all functions are declared
-productsStore.fetchProducts().catch(() => {})
-inventory.fetchInventoryData().catch(() => {})
-appStore.fetchStores().catch(() => {})
-fetchStockMovementsWithPagination().catch(() => {})
+appStore.fetchStores().then(() => {
+  // Set the current store ID in products store
+  if (appStore.selectedStore) {
+    productsStore.setStoreId(appStore.selectedStore)
+  }
+
+  // Fetch all data with the selected store
+  productsStore.fetchProducts().catch(() => {})
+  inventory.fetchInventoryData(appStore.selectedStore).catch(() => {})
+  fetchStockMovementsWithPagination().catch(() => {})
+}).catch(() => {})
 </script>

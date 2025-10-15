@@ -29,7 +29,7 @@ final class CategoryController extends Controller
     {
         try {
             $validated = $this->validationHandler->validatePagination($request);
-            $perPage = $validated['per_page'] ?? 20;
+            $perPage = $validated['per_page'] ?? 9999;
 
             $categories = Category::query()->withCount('products')->paginate($perPage);
 

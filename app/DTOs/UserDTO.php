@@ -27,8 +27,9 @@ final class UserDTO extends BaseDTO
         $data = $this->toArray();
         if ($this->password !== null && $this->password !== '' && $this->password !== '0') {
             $data['password'] = bcrypt($this->password);
+        } else {
+            unset($data['password']);
         }
-        unset($data['password']);
 
         return array_filter($data, fn ($value): bool => $value !== null);
     }

@@ -27,6 +27,13 @@ final class CustomerController extends Controller
     public function index(Request $request): JsonResponse
     {
         try {
+            // Check if 'all' parameter is present to fetch all customers
+            if ($request->has('all') && $request->boolean('all')) {
+                $customers = Customer::query()->orderByDesc('created_at')->get();
+
+                return $this->responseFormatter->collection($customers);
+            }
+
             $validated = $this->validationHandler->validatePagination($request);
             $perPage = $validated['per_page'] ?? 20;
 

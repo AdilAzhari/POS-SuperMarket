@@ -421,12 +421,6 @@ const realtimeStats = ref({
   alerts_count: {},
 })
 
-const stores = ref([
-  { id: 1, name: 'Downtown Branch' },
-  { id: 2, name: 'Mall Location' },
-  { id: 3, name: 'Suburban Store' },
-])
-
 // Computed
 const totalAlerts = computed(() => {
   const alerts = dashboardData.value.alerts_count || {}
