@@ -546,14 +546,27 @@ const submit = async () => {
 }
 
 const remove = async id => {
+  console.log('Remove called with ID:', id)
   const confirmed = await modal.showConfirm('Are you sure you want to delete this category? This action cannot be undone.')
-  if (!confirmed) return
-  
+  console.log('User confirmed:', confirmed)
+
+  if (!confirmed) {
+    console.log('User cancelled deletion')
+    return
+  }
+
   try {
+    console.log('Attempting to delete category ID:', id)
     await store.deleteCategory(id)
+    console.log('Delete successful')
     await modal.showSuccess('Category deleted successfully')
+    // Reset to first page if current page is now empty
+    if (paginatedCategories.value.length === 0 && currentPage.value > 1) {
+      currentPage.value = currentPage.value - 1
+    }
   } catch (e) {
-    const errorMessage = e?.message || 'Failed to delete category'
+    console.error('Delete category error:', e)
+    const errorMessage = e?.message || e?.response?.data?.message || 'Failed to delete category'
     await modal.showError(errorMessage)
   }
 }

@@ -3,7 +3,10 @@
 declare(strict_types=1);
 
 use App\Models\Category;
+use App\Models\Product;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 
+uses(RefreshDatabase::class);
 beforeEach(function (): void {});
 
 it('returns correct array structure with toArray', function (): void {
@@ -55,4 +58,32 @@ it('auto-generates slug when not provided', function (): void {
     expect($category->slug)
         ->not->toBeNull()
         ->toBe('test-category');
+});
+
+it('relations', function () {
+    $category = Category::factory()->create();
+    $product = Product::factory()->create([
+        'category_id' => $category->id,
+    ]);
+
+    expect($category->products()->get()->toArray())->toBeArray()
+        ->and($product->category)->toBeInstanceOf(Category::class);
+
+});
+
+it('update category', function () {
+    $category_1 = Category::factory()->create();
+    $category_2 = Category::factory()->create();
+    $product = Product::factory()->create([
+        'category_id' => $category_1->id,
+    ]);
+
+    expect($product->category)->toBeInstanceOf(Category::class)
+        ->and($category_2)->toBeInstanceOf(Category::class);
+
+    $product->update(['category_id' => $category_2->id]);
+
+    expect($product->category)->toBeInstanceOf(Category::class)
+        ->and($category_1)->toBeInstanceOf(Category::class);
+
 });

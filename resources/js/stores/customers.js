@@ -27,7 +27,7 @@ export const useCustomersStore = defineStore('customers', () => {
     isLoading.value = true
     errorMessage.value = null
     try {
-      const { data } = await axios.get('/api/customers')
+      const { data } = await axios.get('/api/customers', { params: { all: true } })
       const list = Array.isArray(data?.data) ? data.data : data
       customers.value = list.map(mapApiCustomerToUi)
     } catch (err) {
@@ -71,13 +71,14 @@ export const useCustomersStore = defineStore('customers', () => {
   }
 
   const searchCustomers = (query) => {
-    if (!query) return customers.value
-    const lowercaseQuery = query.toLowerCase()
+    if (!query || query.trim() === '') return customers.value
+    const lowercaseQuery = query.toLowerCase().trim()
     return customers.value.filter(
       customer =>
-        customer.name.toLowerCase().includes(lowercaseQuery) ||
-        customer.phone.includes(query) ||
-        customer.email.toLowerCase().includes(lowercaseQuery)
+        (customer.name || '').toLowerCase().includes(lowercaseQuery) ||
+        (customer.phone || '').includes(lowercaseQuery) ||
+        (customer.email || '').toLowerCase().includes(lowercaseQuery) ||
+        (customer.address || '').toLowerCase().includes(lowercaseQuery)
     )
   }
 

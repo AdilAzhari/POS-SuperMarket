@@ -10,11 +10,14 @@ use App\Models\StockMovement;
 use App\Models\Store;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Throwable;
 
 final class ProcessStockMovementAction
 {
     /**
      * Process single stock movement with stock adjustment
+     *
+     * @throws Throwable
      */
     public function execute(array $data): StockMovement
     {
@@ -57,8 +60,15 @@ final class ProcessStockMovementAction
 
         $currentStock = (int) $product->stores()->where('stores.id', $store->id)->first()->pivot->stock;
         $movementType = StockMovementType::from($data['type']);
-        $delta = $movementType->isPositive() ? $data['quantity'] : -$data['quantity'];
-        $newStock = max(0, $currentStock + $delta);
+
+        // Handle adjustment type specially - it sets absolute stock level
+        if ($data['type'] === 'adjustment') {
+            $newStock = max(0, (int) $data['quantity']);
+            $delta = $newStock;
+        } else {
+            $delta = $movementType->isPositive() ? $data['quantity'] : -$data['quantity'];
+            $newStock = max(0, $currentStock + $delta);
+        }
 
         $product->stores()->updateExistingPivot($store->id, ['stock' => $newStock]);
 

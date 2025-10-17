@@ -405,6 +405,139 @@
         </div>
       </div>
     </div>
+
+    <!-- Employee Details Modal -->
+    <div v-if="showDetailsModal && selectedEmployee" class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
+      <div class="relative top-10 mx-auto p-5 border w-full max-w-4xl shadow-lg rounded-md bg-white max-h-[90vh] overflow-y-auto">
+        <div class="flex justify-between items-start mb-4">
+          <h3 class="text-xl font-bold text-gray-900">Employee Details</h3>
+          <button
+            @click="showDetailsModal = false"
+            class="text-gray-400 hover:text-gray-600"
+          >
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+
+        <!-- Employee Profile Header -->
+        <div class="bg-gradient-to-r from-blue-500 to-blue-600 rounded-lg p-6 mb-6">
+          <div class="flex items-center space-x-4">
+            <div class="h-20 w-20 rounded-full bg-white flex items-center justify-center">
+              <span class="text-blue-600 font-bold text-2xl">
+                {{ getInitials(selectedEmployee.name) }}
+              </span>
+            </div>
+            <div class="text-white">
+              <h2 class="text-2xl font-bold">{{ selectedEmployee.name }}</h2>
+              <p class="text-blue-100">{{ selectedEmployee.role_label }}</p>
+              <p class="text-sm text-blue-100 mt-1">{{ selectedEmployee.employee_id || 'No ID' }}</p>
+            </div>
+            <div class="ml-auto">
+              <span
+                :class="selectedEmployee.is_active ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'"
+                class="px-3 py-1 text-sm font-semibold rounded-full"
+              >
+                {{ selectedEmployee.status_label }}
+              </span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Employee Information Grid -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+          <!-- Contact Information -->
+          <div class="bg-white border border-gray-200 rounded-lg p-4">
+            <h4 class="text-sm font-semibold text-gray-500 uppercase mb-3">Contact Information</h4>
+            <div class="space-y-3">
+              <div>
+                <label class="text-xs text-gray-500">Email</label>
+                <p class="text-sm text-gray-900">{{ selectedEmployee.email }}</p>
+              </div>
+              <div>
+                <label class="text-xs text-gray-500">Phone</label>
+                <p class="text-sm text-gray-900">{{ selectedEmployee.phone || 'Not provided' }}</p>
+              </div>
+              <div v-if="selectedEmployee.address">
+                <label class="text-xs text-gray-500">Address</label>
+                <p class="text-sm text-gray-900">{{ selectedEmployee.address }}</p>
+              </div>
+            </div>
+          </div>
+
+          <!-- Employment Details -->
+          <div class="bg-white border border-gray-200 rounded-lg p-4">
+            <h4 class="text-sm font-semibold text-gray-500 uppercase mb-3">Employment Details</h4>
+            <div class="space-y-3">
+              <div>
+                <label class="text-xs text-gray-500">Role</label>
+                <p class="text-sm text-gray-900">{{ selectedEmployee.role_label }}</p>
+              </div>
+              <div>
+                <label class="text-xs text-gray-500">Hire Date</label>
+                <p class="text-sm text-gray-900">
+                  {{ selectedEmployee.hire_date ? formatDate(selectedEmployee.hire_date) : 'Not set' }}
+                </p>
+              </div>
+              <div v-if="selectedEmployee.hourly_rate">
+                <label class="text-xs text-gray-500">Hourly Rate</label>
+                <p class="text-sm text-gray-900">${{ parseFloat(selectedEmployee.hourly_rate).toFixed(2) }}</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Performance Metrics -->
+        <div v-if="employeePerformance" class="bg-white border border-gray-200 rounded-lg p-4 mb-6">
+          <h4 class="text-sm font-semibold text-gray-500 uppercase mb-4">Performance Metrics</h4>
+          <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div class="text-center p-3 bg-blue-50 rounded-lg">
+              <p class="text-2xl font-bold text-blue-600">{{ employeePerformance.total_sales || 0 }}</p>
+              <p class="text-xs text-gray-600">Total Sales</p>
+            </div>
+            <div class="text-center p-3 bg-green-50 rounded-lg">
+              <p class="text-2xl font-bold text-green-600">${{ parseFloat(employeePerformance.total_revenue || 0).toFixed(2) }}</p>
+              <p class="text-xs text-gray-600">Total Revenue</p>
+            </div>
+            <div class="text-center p-3 bg-purple-50 rounded-lg">
+              <p class="text-2xl font-bold text-purple-600">${{ parseFloat(employeePerformance.average_sale || 0).toFixed(2) }}</p>
+              <p class="text-xs text-gray-600">Avg Sale Value</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Permissions -->
+        <div v-if="selectedEmployee.permissions && selectedEmployee.permissions.length > 0" class="bg-white border border-gray-200 rounded-lg p-4 mb-6">
+          <h4 class="text-sm font-semibold text-gray-500 uppercase mb-3">Permissions</h4>
+          <div class="flex flex-wrap gap-2">
+            <span
+              v-for="permission in selectedEmployee.permissions"
+              :key="permission"
+              class="px-3 py-1 bg-indigo-100 text-indigo-800 text-xs font-medium rounded-full"
+            >
+              {{ permission.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase()) }}
+            </span>
+          </div>
+        </div>
+
+        <!-- Action Buttons -->
+        <div class="flex justify-end space-x-3 pt-4 border-t">
+          <button
+            @click="showDetailsModal = false"
+            class="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50"
+          >
+            Close
+          </button>
+          <button
+            @click="editEmployee(selectedEmployee); showDetailsModal = false"
+            class="px-4 py-2 bg-blue-600 border border-transparent rounded-md text-sm font-medium text-white hover:bg-blue-700"
+          >
+            Edit Employee
+          </button>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -424,6 +557,9 @@ const isLoading = ref(false)
 const errors = ref({})
 const searchQuery = ref('')
 const selectedRole = ref('all')
+const showDetailsModal = ref(false)
+const selectedEmployee = ref(null)
+const employeePerformance = ref(null)
 
 // Sorting and pagination
 const sortBy = ref('name')
@@ -438,6 +574,7 @@ const form = ref({
   role: '',
   employee_id: '',
   phone: '',
+  address: '',
   hourly_rate: '',
   hire_date: '',
   is_active: true
@@ -571,10 +708,15 @@ const openCreateForm = () => {
 }
 
 const editEmployee = (employee) => {
-  form.value = { 
+  form.value = {
     ...employee,
+    role: typeof employee.role === 'object' ? employee.role.value : employee.role,
     password: '', // Don't populate password field
-    hire_date: employee.hire_date ? employee.hire_date.split('T')[0] : ''
+    hire_date: employee.hire_date ? employee.hire_date.split('T')[0] : '',
+    hourly_rate: employee.hourly_rate || '',
+    phone: employee.phone || '',
+    employee_id: employee.employee_id || '',
+    address: employee.address || ''
   }
   isEditing.value = true
   showForm.value = true
@@ -595,6 +737,7 @@ const resetForm = () => {
     role: '',
     employee_id: '',
     phone: '',
+    address: '',
     hourly_rate: '',
     hire_date: '',
     is_active: true
@@ -608,14 +751,44 @@ const submitForm = async () => {
   try {
     const endpoint = isEditing.value ? `/api/employees/${form.value.id}` : '/api/employees'
     const method = isEditing.value ? 'put' : 'post'
-    
-    const response = await axios[method](endpoint, form.value)
-    
+
+    // Clean form data - only send valid fields
+    const cleanedData = {
+      name: form.value.name,
+      email: form.value.email,
+      role: form.value.role,
+      is_active: form.value.is_active
+    }
+
+    // Add password only if provided
+    if (form.value.password && form.value.password.trim() !== '') {
+      cleanedData.password = form.value.password
+    }
+
+    // Add optional fields only if they have values
+    if (form.value.employee_id && form.value.employee_id.trim() !== '') {
+      cleanedData.employee_id = form.value.employee_id
+    }
+    if (form.value.phone && form.value.phone.trim() !== '') {
+      cleanedData.phone = form.value.phone
+    }
+    if (form.value.address && form.value.address.trim() !== '') {
+      cleanedData.address = form.value.address
+    }
+    if (form.value.hourly_rate && form.value.hourly_rate !== '') {
+      cleanedData.hourly_rate = form.value.hourly_rate
+    }
+    if (form.value.hire_date && form.value.hire_date !== '') {
+      cleanedData.hire_date = form.value.hire_date
+    }
+
+    const response = await axios[method](endpoint, cleanedData)
+
     notificationStore.success(
       'Success!',
       `Employee ${isEditing.value ? 'updated' : 'created'} successfully`
     )
-    
+
     closeForm()
     await fetchEmployees()
   } catch (error) {
@@ -665,9 +838,18 @@ const resetPassword = async (employee) => {
   }
 }
 
-const viewEmployee = (employee) => {
-  // Implement employee details view
-  notificationStore.info('Coming Soon', 'Employee details view will be implemented')
+const viewEmployee = async (employee) => {
+  try {
+    isLoading.value = true
+    const response = await axios.get(`/api/employees/${employee.id}`)
+    selectedEmployee.value = response.data.data.employee
+    employeePerformance.value = response.data.data.performance
+    showDetailsModal.value = true
+  } catch (error) {
+    notificationStore.error('Error', 'Failed to load employee details')
+  } finally {
+    isLoading.value = false
+  }
 }
 
 const fetchEmployees = async () => {

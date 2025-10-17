@@ -8,9 +8,13 @@ use App\Models\Customer;
 use App\Models\LoyaltyTransaction;
 use App\Models\Sale;
 use Illuminate\Database\Seeder;
+use Random\RandomException;
 
 final class LoyaltyTransactionSeeder extends Seeder
 {
+    /**
+     * @throws RandomException
+     */
     public function run(): void
     {
         $customers = Customer::all();
@@ -43,16 +47,16 @@ final class LoyaltyTransactionSeeder extends Seeder
                     'points' => $points,
                     'description' => $this->getEarnedDescription($points),
                     'expires_at' => now()->addYear(),
-                    'created_at' => fake()->dateTimeBetween('-1 year', 'now'),
+                    'created_at' => fake()->dateTimeBetween('-1 year'),
                 ]);
             }
 
             // Create some redeemed points transactions
             if ($totalEarned > 100) {
-                $redemptionCount = random_int(1, min(3, floor($totalEarned / 100)));
+                $redemptionCount = random_int(1, min(3,(int) floor($totalEarned / 100)));
 
                 for ($i = 0; $i < $redemptionCount; $i++) {
-                    $points = -random_int(50, min(200, $totalEarned - $totalRedeemed));
+                    $points = -random_int(50, min(200, $totalEarned - (int) $totalRedeemed));
                     $totalRedeemed += abs($points);
 
                     LoyaltyTransaction::create([
@@ -60,7 +64,7 @@ final class LoyaltyTransactionSeeder extends Seeder
                         'type' => 'redeemed',
                         'points' => $points,
                         'description' => $this->getRedeemedDescription(),
-                        'created_at' => fake()->dateTimeBetween('-6 months', 'now'),
+                        'created_at' => fake()->dateTimeBetween('-6 months'),
                     ]);
                 }
             }
@@ -75,7 +79,7 @@ final class LoyaltyTransactionSeeder extends Seeder
                     'type' => 'expired',
                     'points' => $expiredPoints,
                     'description' => 'Points expired after 1 year',
-                    'created_at' => fake()->dateTimeBetween('-2 months', 'now'),
+                    'created_at' => fake()->dateTimeBetween('-2 months'),
                 ]);
             }
 
@@ -88,7 +92,7 @@ final class LoyaltyTransactionSeeder extends Seeder
                     'type' => 'adjustment',
                     'points' => $adjustmentPoints,
                     'description' => $this->getAdjustmentDescription($adjustmentPoints > 0),
-                    'created_at' => fake()->dateTimeBetween('-3 months', 'now'),
+                    'created_at' => fake()->dateTimeBetween('-3 months'),
                 ]);
 
                 if ($adjustmentPoints < 0) {
@@ -126,6 +130,9 @@ final class LoyaltyTransactionSeeder extends Seeder
         $this->command->info('Updated loyalty points for '.$customers->count().' customers');
     }
 
+    /**
+     * @throws RandomException
+     */
     private function getEarnedDescription(int $points): string
     {
         $descriptions = [

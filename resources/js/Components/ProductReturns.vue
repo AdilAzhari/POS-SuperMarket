@@ -349,55 +349,42 @@ const processReturn = async () => {
   isProcessing.value = true
 
   try {
-    // Prepare return data
+    // Prepare return data for new API
     const returnData = {
       sale_id: selectedSale.value.id,
       reason: returnReason.value,
       refund_method: refundMethod.value,
       notes: returnNotes.value,
+      processed_by: window?.App?.userId ?? 1,
       items: []
     }
 
-    // Add returned items
+    // Add returned items with sale_item_id
     for (const item of saleItems.value) {
       if (returnItems.value[item.id]) {
         returnData.items.push({
-          product_id: item.product_id,
+          sale_item_id: item.id,
           quantity: returnQuantities.value[item.id] || 1,
-          price: item.price
+          condition_notes: null
         })
       }
     }
 
-    // Process the return by creating stock movements and handling refund
-    for (const returnItem of returnData.items) {
-      // Add stock back to inventory
-      await axios.post('/api/stock-movements', {
-        product_id: returnItem.product_id,
-        store_id: selectedSale.value.store_id || 1,
-        type: 'addition',
-        quantity: returnItem.quantity,
-        reason: 'return',
-        notes: `Customer return for sale #${selectedSale.value.code || selectedSale.value.id}. Reason: ${returnReason.value}`,
-        user_id: window?.App?.userId ?? 1,
-        occurred_at: new Date().toISOString(),
-      })
-    }
-
-    // In a real application, you would also process the refund here
-    // For now, we'll just show a success message
+    // Process the return using the new API endpoint
+    const response = await axios.post('/api/returns', returnData)
 
     await modal.showSuccess(`Return processed successfully! RM ${totalRefundAmount.value.toFixed(2)} refund has been initiated.`)
 
     // Refresh recent returns
     fetchRecentReturns()
-    
+
     // Clear the selection
     clearSelection()
 
   } catch (error) {
     console.error('Failed to process return:', error)
-    await modal.showError('Failed to process return. Please try again.')
+    const errorMessage = error.response?.data?.message || 'Failed to process return. Please try again.'
+    await modal.showError(errorMessage)
   } finally {
     isProcessing.value = false
   }
@@ -415,34 +402,20 @@ const clearSelection = () => {
 
 const fetchRecentReturns = async () => {
   try {
-    // For now, we'll use stock movements with reason 'return' as a proxy for returns
-    const response = await axios.get('/api/stock-movements?reason=return&per_page=20')
-    const movements = Array.isArray(response.data?.data) ? response.data.data : response.data
-    
-    // Group by notes to simulate return records
-    const returnMap = new Map()
-    movements.forEach(movement => {
-      const saleMatch = movement.notes?.match(/sale #(\w+)/)
-      if (saleMatch) {
-        const saleId = saleMatch[1]
-        if (!returnMap.has(saleId)) {
-          returnMap.set(saleId, {
-            id: `RET-${saleId}`,
-            original_sale_id: saleId,
-            customer_name: 'Customer',
-            items_count: 0,
-            refund_amount: 0,
-            reason: movement.notes?.includes('defective') ? 'defective' : 'return',
-            created_at: movement.created_at
-          })
-        }
-        const returnRecord = returnMap.get(saleId)
-        returnRecord.items_count += 1
-        returnRecord.refund_amount += movement.quantity * 10 // Estimate based on quantity
-      }
-    })
-    
-    recentReturns.value = Array.from(returnMap.values()).slice(0, 10)
+    // Use the new returns API endpoint
+    const response = await axios.get('/api/returns?per_page=20')
+    const returns = Array.isArray(response.data?.data) ? response.data.data : response.data
+
+    // Transform the data for display
+    recentReturns.value = returns.map(returnRecord => ({
+      id: returnRecord.code || returnRecord.id,
+      original_sale_id: returnRecord.sale?.code || returnRecord.sale_id,
+      customer_name: returnRecord.customer?.name || 'Walk-in Customer',
+      items_count: returnRecord.items?.length || 0,
+      refund_amount: returnRecord.total_refund || 0,
+      reason: returnRecord.reason,
+      created_at: returnRecord.created_at
+    }))
   } catch (error) {
     console.error('Failed to fetch recent returns:', error)
     recentReturns.value = []

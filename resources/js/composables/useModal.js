@@ -61,13 +61,15 @@ export function useMessageModal() {
   }
   
   const confirm = () => {
+    console.log('Modal confirm called, resolvePromise exists:', !!resolvePromise.value)
     if (resolvePromise.value) {
       resolvePromise.value(true)
     }
     hide()
   }
-  
+
   const cancel = () => {
+    console.log('Modal cancel called, resolvePromise exists:', !!resolvePromise.value)
     if (resolvePromise.value) {
       resolvePromise.value(false)
     }

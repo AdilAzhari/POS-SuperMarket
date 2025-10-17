@@ -126,6 +126,11 @@ final class User extends Authenticatable
         return $this->role === UserRole::SUPERVISOR;
     }
 
+    public function scopeActive($query)
+    {
+        return $query->where('is_active', true);
+    }
+
     public function hasPermission(string $permission): bool
     {
         if ($this->isAdmin()) {

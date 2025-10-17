@@ -523,12 +523,17 @@ const submit = async () => {
 const remove = async id => {
   const confirmed = await modal.showConfirm('Are you sure you want to delete this supplier? This action cannot be undone.')
   if (!confirmed) return
-  
+
   try {
     await store.deleteSupplier(id)
     await modal.showSuccess('Supplier deleted successfully')
+    // Reset to first page if current page is now empty
+    if (paginatedSuppliers.value.length === 0 && currentPage.value > 1) {
+      currentPage.value = currentPage.value - 1
+    }
   } catch (e) {
-    const errorMessage = e?.message || 'Failed to delete supplier'
+    console.error('Delete supplier error:', e)
+    const errorMessage = e?.message || e?.response?.data?.message || 'Failed to delete supplier'
     await modal.showError(errorMessage)
   }
 }

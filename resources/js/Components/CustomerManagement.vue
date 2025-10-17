@@ -343,7 +343,7 @@
 </template>
 
 <script setup>
-import { computed, reactive, ref } from 'vue'
+import { computed, reactive, ref, watch } from 'vue'
 import { useCustomersStore } from '@/stores/customers.js'
 import { useMessageModal } from '@/composables/useModal.js'
 import Modal from '@/Components/Modal.vue'
@@ -569,6 +569,11 @@ const remove = async id => {
     await modal.showError(errorMessage)
   }
 }
+
+// Watch for search and filter changes to reset pagination
+watch([searchQuery, () => filters.status, () => filters.minPurchases, () => filters.maxPurchases], () => {
+  currentPage.value = 1
+})
 
 // initial load
 customersStore.fetchCustomers().catch(() => {})

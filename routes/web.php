@@ -29,52 +29,41 @@ Route::get('/test-dashboard', function () {
     return Inertia::render('Dashboard');
 })->name('test-dashboard');
 
-Route::middleware('auth')
-    ->controller(ProfileController::class)
-    ->as('profile')
-    ->prefix('profile')
-    ->group(function (): void {
-        Route::get('/', 'edit')->name('.edit');
-        Route::patch('/', 'update')->name('.update');
-        Route::delete('/', 'destroy')->name('.destroy');
+// Profile routes
+Route::middleware('auth')->prefix('profile')->name('profile.')->group(function () {
+    Route::get('/', [ProfileController::class, 'edit'])->name('edit');
+    Route::patch('/', [ProfileController::class, 'update'])->name('update');
+    Route::delete('/', [ProfileController::class, 'destroy'])->name('destroy');
+});
 
-        // Categories and Suppliers pages
-        Route::get('/categories', function () {
-            return Inertia::render('Categories');
-        })->name('categories');
+// Web-based API endpoints for frontend components (session authenticated)
+Route::middleware('auth')->prefix('api')->group(function (): void {
+    // Core Resources
+    Route::apiResource('categories', App\Http\Controllers\CategoryController::class);
+    Route::apiResource('suppliers', App\Http\Controllers\SupplierController::class);
+    Route::apiResource('customers', App\Http\Controllers\CustomerController::class);
+    Route::apiResource('products', App\Http\Controllers\ProductController::class);
+    Route::apiResource('sales', App\Http\Controllers\SaleController::class);
+    Route::apiResource('returns', App\Http\Controllers\ProductReturnController::class);
+    Route::apiResource('employees', EmployeeController::class);
+    Route::apiResource('users', App\Http\Controllers\UserController::class);
+    Route::apiResource('stores', App\Http\Controllers\StoreController::class);
+    Route::apiResource('stock-movements', App\Http\Controllers\StockMovementController::class);
 
-        Route::get('/suppliers', function () {
-            return Inertia::render('Suppliers');
-        })->name('suppliers');
+    // Specialized endpoints
+    Route::get('stock-movement-types', [App\Http\Controllers\StockMovementController::class, 'getAdjustmentTypes']);
+    Route::get('stock-movements/statistics', [App\Http\Controllers\StockMovementController::class, 'statistics']);
+    Route::get('products/search', [App\Http\Controllers\ProductController::class, 'search']);
+    Route::get('products/low-stock', [App\Http\Controllers\ProductController::class, 'lowStock']);
+    Route::get('stores/analytics', [App\Http\Controllers\StoreController::class, 'analytics']);
 
-        // Web-based API endpoints for frontend components (session authenticated)
-        Route::prefix('api')->group(function (): void {
-            // Core Resources
-            Route::apiResource('categories', App\Http\Controllers\CategoryController::class);
-            Route::apiResource('suppliers', App\Http\Controllers\SupplierController::class);
-            Route::apiResource('customers', App\Http\Controllers\CustomerController::class);
-            Route::apiResource('products', App\Http\Controllers\ProductController::class);
-            Route::apiResource('sales', App\Http\Controllers\SaleController::class);
-            Route::apiResource('employees', EmployeeController::class);
-            Route::apiResource('users', App\Http\Controllers\UserController::class);
-            Route::apiResource('stores', App\Http\Controllers\StoreController::class);
-            Route::apiResource('stock-movements', App\Http\Controllers\StockMovementController::class);
-
-            // Specialized endpoints
-            Route::get('stock-movement-types', [App\Http\Controllers\StockMovementController::class, 'getAdjustmentTypes']);
-            Route::get('stock-movements/statistics', [App\Http\Controllers\StockMovementController::class, 'statistics']);
-            Route::get('products/search', [App\Http\Controllers\ProductController::class, 'search']);
-            Route::get('products/low-stock', [App\Http\Controllers\ProductController::class, 'lowStock']);
-            Route::get('stores/analytics', [App\Http\Controllers\StoreController::class, 'analytics']);
-
-            // Employee specific routes
-            Route::controller(EmployeeController::class)
-                ->prefix('employees')->group(function (): void {
-                    Route::get('analytics', 'analytics');
-                    Route::get('roles-permissions', 'getRolesAndPermissions');
-                    Route::post('{employee}/reset-password', 'resetPassword');
-                });
+    // Employee specific routes
+    Route::controller(EmployeeController::class)
+        ->prefix('employees')->group(function (): void {
+            Route::get('analytics', 'analytics');
+            Route::get('roles-permissions', 'getRolesAndPermissions');
+            Route::post('{employee}/reset-password', 'resetPassword');
         });
-    });
+});
 
 require __DIR__.'/auth.php';

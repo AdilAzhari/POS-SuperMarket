@@ -15,6 +15,7 @@ export const useSuppliersStore = defineStore('suppliers', () => {
     contactPhone: s.contact_phone ?? s.contactPhone ?? '',
     contactEmail: s.contact_email ?? s.contactEmail ?? '',
     address: s.address ?? '',
+    created_at: s.created_at,
     productsCount: Number(
       s.products_count ?? s.productsCount ?? (Array.isArray(s.products) ? s.products.length : 0)
     ),
@@ -42,7 +43,8 @@ export const useSuppliersStore = defineStore('suppliers', () => {
 
   const fetchSupplierDetails = async (id) => {
     const { data } = await axios.get(`/api/suppliers/${id}`)
-    const details = mapApiSupplierToUi(data)
+    const supplierData = data.data || data
+    const details = mapApiSupplierToUi(supplierData)
     selectedSupplier.value = details
     const idx = suppliers.value.findIndex(s => String(s.id) === String(id))
     if (idx !== -1) {
@@ -103,21 +105,27 @@ export const useSuppliersStore = defineStore('suppliers', () => {
 
   const deleteSupplier = async (id) => {
     try {
-      await axios.delete(`/api/suppliers/${id}`)
+      const response = await axios.delete(`/api/suppliers/${id}`)
       const index = suppliers.value.findIndex(s => String(s.id) === String(id))
-      if (index !== -1) suppliers.value.splice(index, 1)
-      return { success: true }
+      if (index !== -1) {
+        suppliers.value.splice(index, 1)
+      }
+      return { success: true, data: response.data }
     } catch (err) {
-      const errorMessage = err?.response?.data?.message || 'Failed to delete supplier'
+      console.error('Delete supplier API error:', err.response || err)
+      const errorMessage = err?.response?.data?.message || err?.message || 'Failed to delete supplier'
       throw new Error(errorMessage)
     }
   }
 
   const searchSuppliers = (query) => {
-    if (!query) return suppliers.value
-    const q = query.toLowerCase()
+    if (!query || query.trim() === '') return suppliers.value
+    const q = query.toLowerCase().trim()
     return suppliers.value.filter(
-      s => s.name.toLowerCase().includes(q) || (s.address ?? '').toLowerCase().includes(q)
+      s => (s.name || '').toLowerCase().includes(q) ||
+           (s.address || '').toLowerCase().includes(q) ||
+           (s.contactPhone || '').toLowerCase().includes(q) ||
+           (s.contactEmail || '').toLowerCase().includes(q)
     )
   }
 

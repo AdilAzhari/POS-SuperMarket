@@ -28,7 +28,7 @@ final class SupplierController extends Controller
     {
         try {
             $validated = $this->validationHandler->validatePagination($request);
-            $perPage = $validated['per_page'] ?? 20;
+            $perPage = $validated['per_page'] ?? 99999;
 
             $suppliers = Supplier::query()->withCount('products')->paginate($perPage);
 
@@ -41,9 +41,9 @@ final class SupplierController extends Controller
     /**
      * Show the form for creating a new resource.
      */
-    public function create(): void
+    public function create(Supplier $supplier): void
     {
-        //
+        dd($supplier);
     }
 
     /**

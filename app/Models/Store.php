@@ -105,6 +105,11 @@ final class Store extends Model
         return $query->where('is_active', true);
     }
 
+    public function scopeInactive(Builder $query): Builder
+    {
+        return $query->where('is_active', false);
+    }
+
     public function scopeWithContact(Builder $query): Builder
     {
         return $query->where(function ($q): void {
