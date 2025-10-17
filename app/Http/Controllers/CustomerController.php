@@ -96,4 +96,21 @@ final class CustomerController extends Controller
             return $this->errorHandler->execute($e, 'customer deletion');
         }
     }
+
+    /**
+     * Get loyalty transactions for a specific customer.
+     */
+    public function loyaltyTransactions(Customer $customer): JsonResponse
+    {
+        try {
+            $transactions = $customer->loyaltyTransactions()
+                ->orderByDesc('created_at')
+                ->limit(50)
+                ->get();
+
+            return $this->responseFormatter->collection($transactions);
+        } catch (Exception $e) {
+            return $this->errorHandler->execute($e, 'fetching loyalty transactions');
+        }
+    }
 }

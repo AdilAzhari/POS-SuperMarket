@@ -73,6 +73,8 @@ Route::controller(App\Http\Controllers\InventoryAlertController::class)
 // Customers
 Route::apiResource('customers', CustomerController::class)
     ->middleware('auth:sanctum');
+Route::get('customers/{customer}/loyalty-transactions', [CustomerController::class, 'loyaltyTransactions'])
+    ->middleware('auth:sanctum');
 
 // Sales
 Route::apiResource('sales', SaleController::class)
