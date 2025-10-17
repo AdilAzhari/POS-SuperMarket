@@ -45,7 +45,8 @@ final class GenerateAnalyticsReportAction
         [$startDate, $endDate] = $dates;
 
         $baseQuery = DB::table('sales')
-            ->whereBetween('created_at', [$startDate, $endDate]);
+            ->whereBetween('created_at', [$startDate, $endDate])
+            ->where('status', 'completed');
 
         if ($storeId && $user->canAccessStore($storeId)) {
             $baseQuery->where('store_id', $storeId);
@@ -53,11 +54,48 @@ final class GenerateAnalyticsReportAction
             $baseQuery->whereIn('store_id', $user->accessibleStores()->pluck('id'));
         }
 
+        $totalRevenue = $baseQuery->sum('total') ?? 0;
+        $totalSales = $baseQuery->count() ?? 0;
+
+        // Get new customers in this period
+        $newCustomers = DB::table('customers')
+            ->whereBetween('created_at', [$startDate, $endDate])
+            ->count();
+
+        // Get category breakdown
+        $categoryBreakdown = DB::table('sale_items')
+            ->join('sales', 'sale_items.sale_id', '=', 'sales.id')
+            ->join('products', 'sale_items.product_id', '=', 'products.id')
+            ->leftJoin('categories', 'products.category_id', '=', 'categories.id')
+            ->selectRaw('
+                COALESCE(categories.name, "Uncategorized") as name,
+                SUM(sale_items.line_total) as revenue,
+                COUNT(DISTINCT sale_items.id) as sales_count
+            ')
+            ->whereBetween('sales.created_at', [$startDate, $endDate])
+            ->where('sales.status', 'completed')
+            ->when($storeId && $user->canAccessStore($storeId), fn ($q) => $q->where('sales.store_id', $storeId))
+            ->when(! $user->isAdmin() && ! $storeId, fn ($q) => $q->whereIn('sales.store_id', $user->accessibleStores()->pluck('id')))
+            ->groupBy('categories.name')
+            ->orderByDesc('revenue')
+            ->limit(10)
+            ->get()
+            ->map(function ($item) use ($totalRevenue) {
+                return [
+                    'name' => $item->name,
+                    'revenue' => (float) $item->revenue,
+                    'percentage' => $totalRevenue > 0 ? round(($item->revenue / $totalRevenue) * 100, 2) : 0,
+                ];
+            })
+            ->toArray();
+
         return [
-            'total_sales' => $baseQuery->sum('total'),
-            'total_transactions' => $baseQuery->count(),
-            'average_transaction' => $baseQuery->avg('total'),
-            'total_items_sold' => $baseQuery->sum('items_count'),
+            'total_revenue' => (float) $totalRevenue,
+            'total_sales' => (int) $totalSales,
+            'average_sale' => $totalSales > 0 ? round($totalRevenue / $totalSales, 2) : 0,
+            'total_items_sold' => $baseQuery->sum('items_count') ?? 0,
+            'new_customers' => $newCustomers,
+            'category_breakdown' => $categoryBreakdown,
         ];
     }
 
@@ -87,18 +125,21 @@ final class GenerateAnalyticsReportAction
         $query = DB::table('sale_items')
             ->join('products', 'sale_items.product_id', '=', 'products.id')
             ->join('sales', 'sale_items.sale_id', '=', 'sales.id')
+            ->leftJoin('categories', 'products.category_id', '=', 'categories.id')
             ->selectRaw('
                 products.id,
                 products.name,
                 products.sku,
-                SUM(sale_items.quantity) as total_quantity,
-                SUM(sale_items.quantity * sale_items.price) as total_revenue,
+                COALESCE(categories.name, "Uncategorized") as category,
+                SUM(sale_items.quantity) as sold_quantity,
+                SUM(sale_items.line_total) as revenue,
                 COUNT(DISTINCT sales.id) as order_count
             ')
             ->whereBetween('sales.created_at', [$startDate, $endDate])
-            ->groupBy('products.id', 'products.name', 'products.sku')
-            ->orderByDesc('total_revenue')
-            ->limit(10);
+            ->where('sales.status', 'completed')
+            ->groupBy('products.id', 'products.name', 'products.sku', 'categories.name')
+            ->orderByDesc('revenue')
+            ->limit(20);
 
         if ($storeId && $user->canAccessStore($storeId)) {
             $query->where('sales.store_id', $storeId);
@@ -106,7 +147,14 @@ final class GenerateAnalyticsReportAction
             $query->whereIn('sales.store_id', $user->accessibleStores()->pluck('id'));
         }
 
-        return $query->get()->toArray();
+        return $query->get()->map(fn ($item) => [
+            'id' => $item->id,
+            'name' => $item->name,
+            'sku' => $item->sku,
+            'category' => $item->category,
+            'sold_quantity' => (int) $item->sold_quantity,
+            'revenue' => (float) $item->revenue,
+        ])->toArray();
     }
 
     private function getEmployeePerformance(array $dates, ?int $storeId, User $user): array
@@ -190,11 +238,40 @@ final class GenerateAnalyticsReportAction
 
     private function getInventoryAnalysis(array $dates, ?int $storeId, User $user): array
     {
-        // This would require more complex inventory tracking
-        // For now, return basic stock movement data
         [$startDate, $endDate] = $dates;
 
-        $query = DB::table('stock_movements')
+        // Get low stock products
+        $lowStockQuery = DB::table('products')
+            ->leftJoin('store_product', 'products.id', '=', 'store_product.product_id')
+            ->selectRaw('
+                products.id,
+                products.name,
+                products.sku,
+                COALESCE(SUM(store_product.quantity), 0) as stock,
+                products.low_stock_threshold as lowStockThreshold
+            ')
+            ->where('products.active', true)
+            ->groupBy('products.id', 'products.name', 'products.sku', 'products.low_stock_threshold')
+            ->havingRaw('COALESCE(SUM(store_product.quantity), 0) <= products.low_stock_threshold')
+            ->orderBy('stock', 'asc')
+            ->limit(20);
+
+        if ($storeId && $user->canAccessStore($storeId)) {
+            $lowStockQuery->where('store_product.store_id', $storeId);
+        } elseif (! $user->isAdmin()) {
+            $lowStockQuery->whereIn('store_product.store_id', $user->accessibleStores()->pluck('id'));
+        }
+
+        $lowStockProducts = $lowStockQuery->get()->map(fn ($item) => [
+            'id' => $item->id,
+            'name' => $item->name,
+            'sku' => $item->sku,
+            'stock' => (int) $item->stock,
+            'lowStockThreshold' => (int) $item->lowStockThreshold,
+        ])->toArray();
+
+        // Get stock movements for the period
+        $stockMovements = DB::table('stock_movements')
             ->join('products', 'stock_movements.product_id', '=', 'products.id')
             ->selectRaw('
                 stock_movements.type,
@@ -202,14 +279,15 @@ final class GenerateAnalyticsReportAction
                 SUM(ABS(stock_movements.quantity)) as total_quantity
             ')
             ->whereBetween('stock_movements.occurred_at', [$startDate, $endDate])
-            ->groupBy('stock_movements.type');
+            ->when($storeId && $user->canAccessStore($storeId), fn ($q) => $q->where('stock_movements.store_id', $storeId))
+            ->when(! $user->isAdmin() && ! $storeId, fn ($q) => $q->whereIn('stock_movements.store_id', $user->accessibleStores()->pluck('id')))
+            ->groupBy('stock_movements.type')
+            ->get()
+            ->toArray();
 
-        if ($storeId && $user->canAccessStore($storeId)) {
-            $query->where('stock_movements.store_id', $storeId);
-        } elseif (! $user->isAdmin()) {
-            $query->whereIn('stock_movements.store_id', $user->accessibleStores()->pluck('id'));
-        }
-
-        return $query->get()->toArray();
+        return [
+            'low_stock_products' => $lowStockProducts,
+            'stock_movements' => $stockMovements,
+        ];
     }
 }
