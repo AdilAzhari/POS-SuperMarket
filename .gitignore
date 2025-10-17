@@ -27,5 +27,14 @@ Thumbs.db
 # Claude Code configuration
 .claude/
 
+# IDE Helper files
+_ide_helper.php
+_ide_helper_models.php
+.phpstorm.meta.php
+
 # Project documentation (local only)
 IMPROVEMENTS_SUMMARY.md
+CUSTOMIZATION_SUMMARY.md
+PERFORMANCE_OPTIMIZATION.md
+PRODUCT_RETURNS_GUIDE.md
+ROUTE_FIX_SUMMARY.md
